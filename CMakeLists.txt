@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.27)
 project(
   dbgen4
   VERSION 0.1.0
-  DESCRIPTION "database access code genrator"
+  DESCRIPTION "database access code generator"
   LANGUAGES CXX
 )
 
@@ -24,7 +24,7 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
       -pedantic
       -Werror
       -Wnarrowing
-      -pthread
+      # -pthread
       # -fsanitize=address
       # -fno-omit-frame-pointer
       # -fsanitize=undefined
@@ -52,92 +52,24 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
 
   set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 
-  # find_program(
-  #   CLANG_TIDY_EXE
-  #   NAMES "clang-tidy"
-  #   DOC "Path to clang-tidy executable"
-  # )
-  # set(CMAKE_CXX_CLANG_TIDY "clang-tidy")
-
-
-  # Testing only available if this is the main app
-  # include(CTest)
-
-  # # Docs only available if this is the main app
-  # find_package(Doxygen OPTIONAL_COMPONENTS dot mscgen dia)
-  # if(Doxygen_FOUND)
-  #   add_subdirectory(docs)
-  # else()
-  #   message(STATUS "Doxygen not found, not building docs")
-  # endif()
+ 
 endif()
 
 
-# include(FetchContent)
-
-# find_package (gflags REQUIRED)    # sudo dnf install gflags-devel
-# find_package (GLOG REQUIRED)      # sudo dnf install glog-devel
-# find_package (XercesC REQUIRED)   # sudo dnf install xerces-c-devel.x86_64
-# find_package (DB2 REQUIRED)
-
-# option(DOCTEST_NO_INSTALL  "Skip the installation process" ON)
-# # unit testing
-# FetchContent_Declare(DocTest GIT_REPOSITORY "https://github.com/doctest/doctest.git" GIT_TAG "2.4.7")
-# FetchContent_MakeAvailable(DocTest)
-
-# # Adds fmt::fmt
-# FetchContent_Declare(fmt GIT_REPOSITORY "https://github.com/fmtlib/fmt.git" GIT_TAG "8.1.1")
-# FetchContent_MakeAvailable(fmt)
-
-# message (STATUS "fmt: [${fmt_SOURCE_DIR}]")
-
-
-# # static enums
-# FetchContent_Declare(magic_enum GIT_REPOSITORY "https://github.com/Neargye/magic_enum.git" GIT_TAG v0.7.3)
-# FetchContent_MakeAvailable(magic_enum)
+# Add CLI11 include directory
+#include_directories(${CMAKE_SOURCE_DIR}/externals/CLI11/include)
 
 # # The compiled library code is here
 add_subdirectory(src)
 add_subdirectory(examples)
+add_subdirectory(externals)
 
 # Add main program
 add_executable(dbgen4 src/programs/dbgen4.cpp )
+# Target dependencies
+target_link_libraries(dbgen4 PRIVATE parser parameters)
 
-# Testing only available if this is the main app
-# if((CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
-#    AND BUILD_TESTING)
-#   add_subdirectory(tests)
-# endif()
 
-# find_program(CCACHE_PROGRAM ccache)
-# if(CCACHE_PROGRAM)
-#     set(CMAKE_CXX_COMPILER_LAUNCHER "${CCACHE_PROGRAM}")
-# endif()
-#
-# installation
-#
-# include(GNUInstallDirs)
-# include(CMakePackageConfigHelpers)
-
-# write_basic_package_version_file(
-#   ${CMAKE_CURRENT_BINARY_DIR}/dbgen3ConfigVersion.cmake
-#   VERSION ${PROJECT_VERSION}
-#   COMPATIBILITY ExactVersion
-# )
-
-# configure_package_config_file(
-#     cmake/dbgen3Config.cmake.in                      # the template file
-#     ${CMAKE_CURRENT_BINARY_DIR}/dbgen3Config.cmake   # destination
-#     PATH_VARS CMAKE_INSTALL_INCLUDEDIR
-#     INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/dbgen3
-# )
-
-# install(FILES
-#     ${CMAKE_CURRENT_BINARY_DIR}/dbgen3Config.cmake
-#     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/dbgen3
-#     # ${CMAKE_CURRENT_BINARY_DIR}/dbgen3ConfigVersion.cmake
-#     # DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/dbgen3
-# )
 #
 # packaging
 #
