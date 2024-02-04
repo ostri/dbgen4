@@ -1,0 +1,29 @@
+---
+Checks: '*,
+-llvmlibc-restrict-system-libc-headers,
+-llvmlibc-implementation-in-namespace,
+-llvmlibc-callee-namespace,
+-llvm-header-guard,
+-llvm-include-order,
+-modernize-use-trailing-return-type,
+-fuchsia-default-arguments-calls,
+-fuchsia-default-arguments-declarations,
+-fuchsia-overloaded-operator,
+-bugprone-easily-swappable-parameters,
+-readability-braces-around-statements,
+-hicpp-braces-around-statements,
+-google-readability-braces-around-statements,
+-altera-id-dependent-backward-branch,
+-altera-unroll-loops,
+-readability-identifier-length,
+-readability-convert-member-functions-to-static,
+-cppcoreguidelines-init-variables
+'
+WarningsAsErrors: '*'
+HeaderFilterRegex: '*.hpp'
+AnalyzeTemporaryDtors: false
+FormatStyle:     none
+ExtraArgsBefore: [
+  -std=c++23"
+]
+...
