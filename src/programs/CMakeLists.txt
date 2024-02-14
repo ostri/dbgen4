@@ -1,2 +1,10 @@
+add_library(appl STATIC 
+    appl.cpp
+)
 # Public headers
-#target_include_directories(lib1 PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(appl PUBLIC 
+  ${CMAKE_CURRENT_SOURCE_DIR} 
+  ${CMAKE_CURRENT_SOURCE_DIR}/../common
+  ${CMAKE_CURRENT_SOURCE_DIR}/../parameters
+)
+target_link_libraries(appl PUBLIC common parameters)

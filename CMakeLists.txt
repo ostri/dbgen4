@@ -7,6 +7,7 @@ project(
   DESCRIPTION "database access code generator"
   LANGUAGES CXX
 )
+include(FetchContent)
 
 # Only do these if this is the main project, and not if it is included through add_subdirectory
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
@@ -25,9 +26,9 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
       -Werror
       -Wnarrowing
       # -pthread
-      # -fsanitize=address
-      # -fno-omit-frame-pointer
-      # -fsanitize=undefined
+      -fsanitize=address
+      -fno-omit-frame-pointer
+      -fsanitize=undefined
       # -fno-sanitize-recover=all
       # -fsanitize=float-divide-by-zero
       # -fsanitize=float-cast-overflow
@@ -35,9 +36,9 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
       # -fno-sanitize=alignment
       )
       add_link_options(
-        # -fno-omit-frame-pointer
-        # -fsanitize=address
-        # -fsanitize=undefined
+        -fno-omit-frame-pointer
+        -fsanitize=address
+        -fsanitize=undefined
       )
     # elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     #   set(OPTIONS /W4 /WX)
@@ -55,9 +56,13 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
  
 endif()
 
-
-# Add CLI11 include directory
-#include_directories(${CMAKE_SOURCE_DIR}/externals/CLI11/include)
+# Docs only available if this is the main app
+find_package(Doxygen OPTIONAL_COMPONENTS dot mscgen dia)
+if(Doxygen_FOUND)
+  add_subdirectory(docs)
+else()
+  message(STATUS "Doxygen not found, not building docs")
+endif()
 
 # # The compiled library code is here
 add_subdirectory(src)
@@ -65,9 +70,9 @@ add_subdirectory(examples)
 add_subdirectory(externals)
 
 # Add main program
-add_executable(dbgen4 src/programs/dbgen4.cpp )
+add_executable(dbgen4 src/dbgen4.cpp )
 # Target dependencies
-target_link_libraries(dbgen4 PRIVATE parser parameters)
+target_link_libraries(dbgen4 PRIVATE fmt common parameters appl)
 
 
 #
