@@ -1,13 +1,119 @@
 //
-// Created by ostri on 2024/02/04 
+// Created by ostri on 2024/02/04
 //
 
-#include "parameters.h"
-namespace dbgen4 {
-parameters::parameters()                               = default;
-parameters::~parameters()                              = default;
-parameters::parameters(const parameters& o)                    = default;
-parameters::parameters(parameters&& o) noexcept                = default;
-parameters& parameters::operator=(const parameters& /*o*/)     = default;
-parameters& parameters::operator=(parameters&& /*o*/) noexcept = default;
-} // dbgen4
+#include "../common/common.hpp"
+#include "parameters.hpp"
+#include <CLI/Error.hpp>
+#include <magic_enum.hpp>
+#include <fmt/format.h>
+
+#include "CLI/App.hpp"
+#include <CLI/Validators.hpp>
+
+#include "CLI/Formatter.hpp" // IWYU pragma: export
+#include "CLI/Config.hpp"    // IWYU pragma: export
+
+namespace dbgen4
+{
+
+  vec_str_t    parameters::files() const { return files_; }
+  db_type_enum parameters::db_type() const { return db_type_; }
+  str_t        parameters::db_name() const { return db_name_; }
+  str_t        parameters::out_folder() const { return out_folder_; }
+  bool         parameters::is_verbose() const { return verbose_; }
+  /**
+   * @brief Method returns string that describes the object attribute values
+   *
+   * @param offs offset from the left in log file
+   * @return str_t
+   */
+  str_t parameters::dump(int offs) const
+  {
+    str_t s{};
+    str_t r(offs, ' ');
+
+    const auto* db_type = ME::enum_name(db_type_).data();
+    for (auto const& el : files_) { s += fmt::format("{}{}{}\n", r, r, el); }
+    if (! s.empty()) s.pop_back(); // cut last space off
+    auto msg = fmt::format("{}db_name:    {}\n{}db_type:    {}\n{}out folder: "
+                           "{}\n{}verbose:    {}\n{}files:   \n{}",
+                           r,
+                           db_name_,
+                           r,
+                           db_type,
+                           r,
+                           out_folder_,
+                           r,
+                           verbose_,
+                           r,
+                           s);
+    msg.pop_back();
+    return msg;
+  }
+
+  int parameters::load_parameters(int argc, char** argv, char** /*env*/)
+  {
+    CLI::App app{"Generator of db layer for c++ programs."};
+
+    str_t     s{};
+    vec_str_t arr(ME::enum_names<db_type_enum>().begin() + 1,
+                  ME::enum_names<db_type_enum>().end());
+    for (const auto& el : arr) s += str_t(el) + str_t(",");
+    s.resize(s.length() - 1);
+    str_t enum_str = ME::enum_name<db_type_enum>(db_type_enum::none).data();
+    // clang-format off
+    auto help_str = fmt::format("database type : [{}]", s);
+    app.add_option("-t,--db-type", enum_str, help_str      )
+      ->required()
+      ->check([s, this](const std::string& v)
+      {
+        auto res = ME::enum_cast<db_type_enum>(v);
+        db_type_ = res ? res.value() : db_type_enum::none;
+        if (res && (res.value() != db_type_enum::none))
+          db_type_ = res.value();
+        else
+        {
+          auto msg = fmt::format("Database type '{}' is not valid. Valid values are '{}'.", v, s);
+          throw CLI::ConversionError(msg);
+        }
+        //return true;
+        return "";
+      });
+    app.add_option("-n,--db-name", db_name_, "database name")
+      ->required();
+    app.add_option("-o,--out-folder", out_folder_, "output folder for generated files.")
+      ->default_val("./");
+    app.add_flag("-v,--verbose", verbose_, "verbose output")
+      ->default_val(false);
+    app.add_option("files", files_, "gsql files to be processed")
+      ->check(CLI::ExistingFile) // the file provided must exist
+      ->required();              // one or more filenames must be provided
+    // clang-format on
+
+    try
+    {
+      if (argc == 1) throw CLI::CallForHelp();
+      app.parse(argc, argv);
+      l->info("Command line parameters after parsing:\n{}", dump(2));
+    }
+    catch (const CLI::CallForHelp& e)
+    {
+      l->info("Help command.");
+      l->flush();
+      return app.exit(e);
+    }
+    catch (const CLI::ParseError& e)
+    {
+      auto msg = fmt::format("name: '{}' code: {} msg: '{}'",
+                             e.get_name(),
+                             e.get_exit_code(),
+                             e.what());
+      l->error(msg);
+      l->error("Parameters on error \n{}", dump(2));
+      l->flush();
+      return app.exit(e);
+    }
+    return 0;
+  }
+} // namespace dbgen4
