@@ -34,3 +34,4 @@
 build
 .cache
 externals
+.vscode/dbgen4.log
