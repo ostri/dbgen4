@@ -26,19 +26,20 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
       -Werror
       -Wnarrowing
       # -pthread
-      -fsanitize=address
-      -fno-omit-frame-pointer
-      -fsanitize=undefined
-      # -fno-sanitize-recover=all
-      # -fsanitize=float-divide-by-zero
-      # -fsanitize=float-cast-overflow
-      # -fno-sanitize=null
-      # -fno-sanitize=alignment
+      -fsanitize=leak
+      #-fsanitize=address
+      #-fno-omit-frame-pointer
+      #-fsanitize=undefined
+      #-fno-sanitize-recover=all
+      #-fsanitize=float-divide-by-zero
+      #-fsanitize=float-cast-overflow
+      #-fno-sanitize=null
+      #-fno-sanitize=alignment
       )
       add_link_options(
         -fno-omit-frame-pointer
         -fsanitize=address
-        -fsanitize=undefined
+      #  -fsanitize=undefined
       )
     # elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     #   set(OPTIONS /W4 /WX)
