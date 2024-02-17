@@ -35,6 +35,8 @@ namespace dbgen4
     [[nodiscard]] int   load_parameters(int    argc,
                                         char** argv,
                                         char** env); //< load the parameters
+    /// set log level based on verbose flag andtype of build
+    void set_log_level(bool verbose) const;
   protected:
   private:
     str_t        db_name_{};                   //< database name to connect to

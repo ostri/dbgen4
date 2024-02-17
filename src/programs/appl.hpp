@@ -1,7 +1,7 @@
 #ifndef APPL_HPP
 #define APPL_HPP
 
-#include "log_dbgen4.hpp"
+#include "log.hpp"
 #include "parameters.hpp"
 namespace dbgen4
 {

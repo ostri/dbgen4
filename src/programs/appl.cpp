@@ -1,11 +1,12 @@
 #include "appl.hpp"
-#include <spdlog/common.h>
+// #include "spdlog/spdlog.h" // IWYU pragma: export
+// #include <ranges>
 
 namespace dbgen4
 {
   appl::appl()
   {
-    l->info("!!!+++---~~~ Application initialized. ~~~---+++!!!");
+    l->info("!!!+++~~~--- Application initialized. ---~~~+++!!!");
   }
 
   appl::~appl() { l->flush(); };
@@ -13,24 +14,17 @@ namespace dbgen4
   int appl::exec(int argc, char** argv, char** env)
   {
     auto sts = p_.load_parameters(argc, argv, env);
-    if ((sts == 0) && p_.is_verbose())
-    {
-      l->set_level(spdlog::level::debug);
-      raw_command_line(argc, argv);
-    };
-    l->info("Application exit code '{}'", sts);
+    raw_command_line(argc, argv);
+    l->warn("Application exit code '{}'", sts);
     return sts;
   }
 
   void appl::raw_command_line(int argc, char** argv)
   {
-    str_t                    cmd_line{};
-    std::vector<const char*> args(
+    std::vector<std::string> vec(
       argv,
-      argv + // NOLINT (cppcoreguidelines-pro-bounds-pointer-arithmetic)
-        argc);
-    for (const char* arg : args) cmd_line += str_t(arg) + ' ';
-    cmd_line.pop_back(); // remove last space;
+      argv + argc); // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    auto cmd_line = join(vec, " ");
     l->debug("Raw command line: {}", cmd_line);
   }
 

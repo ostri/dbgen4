@@ -10,6 +10,7 @@
 
 #include "CLI/App.hpp"
 #include <CLI/Validators.hpp>
+#include <spdlog/common.h>
 
 #include "CLI/Formatter.hpp" // IWYU pragma: export
 #include "CLI/Config.hpp"    // IWYU pragma: export
@@ -35,7 +36,7 @@ namespace dbgen4
 
     const auto* db_type = ME::enum_name(db_type_).data();
     for (auto const& el : files_) { s += fmt::format("{}{}{}\n", r, r, el); }
-    if (! s.empty()) s.pop_back(); // cut last space off
+    // if (! s.empty()) s.pop_back(); // cut last space off
     auto msg = fmt::format("{}db_name:    {}\n{}db_type:    {}\n{}out folder: "
                            "{}\n{}verbose:    {}\n{}files:   \n{}",
                            r,
@@ -63,6 +64,7 @@ namespace dbgen4
     s.resize(s.length() - 1);
     str_t enum_str = ME::enum_name<db_type_enum>(db_type_enum::none).data();
     // clang-format off
+    /// database type
     auto help_str = fmt::format("database type : [{}]", s);
     app.add_option("-t,--db-type", enum_str, help_str      )
       ->required()
@@ -80,22 +82,43 @@ namespace dbgen4
         //return true;
         return "";
       });
+    /// database name
     app.add_option("-n,--db-name", db_name_, "database name")
       ->required();
+    /// output folder
     app.add_option("-o,--out-folder", out_folder_, "output folder for generated files.")
       ->default_val("./");
+    /// verbose
     app.add_flag("-v,--verbose", verbose_, "verbose output")
       ->default_val(false);
+    /// gsql files
     app.add_option("files", files_, "gsql files to be processed")
       ->check(CLI::ExistingFile) // the file provided must exist
       ->required();              // one or more filenames must be provided
     // clang-format on
-
     try
     {
       if (argc == 1) throw CLI::CallForHelp();
       app.parse(argc, argv);
-      l->info("Command line parameters after parsing:\n{}", dump(2));
+      set_log_level(verbose_);
+
+      l->warn("Log level '{}'", ME::enum_name(l->level()));
+      l->info("Command line parameter values :\n{}", dump(2));
+      l->trace("Tracing is switched ON");
+      // #define SPDLOG_LEVEL_TRACE 0
+      // #define SPDLOG_LEVEL_DEBUG 1
+      // #define SPDLOG_LEVEL_INFO 2
+      // #define SPDLOG_LEVEL_WARN 3
+      // #define SPDLOG_LEVEL_ERROR 4
+      // #define SPDLOG_LEVEL_CRITICAL 5
+      // #define SPDLOG_LEVEL_OFF 6
+      l->critical("param");
+      l->trace("======trace================");
+      l->debug("======debug================");
+      l->info("=======info===============");
+      l->warn("=======warn===============");
+      l->error("======error================");
+      l->critical("===critical===================");
     }
     catch (const CLI::CallForHelp& e)
     {
@@ -115,5 +138,33 @@ namespace dbgen4
       return app.exit(e);
     }
     return 0;
+  }
+
+  void parameters::set_log_level(bool verbose) const
+  {
+    if (verbose)
+    {
+#ifndef NDEBUG // debug -> trace
+      spdlog::set_level(spdlog::level::trace);
+      std::cerr << "debug build"
+                << "\n";
+#else // release -> info
+      spdlog::set_level(spdlog::level::info);
+      std::cerr << "release build"
+                << "\n";
+#endif
+    }
+    else
+    {
+#ifndef NDEBUG // debug -> trace
+      spdlog::set_level(spdlog::level::debug);
+      std::cerr << "debug build"
+                << "\n";
+#else // release -> info
+      spdlog::set_level(spdlog::level::warn);
+      std::cerr << "release build"
+                << "\n";
+#endif
+    }
   }
 } // namespace dbgen4

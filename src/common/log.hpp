@@ -3,6 +3,11 @@
 // 1 - external fmt (dnf install)
 // 0 - embeded fmt (e.g. part of API)
 #define SPDLOG_FMT_EXTERNAL 1
+#ifndef NDEBUG // debug build - we are tracing till trace
+#  define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_TRACE
+#else // release build - we are tracing till info
+#  define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_INFO
+#endif
 #include "spdlog/spdlog.h" // IWYU pragma: export
 
 namespace dbgen4
