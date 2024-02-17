@@ -1,6 +1,6 @@
 add_library(common STATIC 
     common.cpp
-    log_dbgen4.cpp
+    log.cpp
 )
 # Public headers
 target_include_directories(common PUBLIC 

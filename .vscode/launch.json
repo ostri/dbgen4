@@ -5,11 +5,35 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "(gdb) Launch",
+      "name": "(gdb) Launch ERR",
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}/build/dbgen4",
       "args": ["-t", "db3", "-n", "alfa", "dbgen4.log"],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}/build",
+      "environment": [],
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "setupCommands": [
+          {
+              "description": "Enable pretty-printing for gdb",
+              "text": "-enable-pretty-printing",
+              "ignoreFailures": true
+          },
+          {
+              "description": "Set Disassembly Flavor to Intel",
+              "text": "-gdb-set disassembly-flavor intel",
+              "ignoreFailures": true
+          }
+      ]
+    },
+    {
+      "name": "(gdb) Launch OK",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/dbgen4",
+      "args": ["-t", "mariadb", "-n", "alfa", "dbgen4.log"],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}/build",
       "environment": [],
