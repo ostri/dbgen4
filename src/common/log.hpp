@@ -8,24 +8,34 @@
 #else // release build - we are tracing till info
 #  define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_INFO
 #endif
+// #include <spdlog/common.h>
 #include "spdlog/spdlog.h" // IWYU pragma: export
+#include <spdlog/sinks/daily_file_sink.h>
+
+namespace spd = spdlog;
 
 namespace dbgen4
 {
-  using log_t = std::shared_ptr<spdlog::logger>;
+  using log_t  = std::shared_ptr<spd::logger>;
+  using sink_t = std::shared_ptr<spd::sinks::daily_file_sink_mt>;
   class log
   {
-  private:
-    static constexpr const char* log_name_ = "dbgen4";
   public:
     log();
     ~log();
-    log(const log&)            = default;
-    log(log&&)                 = default;
-    log& operator=(const log&) = delete;
-    log& operator=(log&&)      = delete;
-    // NOLINTNEXTLINE (clang-tidymisc-non-private-member-variables-in-classes)
-    log_t l{}; //< log instance
+    log(const log&)                                            = default;
+    log(log&&)                                                 = default;
+    log&                                 operator=(const log&) = delete;
+    log&                                 operator=(log&&)      = delete;
+    void                                 set_sink_level(spd::level::level_enum level) const;
+    [[nodiscard]] spd::level::level_enum get_sink_level() const;
+    // NOLINTNEXTLINE (misc-non-private-member-variables-in-classes)
+    log_t l; //< log instance
+  private:
+    static constexpr const char* log_name_ = "dbgen4";
+    void                         establish_log();
+    [[nodiscard]] int            find_sink() const;
+    sink_t                       sink_;
   };
 };     // namespace dbgen4
 #endif // LOG_HPP

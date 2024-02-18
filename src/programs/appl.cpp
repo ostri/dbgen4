@@ -4,15 +4,13 @@
 
 namespace dbgen4
 {
-  appl::appl()
-  {
-    l->info("!!!+++~~~--- Application initialized. ---~~~+++!!!");
-  }
+  appl::appl() = default;
 
   appl::~appl() { l->flush(); };
 
   int appl::exec(int argc, char** argv, char** env)
   {
+    l->info("!!!+++~~~--- Application initialized. ---~~~+++!!!");
     auto sts = p_.load_parameters(argc, argv, env);
     raw_command_line(argc, argv);
     l->warn("Application exit code '{}'", sts);
@@ -21,10 +19,9 @@ namespace dbgen4
 
   void appl::raw_command_line(int argc, char** argv)
   {
-    std::vector<std::string> vec(
-      argv,
-      argv + argc); // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    auto cmd_line = join(vec, " ");
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    std::vector<std::string> vec(argv, argv + argc);
+    auto                     cmd_line = join(vec, " ");
     l->debug("Raw command line: {}", cmd_line);
   }
 

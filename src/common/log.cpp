@@ -1,53 +1,97 @@
 #include <magic_enum.hpp>
 #include "log.hpp"
+#include "build_type.hpp"
 #include <iostream>
+// #include <memory>
 #include <memory>
-#include <spdlog/logger.h>
-#include <spdlog/spdlog.h>
+#include <spdlog/common.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
-#include <spdlog/sinks/rotating_file_sink.h>
-#include "spdlog/sinks/basic_file_sink.h" // IWYU pragma: export // support for basic file logging
-#include "spdlog/sinks/daily_file_sink.h" // IWYU pragma: export // support for basic file logging
+#include <mutex>
+#include <spdlog/spdlog.h>
 
-namespace spd = spdlog;
+
+namespace
+{
+  // NOLINTNEXTLINE(readability-static-definition-in-anonymous-namespace,
+  static std::mutex mtx; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
+} // namespace
 namespace dbgen4
 {
   dbgen4::log::log()
-  : l(spd::get(log_name_)) // fetch reference to existing log
+  : l(spd::get(log_name_))
   {
     try
     {
-      if (! l) // log does not exist yet. Create it
+      std::cerr << "log konstruktor\n";
+      if (! l) // log or reference to log does not exists
       {
-        auto log_filename = fmt::format("{}.log", log_name_);
-        auto console_sink = std::make_shared<spd::sinks::stdout_color_sink_mt>();
-        console_sink->set_level(spd::level::critical);
-
-        auto file_sink =
-          std::make_shared<spd::sinks::daily_file_sink_mt>(log_filename, 2, 0); // rotate 2:00 am
-        file_sink->set_level(spd::level::info);
-
-        spd::sinks_init_list sink_list = {file_sink, console_sink};
-        l = std::make_shared<spd::logger>(log_name_, sink_list.begin(), sink_list.end());
-#ifndef NDEBUG // debug build - we are tracing till trace
-        l->set_level(spd::level::debug);
-#else // release build - we are tracing till info
-        l->set_level(spd::level::warn);
-#endif
-        auto level = l->level();
-        l->warn("Logger '{}' is successfully initialized at '{}' level class '{}'.",
-                log_name_,
-                magic_enum::enum_name(level),
-                typeid(*this).name());
+        std::lock_guard<std::mutex> lock(mtx); // wait until be served
+        l = spd::get(log_name_); // it is our turn. maybe somebody creaated log in between
+        if (l) l->debug("log reference was established");
+        else establish_log(); // no it didn't we should do it
       }
     }
     catch (const spd::spdlog_ex& e)
     {
-      std::cerr << "Can't initialize log " << e.what() << "\n";
+      std::cerr << fmt::format("Can't initialize log '{}' reason: ", log_name_, e.what());
       throw;
     }
   };
 
-  dbgen4::log::~log() { spd::drop_all(); }
+  dbgen4::log::~log()
+  {
+    std::cerr << "log destruktor\n";
+
+    spd::drop_all();
+  }
+
+  void log::set_sink_level(spd::level::level_enum level) const
+  {
+    auto ndx = find_sink();
+    if (ndx >= 0) l->sinks()[ndx]->set_level(level);
+    else l->error("no file log defined. Something is wrong.");
+  }
+
+  spd::level::level_enum log::get_sink_level() const
+  {
+    auto ndx = find_sink();
+    if (ndx >= 0) { return l->sinks()[ndx]->level(); }
+    l->error("no file log defined. Something is wrong.");
+    return spd::level::level_enum::critical;
+  }
+
+  void log::establish_log()
+  {
+    auto log_filename = fmt::format("{}.log", log_name_);
+    auto console_sink = std::make_shared<spd::sinks::stdout_color_sink_mt>();
+    console_sink->set_level(spd::level::err);
+
+    sink_ = std::make_shared<spd::sinks::daily_file_sink_mt>(log_filename, 2, 0); // rotate 2:00 am
+    // sink_->set_level(spd::level::debug);
+
+    l = std::make_shared<spd::logger>(log_name_, spd::sinks_init_list{sink_, console_sink});
+    spd::register_logger(l);
+    if constexpr (is_debug_build()) sink_->set_level(spd::level::debug);
+    else sink_->set_level(spd::level::warn);
+    auto level = sink_->level();
+    l->warn("Logger '{}' is successfully initialized at '{}' level build type '{}'.",
+            log_name_,
+            magic_enum::enum_name(level),
+            build_type_name());
+  }
+
+  int log::find_sink() const
+  {
+    sink_t sink;
+    auto   cnt = 0;
+    for (const auto& tmp : l->sinks())
+    {
+      // NOLINTNEXTLINE(hicpp-use-auto, modernize-use-auto)
+      spd::sinks::daily_file_sink_mt* x = dynamic_cast<spd::sinks::daily_file_sink_mt*>(tmp.get());
+      if (x != nullptr) return cnt;
+      cnt++;
+    }
+    return -1;
+  }
 
 }; // namespace dbgen4

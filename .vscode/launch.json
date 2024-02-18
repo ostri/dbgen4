@@ -33,7 +33,7 @@
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}/build/dbgen4",
-      "args": ["-t", "mariadb", "-n", "alfa", "dbgen4.log"],
+      "args": ["-v", "-t", "mariadb", "-n", "alfa", "dbgen4"],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}/build",
       "environment": [],

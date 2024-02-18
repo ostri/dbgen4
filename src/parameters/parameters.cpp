@@ -11,6 +11,7 @@
 #include "CLI/App.hpp"
 #include <CLI/Validators.hpp>
 #include <spdlog/common.h>
+// #include <spdlog/common.h>
 
 #include "CLI/Formatter.hpp" // IWYU pragma: export
 #include "CLI/Config.hpp"    // IWYU pragma: export
@@ -58,8 +59,7 @@ namespace dbgen4
     CLI::App app{"Generator of db layer for c++ programs."};
 
     str_t     s{};
-    vec_str_t arr(ME::enum_names<db_type_enum>().begin() + 1,
-                  ME::enum_names<db_type_enum>().end());
+    vec_str_t arr(ME::enum_names<db_type_enum>().begin() + 1, ME::enum_names<db_type_enum>().end());
     for (const auto& el : arr) s += str_t(el) + str_t(",");
     s.resize(s.length() - 1);
     str_t enum_str = ME::enum_name<db_type_enum>(db_type_enum::none).data();
@@ -102,39 +102,32 @@ namespace dbgen4
       app.parse(argc, argv);
       set_log_level(verbose_);
 
-      l->warn("Log level '{}'", ME::enum_name(l->level()));
+      auto level   = get_sink_level();
+      bool tracing = level == spd::level::trace;
+      l->warn("Log level '{}' tracing '{}'", ME::enum_name(level), tracing);
       l->info("Command line parameter values :\n{}", dump(2));
-      l->trace("Tracing is switched ON");
-      // #define SPDLOG_LEVEL_TRACE 0
-      // #define SPDLOG_LEVEL_DEBUG 1
-      // #define SPDLOG_LEVEL_INFO 2
-      // #define SPDLOG_LEVEL_WARN 3
-      // #define SPDLOG_LEVEL_ERROR 4
-      // #define SPDLOG_LEVEL_CRITICAL 5
-      // #define SPDLOG_LEVEL_OFF 6
-      l->critical("param");
-      l->trace("======trace================");
-      l->debug("======debug================");
-      l->info("=======info===============");
-      l->warn("=======warn===============");
-      l->error("======error================");
-      l->critical("===critical===================");
+      // l->trace("Tracing is switched ON");
+      //  l->critical("param");
+      //  l->trace("======trace================");
+      //  l->debug("======debug================");
+      //  l->info("=======info===============");
+      //  l->warn("=======warn===============");
+      //  l->error("======error================");
+      //  l->critical("===critical===================");
     }
     catch (const CLI::CallForHelp& e)
     {
       l->info("Help command.");
-      l->flush();
+      //      l->flush();
       return app.exit(e);
     }
     catch (const CLI::ParseError& e)
     {
-      auto msg = fmt::format("name: '{}' code: {} msg: '{}'",
-                             e.get_name(),
-                             e.get_exit_code(),
-                             e.what());
+      auto msg =
+        fmt::format("name: '{}' code: {} msg: '{}'", e.get_name(), e.get_exit_code(), e.what());
       l->error(msg);
       l->error("Parameters on error \n{}", dump(2));
-      l->flush();
+      //      l->flush();
       return app.exit(e);
     }
     return 0;
@@ -142,29 +135,31 @@ namespace dbgen4
 
   void parameters::set_log_level(bool verbose) const
   {
-    if (verbose)
+    if constexpr (is_debug_build()) /* debug build */
     {
-#ifndef NDEBUG // debug -> trace
-      spdlog::set_level(spdlog::level::trace);
-      std::cerr << "debug build"
-                << "\n";
-#else // release -> info
-      spdlog::set_level(spdlog::level::info);
-      std::cerr << "release build"
-                << "\n";
-#endif
+      if (verbose)
+      {
+        set_sink_level(spd::level::trace);
+        l->set_level(spd::level::trace);
+      }
+      else
+      {
+        set_sink_level(spd::level::debug);
+        l->set_level(spd::level::debug);
+      }
     }
-    else
+    else /* release build*/
     {
-#ifndef NDEBUG // debug -> trace
-      spdlog::set_level(spdlog::level::debug);
-      std::cerr << "debug build"
-                << "\n";
-#else // release -> info
-      spdlog::set_level(spdlog::level::warn);
-      std::cerr << "release build"
-                << "\n";
-#endif
-    }
+      if (verbose)
+      {
+        set_sink_level(spd::level::info);
+        l->set_level(spd::level::info);
+      }
+      else
+      {
+        set_sink_level(spd::level::warn);
+        l->set_level(spd::level::warn);
+      }
+    };
   }
-} // namespace dbgen4
+}; // namespace dbgen4

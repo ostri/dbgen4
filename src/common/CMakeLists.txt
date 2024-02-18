@@ -1,6 +1,7 @@
 add_library(common STATIC 
     common.cpp
     log.cpp
+    build_type.cpp
 )
 # Public headers
 target_include_directories(common PUBLIC 
