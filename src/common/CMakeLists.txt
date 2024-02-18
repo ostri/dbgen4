@@ -6,6 +6,7 @@ add_library(common STATIC
 # Public headers
 target_include_directories(common PUBLIC 
 ${CMAKE_CURRENT_SOURCE_DIR} 
-${magic_enum_BINARY_DIR}/include
+#${magic_enum_BINARY_DIR}/include
+#${CMAKE_BINARY_DIR}/_deps/json-src/include
 )
-message(STATUS "magic_enum ${magic_enum_BINARY_DIR}")
+#message(STATUS "magic_enum '${magic_enum_BINARY_DIR}'")

@@ -5,8 +5,12 @@
 #include <vector>
 #include <string>
 #include <magic_enum.hpp>
+#include <nlohmann/json.hpp>
+#include <nlohmann/json-schema.hpp>
 #include "log.hpp"        // IWYU pragma: export
 #include "build_type.hpp" // IWYU pragma: export
+
+using json = nlohmann::json;
 
 namespace dbgen4
 {

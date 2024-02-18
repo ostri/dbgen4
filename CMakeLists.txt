@@ -51,11 +51,14 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     # set (CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
   # Let's nicely support folders in IDEs
   set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-
   set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
-
- 
 endif()
+
+# include(FetchContent)
+
+# FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
+# FetchContent_MakeAvailable(json)
+
 
 # Docs only available if this is the main app
 find_package(Doxygen OPTIONAL_COMPONENTS dot mscgen dia)
@@ -73,8 +76,7 @@ add_subdirectory(externals)
 # Add main program
 add_executable(dbgen4 src/dbgen4.cpp )
 # Target dependencies
-target_link_libraries(dbgen4 PRIVATE fmt common parameters appl)
-
+target_link_libraries(dbgen4 PRIVATE  fmt common parameters parser appl nlohmann_json_schema_validator)
 
 #
 # packaging

@@ -1,6 +1,7 @@
 add_library(appl STATIC 
     appl.cpp
     ../common/common.cpp
+    ../parser/parser.cpp
 )
 # Public headers
 target_include_directories(appl PUBLIC 

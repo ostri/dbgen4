@@ -1,6 +1,5 @@
 #include "appl.hpp"
-// #include "spdlog/spdlog.h" // IWYU pragma: export
-// #include <ranges>
+#include "../parser/parser.hpp"
 
 namespace dbgen4
 {
@@ -10,9 +9,19 @@ namespace dbgen4
 
   int appl::exec(int argc, char** argv, char** env)
   {
+    parser p;
     l->info("=========== Application initialized ===========");
     auto sts = p_.load_parameters(argc, argv, env);
     raw_command_line(argc, argv);
+    p.load_grammar();
+
+    const int cifra = 42;
+    // The people are defined with brace initialization
+    static json bad_person  = {{"age", cifra}};
+    static json good_person = {{"name", "Albert"}, {"age", cifra}};
+
+    for (const auto& person : {bad_person, good_person}) p.exec(person);
+
     l->info("Application exit code '{}'", sts);
     return sts;
   }

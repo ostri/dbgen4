@@ -19,3 +19,17 @@ database access layer generator
 ### magic_enum
 
    sudo dnf install magic_enum-devel.x86_64
+
+### nlohmann json
+
+   sudo dnf install json-devel
+
+### json-schema-validator
+
+   git clone <https://github.com/pboettch/json-schema-validator.git>
+   cd json-schema-validator
+   mkdir build
+   cd build
+   cmake [..]
+   make
+   make install
