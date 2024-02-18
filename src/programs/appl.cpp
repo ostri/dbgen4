@@ -10,10 +10,10 @@ namespace dbgen4
 
   int appl::exec(int argc, char** argv, char** env)
   {
-    l->info("!!!+++~~~--- Application initialized. ---~~~+++!!!");
+    l->info("=========== Application initialized ===========");
     auto sts = p_.load_parameters(argc, argv, env);
     raw_command_line(argc, argv);
-    l->warn("Application exit code '{}'", sts);
+    l->info("Application exit code '{}'", sts);
     return sts;
   }
 

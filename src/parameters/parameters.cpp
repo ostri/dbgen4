@@ -4,15 +4,12 @@
 
 #include "../common/common.hpp"
 #include "parameters.hpp"
-#include <CLI/Error.hpp>
 #include <magic_enum.hpp>
 #include <fmt/format.h>
 
+#include <CLI/Error.hpp>
 #include "CLI/App.hpp"
 #include <CLI/Validators.hpp>
-#include <spdlog/common.h>
-// #include <spdlog/common.h>
-
 #include "CLI/Formatter.hpp" // IWYU pragma: export
 #include "CLI/Config.hpp"    // IWYU pragma: export
 
@@ -104,7 +101,7 @@ namespace dbgen4
 
       auto level   = get_sink_level();
       bool tracing = level == spd::level::trace;
-      l->warn("Log level '{}' tracing '{}'", ME::enum_name(level), tracing);
+      l->info("Log level '{}' tracing '{}'", ME::enum_name(level), tracing);
       l->info("Command line parameter values :\n{}", dump(2));
       // l->trace("Tracing is switched ON");
       //  l->critical("param");
@@ -125,9 +122,8 @@ namespace dbgen4
     {
       auto msg =
         fmt::format("name: '{}' code: {} msg: '{}'", e.get_name(), e.get_exit_code(), e.what());
-      l->error(msg);
-      l->error("Parameters on error \n{}", dump(2));
-      //      l->flush();
+      l->info(msg);
+      l->info("Parameters with error(s) \n{}", dump(2));
       return app.exit(e);
     }
     return 0;

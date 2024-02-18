@@ -22,7 +22,7 @@ namespace dbgen4
   {
     try
     {
-      std::cerr << "log konstruktor\n";
+      //      std::cerr << "log konstruktor\n";
       if (! l) // log or reference to log does not exists
       {
         std::lock_guard<std::mutex> lock(mtx); // wait until be served
@@ -40,8 +40,7 @@ namespace dbgen4
 
   dbgen4::log::~log()
   {
-    std::cerr << "log destruktor\n";
-
+    //    std::cerr << "log destruktor\n";
     spd::drop_all();
   }
 
@@ -74,7 +73,7 @@ namespace dbgen4
     if constexpr (is_debug_build()) sink_->set_level(spd::level::debug);
     else sink_->set_level(spd::level::warn);
     auto level = sink_->level();
-    l->warn("Logger '{}' is successfully initialized at '{}' level build type '{}'.",
+    l->info("Logger '{}' is successfully initialized at '{}' level build type '{}'.",
             log_name_,
             magic_enum::enum_name(level),
             build_type_name());
