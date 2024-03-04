@@ -16,20 +16,17 @@ database access layer generator
 
    sudo dnf install fmt.x86_64
 
-### magic_enum
+## database installations
 
-   sudo dnf install magic_enum-devel.x86_64
+### mariadb
 
-### nlohmann json
+   sudo dnf install mariadb-server mariadb-client
+   sudo mysql_secure_installation
+   sudo dnf install unixODBC
+   sudo dnf install mariadb-connector-odbc
+   https://mariadb.com/kb/en/mariadb-connector-odbc/
 
-   sudo dnf install json-devel
+   start mariadb
 
-### json-schema-validator
+   sudo service mariadb start
 
-   git clone <https://github.com/pboettch/json-schema-validator.git>
-   cd json-schema-validator
-   mkdir build
-   cd build
-   cmake [..]
-   make
-   make install
