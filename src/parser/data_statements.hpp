@@ -1,7 +1,7 @@
 #ifndef DATA_STATEMENTS_HPP
 #define DATA_STATEMENTS_HPP
 
-#include "../common/common.hpp"
+#include "common.hpp"
 #include "data_statement.hpp"
 #include <map>
 

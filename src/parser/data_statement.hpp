@@ -1,7 +1,7 @@
 #ifndef DATA_STATEMENT_HPP
 #define DATA_STATEMENT_HPP
 
-#include "../common/common.hpp"
+#include "common.hpp"
 #include <magic_enum.hpp>
 
 namespace dbgen4

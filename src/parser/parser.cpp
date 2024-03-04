@@ -6,36 +6,6 @@
 #include <yaml-cpp/exceptions.h>
 #include <yaml-cpp/yaml.h>
 
-namespace
-{
-  // // NOLINTNEXTLINE
-  // static const json person_schema = R"(
-  //   {
-  //     "$schema": "http://json-schema.org/draft-07/schema#",
-  //     "title": "A person",
-  //     "properties": {
-  //         "name": {
-  //             "description": "Name",
-  //             "type": "string"
-  //         },
-  //         "age": {
-  //             "description": "Age of the person",
-  //             "type": "number",
-  //             "minimum": 2,
-  //             "maximum": 200
-  //         }
-  //     },
-  //     "required": [
-  //                 "name",
-  //                 "age"
-  //                 ],
-  //     "type": "object"
-  //   }
-  //   )"_json;
-
-} // namespace
-
-
 namespace dbgen4
 {
   /**

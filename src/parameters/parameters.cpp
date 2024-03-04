@@ -2,7 +2,7 @@
 // Created by ostri on 2024/02/04
 //
 
-#include "../common/common.hpp"
+#include "common.hpp"
 #include "parameters.hpp"
 #include <magic_enum.hpp>
 #include <fmt/format.h>

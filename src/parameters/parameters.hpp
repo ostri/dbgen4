@@ -4,7 +4,7 @@
 #ifndef PARAMETERS_HPP
 #define PARAMETERS_HPP
 
-#include "../common/common.hpp"
+#include "common.hpp"
 #include <CLI/Error.hpp>
 
 namespace dbgen4
