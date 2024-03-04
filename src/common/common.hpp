@@ -5,12 +5,13 @@
 #include <vector>
 #include <string>
 #include <magic_enum.hpp>
-#include <nlohmann/json.hpp>
-#include <nlohmann/json-schema.hpp>
-#include "log.hpp"        // IWYU pragma: export
-#include "build_type.hpp" // IWYU pragma: export
+// #include <nlohmann/json.hpp>
+// #include <nlohmann/json-schema.hpp>
+#include "log.hpp"           // IWYU pragma: export
+#include "build_type.hpp"    // IWYU pragma: export
+#include "parser_errors.hpp" // IWYU pragma: export
 
-using json = nlohmann::json;
+// using json = nlohmann::json;
 
 namespace dbgen4
 {
@@ -26,7 +27,7 @@ namespace dbgen4
    */
   enum class db_type_enum : int
   {
-    none    = 0, /// none selected
+    sql     = 0, /// standard sql selected
     mariadb = 1, /// maria db
     psql    = 2, /// postgresql
     db2     = 3  /// ibm db2

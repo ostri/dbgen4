@@ -59,7 +59,7 @@ namespace dbgen4
     vec_str_t arr(ME::enum_names<db_type_enum>().begin() + 1, ME::enum_names<db_type_enum>().end());
     for (const auto& el : arr) s += str_t(el) + str_t(",");
     s.resize(s.length() - 1);
-    str_t enum_str = ME::enum_name<db_type_enum>(db_type_enum::none).data();
+    str_t enum_str = ME::enum_name<db_type_enum>(db_type_enum::sql).data();
     // clang-format off
     /// database type
     auto help_str = fmt::format("database type : [{}]", s);
@@ -68,8 +68,8 @@ namespace dbgen4
       ->check([s, this](const std::string& v)
       {
         auto res = ME::enum_cast<db_type_enum>(v);
-        db_type_ = res ? res.value() : db_type_enum::none;
-        if (res && (res.value() != db_type_enum::none))
+        db_type_ = res ? res.value() : db_type_enum::sql;
+        if (res && (res.value() != db_type_enum::sql))
           db_type_ = res.value();
         else
         {

@@ -18,8 +18,7 @@ namespace dbgen4
     parameters& operator=(parameters&&)      = delete;
     parameters(const parameters& o)          = delete;
     parameters(parameters&& o) noexcept      = delete;
-    [[nodiscard]] vec_str_t files()
-      const; //< fetch the list of gsql file to be processed
+    [[nodiscard]] vec_str_t    files() const; //< fetch the list of gsql file to be processed
     [[nodiscard]] db_type_enum db_type()
       const; //< fetch the database type to which to generate code
     [[nodiscard]] str_t db_name()
@@ -32,18 +31,17 @@ namespace dbgen4
      * @return str_t
      */
     [[nodiscard]] str_t dump(int offs) const;
-    [[nodiscard]] int   load_parameters(int    argc,
-                                        char** argv,
+    [[nodiscard]] int   load_parameters(int argc, char** argv,
                                         char** env); //< load the parameters
     /// set log level based on verbose flag andtype of build
     void set_log_level(bool verbose) const;
   protected:
   private:
-    str_t        db_name_{};                   //< database name to connect to
-    db_type_enum db_type_{db_type_enum::none}; //< database type
-    str_t        out_folder_{}; //< output folder for generated files
-    bool         verbose_{};    //< should we make verbose output
-    vec_str_t    files_{};      //< set of files to be processed
+    str_t        db_name_{};                  //< database name to connect to
+    db_type_enum db_type_{db_type_enum::sql}; //< database type
+    str_t        out_folder_{};               //< output folder for generated files
+    bool         verbose_{};                  //< should we make verbose output
+    vec_str_t    files_{};                    //< set of files to be processed
 
   }; // namespace dbgen4
 

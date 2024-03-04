@@ -1,0 +1,14 @@
+summary: summary
+description: | 
+  daljši opis čez 
+  nekaj 
+  vrstic
+statements:
+  - id: sql_1
+    sql: |
+      kar en sql
+      čez nekaj
+      vrst
+    mariadb: |
+      specific sql
+      for mariadb
