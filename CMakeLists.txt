@@ -69,14 +69,38 @@ else()
 endif()
 
 # # The compiled library code is here
-add_subdirectory(src)
 add_subdirectory(examples)
 add_subdirectory(externals)
 
+set(SRC_SUBDIRS 
+  src/programs
+  src/parser
+  src/parameters
+  src/common
+)
+# foreach(SUBDIR ${SRC_SUBDIRS})
+#   add_subdirectory(${SUBDIR})
+# endforeach()
+
 # Add main program
-add_executable(dbgen4 src/dbgen4.cpp )
+add_executable(${PROJECT_NAME} src/dbgen4.cpp )
+
+foreach(SUBDIR ${SRC_SUBDIRS})
+  target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/${SUBDIR})
+endforeach()
+
+target_sources(${PROJECT_NAME} PRIVATE
+ src/programs/appl.cpp 
+ src/parser/parser.cpp 
+ src/parser/data_statement.cpp 
+ src/parser/data_statements.cpp 
+ src/parameters/parameters.cpp 
+ src/common/common.cpp
+ src/common/build_type.cpp
+ src/common/log.cpp
+)
 # Target dependencies
-target_link_libraries(dbgen4 PRIVATE  fmt common parameters parser appl nlohmann_json_schema_validator)
+target_link_libraries(${PROJECT_NAME} PRIVATE  yaml-cpp fmt)
 
 #
 # packaging
