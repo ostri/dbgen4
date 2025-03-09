@@ -70,7 +70,7 @@ endif()
 
 # # The compiled library code is here
 add_subdirectory(examples)
-add_subdirectory(externals)
+# add_subdirectory(externals)
 
 set(SRC_SUBDIRS 
   src/programs

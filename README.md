@@ -30,3 +30,6 @@ database access layer generator
 
    sudo service mariadb start
 
+## Doxygen
+
+   sudo dnf install doxygen mscgen dia
