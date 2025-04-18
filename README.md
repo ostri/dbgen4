@@ -4,6 +4,18 @@ database access layer generator
 
 ## build debepndencies
 
+### yaml-cpp
+
+   sudo dnf install yaml-cpp-devel
+
+### cli11 comand line parsing library
+
+   sudo dnf install cli11-devel
+
+### sanitation library
+
+   sudo dnf install libasan libubsan
+
 ### magic enum
 
   sudo dnf install magic_enum-devel
@@ -24,7 +36,7 @@ database access layer generator
    sudo mysql_secure_installation
    sudo dnf install unixODBC
    sudo dnf install mariadb-connector-odbc
-   https://mariadb.com/kb/en/mariadb-connector-odbc/
+   <https://mariadb.com/kb/en/mariadb-connector-odbc/>
 
    start mariadb
 
