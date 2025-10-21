@@ -35,7 +35,7 @@ namespace dbgen4
           id_,
           ME::enum_name(v));
         l->error(msg);
-        throw std::runtime_error(msg);
+        return {};
       }
     }
   }

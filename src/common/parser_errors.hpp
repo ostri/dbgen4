@@ -12,7 +12,8 @@ namespace dbgen4
     statements_attr_missing,
     inv_statement_syntax,
     statement_unique_id_is_missing,
-    duplicated_stmt_id
+    duplicated_stmt_id,
+    sql_statement_missing,
   };
-};     // namespace dbgen4
+}; // namespace dbgen4
 #endif // PARSER_ERRORS_HPP
