@@ -2,5 +2,8 @@
     "files.associations": {
         "cmath": "cpp",
         "initializer_list": "cpp"
-    }
+    },
+    "cmake.generator": "Unix Makefiles",
+    "cmake.configureOnOpen": true,
+    "cmake.buildArgs": ["-j8"]
 }
