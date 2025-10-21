@@ -16,15 +16,18 @@ namespace dbgen4
   class parser : log
   {
   public:
-    parser()                               = default;
-    ~parser()                              = default;
-    parser(const parser&)                  = delete;
-    parser(parser&&) noexcept              = default;
-    parser&       operator=(const parser&) = delete;
-    parser&       operator=(parser&&)      = delete;
+    parser()                         = default;
+    ~parser()                        = default;
+    parser(const parser&)            = delete;
+    parser(parser&&) noexcept        = default;
+    parser& operator=(const parser&) = delete;
+    parser& operator=(parser&&)      = delete;
+    /// @brief loads the data from the yaml file to data structures
+    /// @param filename path to the yaml file
+    /// @return result of the operation, optional loaded data structure
     pars_result_t exec(const str_t& filename);
     /// getters
-    [[nodiscard]] str_t filename() const;
+    [[nodiscard]] str_t filename() const; ///< filename where gsql definition is stored
     /// setters
     void set_filename(const str_t& filename);
   protected:

@@ -52,7 +52,7 @@ namespace dbgen4
     {
       str_t name(v.second);
       if (! stmt[name].IsNull())
-      {
+      { // we have sql variation for this type of the RDBMS
         ndx++;
         auto name_value = stmt[name].as<str_t>();
         s.set_sql(v.first, name_value);
@@ -84,7 +84,8 @@ namespace dbgen4
             data_statement s{};
             if (! stmt["id"].IsNull())
             {
-              s.set_id(stmt["id"].as<str_t>());
+              auto id = stmt["id"].as<str_t>();
+              s.set_id(id);
               /// walk over all sql variants
               extract_sqls(stmt, s);
               if (p.add_statement(s)) { return {p, parser_errors_enum::ok}; }
