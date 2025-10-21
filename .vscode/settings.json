@@ -5,5 +5,20 @@
     },
     "cmake.generator": "Unix Makefiles",
     "cmake.configureOnOpen": true,
-    "cmake.buildArgs": ["-j8"]
+    "cmake.buildArgs": [
+        "-j8"
+    ],
+    "editor.formatOnSave": true,
+    "[cpp]": {
+        "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd"
+    },
+    "[hpp]": {
+        "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd"
+    },
+    "clangd.arguments": [
+        "--clang-tidy",
+        "--pretty",
+        "--fallback-style=Google"
+    ],
+    "clangd.fallbackFlags": []
 }

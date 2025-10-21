@@ -28,8 +28,12 @@ namespace dbgen4
     /// setters
     void set_filename(const str_t& filename);
   protected:
-    bool          extract_sqls(const YAML::detail::iterator_value& stmt, data_statement& s);
+    /// @brief loads the data from the yaml file structure to data structures
+    /// @param n internal yaml file structure
+    /// @return result of the operation, optional loaded data structure
     pars_result_t exec(const YAML::Node& n);
+  private:
+    bool extract_sqls(const YAML::detail::iterator_value& stmt, data_statement& s);
   private:
     str_t filename_{}; //< filename where gsql definition is stored
   };
