@@ -1,5 +1,5 @@
 # Works with 3.11 and tested through 3.22
-cmake_minimum_required(VERSION 3.27)
+cmake_minimum_required(VERSION 4.1.2)
 
 project(
   dbgen4
@@ -83,12 +83,30 @@ set(SRC_SUBDIRS
 # endforeach()
 
 #dependant libraries
+#FetchContent_Declare(
+#  fmt
+#  GIT_REPOSITORY https://github.com/fmtlib/fmt.git
+#  GIT_TAG 10.2.1
+#  GIT_SHALLOW TRUE
+#)
+#FetchContent_MakeAvailable(fmt)
+# FetchContent_Declare(
+#   spdlog
+#   GIT_REPOSITORY https://github.com/gabime/spdlog.git
+#   GIT_TAG v1.14.1
+#   GIT_SHALLOW TRUE
+# )
+# set(SPDLOG_FMT_EXTERNAL ON)
+# FetchContent_MakeAvailable(spdlog)
+
 FetchContent_Declare(
   yaml-cpp
   GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
   GIT_TAG master # Can be a tag (yaml-cpp-x.x.x), a commit hash, or a branch name (master)
 )
 FetchContent_MakeAvailable(yaml-cpp)
+
+
 find_package(yaml-cpp REQUIRED)
 find_package(fmt REQUIRED)
 
@@ -111,7 +129,19 @@ target_sources(${PROJECT_NAME} PRIVATE
  src/common/log.cpp
 )
 # Target dependencies
-target_link_libraries(${PROJECT_NAME} PRIVATE  yaml-cpp::yaml-cpp fmt)
+target_link_libraries(${PROJECT_NAME} PRIVATE  fmt::fmt yaml-cpp::yaml-cpp  )
+#target_compile_definitions(${PROJECT_NAME} PRIVATE FMT_COMPILE=1)
+
+## Eksplicitno določi include poti za izvorne verzije
+#target_include_directories(${PROJECT_NAME} PRIVATE
+#  ${fmt_SOURCE_DIR}/include
+#  ${spdlog_SOURCE_DIR}/include
+#  # Dodaj to pred sistemskimi imeniki
+#  BEFORE
+#)
+
+## Prepreči uporabo sistemskih glav
+#set(CMAKE_IGNORE_PATH /usr/include/fmt /usr/include/spdlog)
 
 #
 # packaging
