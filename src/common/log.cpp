@@ -59,6 +59,7 @@ namespace dbgen4
     return spd::level::level_enum::critical;
   }
 
+  /// @brief establish the log
   void log::establish_log()
   {
     auto log_filename = fmt::format("{}.log", log_name_);
