@@ -82,6 +82,17 @@ set(SRC_SUBDIRS
 #   add_subdirectory(${SUBDIR})
 # endforeach()
 
+#dependant libraries
+FetchContent_Declare(
+  yaml-cpp
+  GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
+  GIT_TAG master # Can be a tag (yaml-cpp-x.x.x), a commit hash, or a branch name (master)
+)
+FetchContent_MakeAvailable(yaml-cpp)
+find_package(yaml-cpp REQUIRED)
+find_package(fmt REQUIRED)
+
+
 # Add main program
 add_executable(${PROJECT_NAME} src/dbgen4.cpp )
 
@@ -100,7 +111,7 @@ target_sources(${PROJECT_NAME} PRIVATE
  src/common/log.cpp
 )
 # Target dependencies
-target_link_libraries(${PROJECT_NAME} PRIVATE  yaml-cpp fmt)
+target_link_libraries(${PROJECT_NAME} PRIVATE  yaml-cpp::yaml-cpp fmt)
 
 #
 # packaging
