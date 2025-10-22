@@ -18,7 +18,9 @@ namespace
 } // namespace
 namespace dbgen4
 {
-  dbgen4::log::log()
+  /// NOLINTNEXTLINE(fuchsia-statically-constructed-objects)
+  sink_t log::sink_ = nullptr;
+  log::log()
   : l(spd::get(log_name_))
   {
     try
@@ -40,7 +42,7 @@ namespace dbgen4
     }
   };
 
-  dbgen4::log::~log()
+  log::~log()
   {
     //    std::cerr << "log destruktor\n";
     spd::drop_all();
@@ -64,6 +66,7 @@ namespace dbgen4
   /// @brief establish the log
   void log::establish_log()
   {
+    if (sink_ != nullptr) return; // already established
     auto log_filename = fmt::format("{}.log", log_name_);
     auto console_sink = std::make_shared<spd::sinks::stdout_color_sink_mt>();
     console_sink->set_level(spd::level::err);

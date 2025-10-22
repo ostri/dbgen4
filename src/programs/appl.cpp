@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include "common.hpp"
+#include "parser_errors.hpp"
 
 namespace dbgen4
 {
@@ -22,6 +23,9 @@ namespace dbgen4
     {
       auto r = p.exec(file);
       sts    = ME::enum_integer(r.second);
+      // const auto* fmt = get_parser_err_str(r.second);
+
+      l->info("File '{}' status: {}", file, magic_enum::enum_name(r.second));
     }
 
     // const int cifra = 42;
@@ -31,7 +35,9 @@ namespace dbgen4
 
     // for (const auto& person : {bad_person, good_person}) p.exec(person);
 
-    l->info("Application exit code '{}'", sts);
+    l->info("Application exit code '{}' '{}'",
+            sts,
+            magic_enum::enum_name(static_cast<parser_err_enum>(sts)));
     return sts;
   }
 

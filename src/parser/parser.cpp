@@ -1,6 +1,7 @@
 #include <filesystem>
 #include <fmt/format.h>
 #include <fstream>
+#include <iostream>
 #include <magic_enum.hpp>
 #include <yaml-cpp/exceptions.h>
 // NOLINTNEXTLINE(misc-include-cleaner)
@@ -51,7 +52,15 @@ namespace dbgen4
     {
       l->error("File {} has syntactical error(s). '{}' '{}'", filename, e.msg, e.what());
       return {data_statements{}, parser_err_enum::yaml_syntax_error};
-    };
+    }
+    catch (...)
+    {
+      auto msg = fmt::format(
+        get_parser_err_str(parser_err_enum::parse_error), filename, "unknown error", 0, 0);
+      l->error(msg);
+      std::cerr << msg << '\n';
+      return {data_statements{}, parser_err_enum::parse_error};
+    }
   }
 
   str_t parser::filename() const { return filename_; }
@@ -70,7 +79,7 @@ namespace dbgen4
     for (auto v : ME::enum_entries<db_type_enum>())
     {
       str_t db_type_name(v.second);
-      if (! n[db_type_name].IsNull())
+      if (n[db_type_name])
       { // we have sql variation for this type of the RDBMS
         ndx++;
         auto name_value = n[db_type_name].as<str_t>();
@@ -101,20 +110,26 @@ namespace dbgen4
         {
           if (! stmts.add_statement(res.first))
           { /// duplicated statement id
-            constexpr auto fmt = get_parser_err_str(parser_err_enum::duplicated_stmt_id);
-            const auto     msg = fmt::format(fmt, filename_, s.id());
+            // const char* fmt = get_parser_err_str(parser_err_enum::duplicated_stmt_id);
+            const auto msg = fmt::format("duplicate id {} {}", filename_, s.id());
             l->error(msg);
             return {{}, res.second};
           }
         }
-
-        l->error("No sql statements found for statement id '{}'.", s.id());
-        return {{}, parser_err_enum::no_sql_stmt_found};
+        else
+        {
+          l->error("No sql statements found for statement id '{}'.", s.id());
+          return {{}, parser_err_enum::no_sql_stmt_found};
+        }
       }
-      l->error("id tag is missing.");
-      return {{}, parser_err_enum::stmt_unique_id_is_missing};
+      else
+      {
+        l->error("id tag is missing.");
+        return {{}, parser_err_enum::stmt_unique_id_is_missing};
+      }
     }
-    return {{}, parser_err_enum::inv_statement_syntax};
+    else { return {{}, parser_err_enum::inv_statement_syntax}; }
+    return {stmts, parser_err_enum::ok};
   }
   /// parse the provided YAML node and load its contents to the internal structure
   /// return parsed data_statements object and error code
@@ -132,9 +147,17 @@ namespace dbgen4
         const YAML::Node& stmts = n["statements"];
         for (const auto& stmt : stmts) { auto statement = process_statement(stmt, p); }
       }
-      return {{}, parser_err_enum::statements_attr_missing};
+      else
+      {
+        l->error("statements tag is missing.");
+        return {{}, parser_err_enum::statements_attr_missing};
+      }
     }
-    l->error("Invalid yaml file structure. Top level element should be object");
-    return {p, parser_err_enum::inv_top_level_struct};
+    else
+    {
+      l->error("Invalid yaml file structure. Top level element should be object");
+      return {p, parser_err_enum::inv_top_level_struct};
+    }
+    return {p, parser_err_enum::ok};
   }
 }; // namespace dbgen4

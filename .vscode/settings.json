@@ -5,6 +5,7 @@
     },
     "cmake.generator": "Unix Makefiles",
     "cmake.configureOnOpen": true,
+    "cmake.buildBeforeRun": true,
     "cmake.buildArgs": [
         "-j8"
     ],
@@ -22,5 +23,5 @@
         "--compile-commands-dir=${workspaceFolder}/build"
     ],
     "C_Cpp.intelliSenseEngine": "disabled",
-    "clangd.fallbackFlags": []
+    "clangd.fallbackFlags": [],
 }

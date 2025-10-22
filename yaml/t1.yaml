@@ -14,4 +14,6 @@ statements:
           for mariadb
 
 - id: sql_2
-  sql: "single line sql statement : & # *"
+  sql: "2-single line sql statement : & # *"
+- id: sql_3
+  sql: "3-single line sql statement : & # *"

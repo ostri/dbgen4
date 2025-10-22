@@ -1,5 +1,4 @@
-#ifndef LOG_HPP
-#define LOG_HPP
+#pragma once
 // 1 - external fmt (dnf install)
 // 0 - embeded fmt (e.g. part of API)
 #define SPDLOG_FMT_EXTERNAL
@@ -31,10 +30,10 @@ namespace dbgen4
     // NOLINTNEXTLINE (misc-non-private-member-variables-in-classes)
     log_t l; //< log instance
   private:
+    void              establish_log();
+    [[nodiscard]] int find_sink() const;
+    /// members
     static constexpr const char* log_name_ = "dbgen4";
-    void                         establish_log();
-    [[nodiscard]] int            find_sink() const;
-    sink_t                       sink_;
+    static sink_t                sink_;
   };
 }; // namespace dbgen4
-#endif // LOG_HPP
