@@ -2,16 +2,17 @@
 // Created by ostri on 2024/02/04
 //
 
-#include "common.hpp"
 #include "parameters.hpp"
-#include <magic_enum.hpp>
+#include "common.hpp"
 #include <fmt/format.h>
+#include <magic_enum.hpp>
 
-#include <CLI/Error.hpp>
 #include "CLI/App.hpp"
-#include <CLI/Validators.hpp>
-#include "CLI/Formatter.hpp" // IWYU pragma: export
 #include "CLI/Config.hpp"    // IWYU pragma: export
+#include "CLI/Formatter.hpp" // IWYU pragma: export
+#include <CLI/Error.hpp>
+#include <CLI/Validators.hpp>
+#include <spdlog/common.h>
 
 namespace dbgen4
 {
@@ -55,11 +56,12 @@ namespace dbgen4
   {
     CLI::App app{"Generator of db layer for c++ programs."};
 
-    str_t     s{};
-    vec_str_t arr(ME::enum_names<db_type_enum>().begin() + 1, ME::enum_names<db_type_enum>().end());
+    str_t           s{};
+    const vec_str_t arr(ME::enum_names<db_type_enum>().begin() + 1,
+                        ME::enum_names<db_type_enum>().end());
     for (const auto& el : arr) s += str_t(el) + str_t(",");
     s.resize(s.length() - 1);
-    str_t enum_str = ME::enum_name<db_type_enum>(db_type_enum::sql).data();
+    str_t enum_str = std::string(ME::enum_name<db_type_enum>(db_type_enum::sql));
     // clang-format off
     /// database type
     auto help_str = fmt::format("database type : [{}]", s);

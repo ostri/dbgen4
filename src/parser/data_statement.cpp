@@ -1,7 +1,15 @@
 #include "data_statement.hpp"
 #include <magic_enum.hpp>
+#include "common.hpp"
+#include <fmt/format.h>
 namespace dbgen4
 {
+  // data_statement::data_statement(const data_statement& o)
+  // : log(o)
+  // , id_(o.id_)
+  // , sql_(o.sql_)
+  // {
+  // }
 
   str_t         data_statement::id() const { return id_; }
   map_db_type_t data_statement::sql() const { return sql_; }
@@ -14,30 +22,24 @@ namespace dbgen4
    */
   str_t data_statement::sql(db_type_enum v) const
   {
-    str_t res{}; /// result sql statement
-    auto  it = sql_.find(v);
+    auto it = sql_.find(v);
     if (it != sql_.end())
     { // we have sql for this specific db type
       return it->second;
     }
-    else
-    { // no sql for this specific db type, try to return generic sql
-      l->info("No sql statement for db type '{}', trying to return generic sql.", ME::enum_name(v));
-      auto it = sql_.find(db_type_enum::sql);
-      if (it != sql_.end())
-      {
-        return it->second; // return generic sql
-      }
-      else
-      {
-        auto msg = fmt::format(
-          "No specific and/or generic sql statement found. statement id: '{}' database: {}",
-          id_,
-          ME::enum_name(v));
-        l->error(msg);
-        return {};
-      }
+    // no sql for this specific db type, try to return generic sql
+    l->info("No sql statement for db type '{}', trying to return generic sql.", ME::enum_name(v));
+    it = sql_.find(db_type_enum::sql);
+    if (it != sql_.end())
+    {
+      return it->second; // return generic sql
     }
+    auto msg =
+      fmt::format("No specific and/or generic sql statement found. statement id: '{}' database: {}",
+                  id_,
+                  ME::enum_name(v));
+    l->error(msg);
+    return {};
   }
 
   void data_statement::set_id(const str_t& id) { id_ = id; }

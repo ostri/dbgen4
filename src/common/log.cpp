@@ -1,19 +1,20 @@
-#include <magic_enum.hpp>
 #include "log.hpp"
 #include "build_type.hpp"
+#include <fmt/core.h>
+#include <fmt/format.h>
 #include <iostream>
-// #include <memory>
+#include <magic_enum.hpp>
 #include <memory>
+#include <mutex>
 #include <spdlog/common.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
-#include <mutex>
-#include <spdlog/spdlog.h>
-
+#include <spdlog/sinks/daily_file_sink.h>
+#include <spdlog/logger.h>
 
 namespace
 {
-  // NOLINTNEXTLINE(readability-static-definition-in-anonymous-namespace,
-  static std::mutex mtx; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
+  // NOLINTNEXTLINE(readability-static-definition-in-anonymous-namespace)
+  std::mutex mtx; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
 } // namespace
 namespace dbgen4
 {
@@ -25,6 +26,7 @@ namespace dbgen4
       //      std::cerr << "log konstruktor\n";
       if (! l) // log or reference to log does not exists
       {
+        // NOLINTNEXTLINE(concurrency-mt-unsafe, misc-const-correctness)
         std::lock_guard<std::mutex> lock(mtx); // wait until be served
         l = spd::get(log_name_); // it is our turn. maybe somebody creaated log in between
         if (l) l->debug("log reference was established");
@@ -66,7 +68,8 @@ namespace dbgen4
     auto console_sink = std::make_shared<spd::sinks::stdout_color_sink_mt>();
     console_sink->set_level(spd::level::err);
 
-    sink_ = std::make_shared<spd::sinks::daily_file_sink_mt>(log_filename, 2, 0); // rotate 2:00 am
+    sink_ = std::make_shared<spd::sinks::daily_file_sink_mt>(log_filename, 2,
+                                                             0); // rotate 2:00 am
     // sink_->set_level(spd::level::debug);
 
     l = std::make_shared<spd::logger>(log_name_, spd::sinks_init_list{sink_, console_sink});
@@ -82,8 +85,8 @@ namespace dbgen4
 
   int log::find_sink() const
   {
-    sink_t sink;
-    auto   cnt = 0;
+    // sink_t sink;
+    auto cnt = 0;
     for (const auto& tmp : l->sinks())
     {
       // NOLINTNEXTLINE(hicpp-use-auto, modernize-use-auto)

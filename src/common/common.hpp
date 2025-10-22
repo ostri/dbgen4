@@ -1,9 +1,9 @@
-#ifndef COMMON_HPP
-#define COMMON_HPP 1
+#pragma once
 
-#include <string_view>
-#include <vector>
+// #include <vector>
 #include <string>
+#include <string_view>
+
 #include <magic_enum.hpp>
 // #include <nlohmann/json.hpp>
 // #include <nlohmann/json-schema.hpp>
@@ -25,7 +25,7 @@ namespace dbgen4
    * @brief enumeration of supported databases
    *
    */
-  enum class db_type_enum : int
+  enum class db_type_enum : std::uint8_t
   {
     sql     = 0, /// standard sql selected
     mariadb = 1, /// maria db
@@ -35,5 +35,3 @@ namespace dbgen4
 
   str_t join(const vec_str_t& o, const str_t& delim);
 }; // namespace dbgen4
-
-#endif // COMMON_HPP

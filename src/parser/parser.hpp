@@ -8,7 +8,8 @@
 
 namespace dbgen4
 {
-  using pars_result_t = std::pair<data_statements, parser_errors_enum>;
+  using pars_result_t = std::pair<data_statements, parser_err_enum>;
+  using stmt_result_t = std::pair<data_statement, parser_err_enum>;
   /**
    * @brief parser of the yaml file
    *
@@ -34,10 +35,16 @@ namespace dbgen4
     /// @brief loads the data from the yaml file structure to data structures
     /// @param n internal yaml file structure
     /// @return result of the operation, optional loaded data structure
-    pars_result_t exec(const YAML::Node& n);
+    [[nodiscard]] pars_result_t exec(const YAML::Node& n);
+    [[nodiscard]] pars_result_t process_statement(const YAML::Node& stmt, const data_statements& p);
   private:
-    bool extract_sqls(const YAML::detail::iterator_value& stmt, data_statement& s);
-  private:
+    /// @brief extracts sql statements from the yaml node to data_statement structure
+    /// @param stmt yaml node representing single statement
+    /// @param s data_statement structure where sql statements will be stored
+    /// @return new version of data_statement structure with loaded sql statements or error code
+    [[nodiscard]] stmt_result_t extract_sqls(const YAML::Node& n, const data_statement& s) const;
+
+    // NOLINTNEXTLINE (readability-redundant-access-specifiers)
     str_t filename_{}; //< filename where gsql definition is stored
   };
 } // namespace dbgen4

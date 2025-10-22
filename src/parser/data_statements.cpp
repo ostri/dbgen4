@@ -1,4 +1,6 @@
+#include "common.hpp"
 #include "data_statements.hpp"
+#include "data_statement.hpp"
 
 namespace dbgen4
 {

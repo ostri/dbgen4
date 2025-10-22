@@ -54,11 +54,17 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
   set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 endif()
 
+
 # include(FetchContent)
 
 # FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
 # FetchContent_MakeAvailable(json)
 
+# # Enable clang-tidy during build
+# set(CMAKE_CXX_CLANG_TIDY
+#     clang-tidy;
+#     -format-style=file;
+# )
 
 # Docs only available if this is the main app
 find_package(Doxygen OPTIONAL_COMPONENTS dot mscgen dia)
@@ -99,17 +105,17 @@ set(SRC_SUBDIRS
 # set(SPDLOG_FMT_EXTERNAL ON)
 # FetchContent_MakeAvailable(spdlog)
 
-FetchContent_Declare(
-  yaml-cpp
-  GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
-  GIT_TAG master # Can be a tag (yaml-cpp-x.x.x), a commit hash, or a branch name (master)
-)
-FetchContent_MakeAvailable(yaml-cpp)
+# FetchContent_Declare(
+#   yaml-cpp
+#   GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
+#   GIT_TAG master # Can be a tag (yaml-cpp-x.x.x), a commit hash, or a branch name (master)
+# )
+# FetchContent_MakeAvailable(yaml-cpp)
 
 
 find_package(yaml-cpp REQUIRED)
 find_package(fmt REQUIRED)
-
+find_package(spdlog REQUIRED)
 
 # Add main program
 add_executable(${PROJECT_NAME} src/dbgen4.cpp )
@@ -118,8 +124,8 @@ foreach(SUBDIR ${SRC_SUBDIRS})
   target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/${SUBDIR})
 endforeach()
 
-target_sources(${PROJECT_NAME} PRIVATE
- src/programs/appl.cpp 
+set (SRC_FILES 
+src/programs/appl.cpp 
  src/parser/parser.cpp 
  src/parser/data_statement.cpp 
  src/parser/data_statements.cpp 
@@ -127,10 +133,34 @@ target_sources(${PROJECT_NAME} PRIVATE
  src/common/common.cpp
  src/common/build_type.cpp
  src/common/log.cpp
+ src/common/parser_errors.cpp
 )
+
+
+target_sources(${PROJECT_NAME} PRIVATE  ${SRC_FILES} )
 # Target dependencies
 target_link_libraries(${PROJECT_NAME} PRIVATE  fmt::fmt yaml-cpp::yaml-cpp  )
 #target_compile_definitions(${PROJECT_NAME} PRIVATE FMT_COMPILE=1)
+
+# Dodaj samostojen cilj za clang-tidy
+find_program(CLANG_TIDY_EXECUTABLE NAMES clang-tidy)
+if(CLANG_TIDY_EXECUTABLE)
+    # Seznam izvornih datotek
+ 
+    # Dodaj custom target za clang-tidy
+    add_custom_target(
+        clang-tidy
+        COMMAND ${CLANG_TIDY_EXECUTABLE}
+                -p ${CMAKE_BINARY_DIR}
+                -format-style=file
+                -header-filter=.*src.*
+                ${SRC_FILES}
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        COMMENT "Running clang-tidy on source files"
+    )
+else()
+    message(WARNING "clang-tidy not found, skipping clang-tidy target")
+endif()
 
 ## Eksplicitno določi include poti za izvorne verzije
 #target_include_directories(${PROJECT_NAME} PRIVATE

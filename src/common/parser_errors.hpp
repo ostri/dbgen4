@@ -1,9 +1,11 @@
-#ifndef PARSER_ERRORS_HPP
-#define PARSER_ERRORS_HPP
+#pragma once
+
+#include <cstdint>
+#include <fmt/format.h>
 
 namespace dbgen4
 {
-  enum class parser_errors_enum
+  enum class parser_err_enum : std::uint8_t
   {
     ok,
     file_cant_be_open,
@@ -11,9 +13,35 @@ namespace dbgen4
     inv_top_level_struct,
     statements_attr_missing,
     inv_statement_syntax,
-    statement_unique_id_is_missing,
+    stmt_unique_id_is_missing,
     duplicated_stmt_id,
     sql_statement_missing,
+    no_sql_stmt_found
   };
+
+  /**
+   * @brief Gets human readable string format for the provided error code
+   * @param code error code
+   * @return human readable string format compatible with fmt/spdlog
+   */
+  consteval const char* get_parser_err_str(parser_err_enum code) noexcept
+  {
+    switch (code)
+    {
+      // clang-format off
+    case parser_err_enum::ok: return "Document '{}' Operation successful '{}'";
+    case parser_err_enum::file_cant_be_open: return "Document '{}' Unable to open file '{}'";
+    case parser_err_enum::yaml_syntax_error: return "Document '{}' YAML syntax error '{}'";
+    case parser_err_enum::inv_top_level_struct: return "Document '{}' Invalid top level structure '{}'";
+    case parser_err_enum::statements_attr_missing: return "Document '{}' Statements attribute is missing '{}'";
+    case parser_err_enum::inv_statement_syntax: return "Document '{}' Invalid statement syntax '{}'";
+    case parser_err_enum::stmt_unique_id_is_missing: return "Document '{}' Statement unique ID is missing '{}'";
+    case parser_err_enum::duplicated_stmt_id: return "Document '{}' Duplicate statement ID detected '{}'";
+    case parser_err_enum::sql_statement_missing: return "Document '{}' SQL statement is missing '{}'";
+    case parser_err_enum::no_sql_stmt_found: return "Document '{}' No SQL statement found '{}'";
+    default: return "Document '{}' Unknown error '{}'";
+      // clang-format on
+    }
+  }
+
 }; // namespace dbgen4
-#endif // PARSER_ERRORS_HPP

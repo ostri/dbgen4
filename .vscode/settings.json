@@ -18,7 +18,9 @@
     "clangd.arguments": [
         "--clang-tidy",
         "--pretty",
-        "--fallback-style=Google"
+        "--fallback-style=Google",
+        "--compile-commands-dir=${workspaceFolder}/build"
     ],
+    "C_Cpp.intelliSenseEngine": "disabled",
     "clangd.fallbackFlags": []
 }

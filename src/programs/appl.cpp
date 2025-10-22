@@ -1,6 +1,9 @@
 #include "appl.hpp"
 #include "../parser/parser.hpp"
 #include <magic_enum.hpp>
+#include <vector>
+#include <string>
+#include "common.hpp"
 
 namespace dbgen4
 {
@@ -35,8 +38,8 @@ namespace dbgen4
   void appl::raw_command_line(int argc, char** argv)
   {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    std::vector<std::string> vec(argv, argv + argc);
-    auto                     cmd_line = join(vec, " ");
+    const std::vector<std::string> vec(argv, argv + argc);
+    auto                           cmd_line = join(vec, " ");
     l->debug("Raw command line: {}", cmd_line);
   }
 

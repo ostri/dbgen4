@@ -4,11 +4,14 @@ description: |
   nekaj 
   vrstic
 statements:
-  - id: sql_1
-    sql: |
-      kar en sql
-      čez nekaj
-      vrst
-    mariadb: |
-      specific sql
-      for mariadb
+- id: sql_1
+  sql: |
+          kar en sql
+          čez nekaj
+          vrst
+  mariadb: |
+          specific sql
+          for mariadb
+
+- id: sql_2
+  sql: "single line sql statement : & # *"

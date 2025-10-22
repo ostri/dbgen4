@@ -1,16 +1,15 @@
-#ifndef DATA_STATEMENTS_HPP
-#define DATA_STATEMENTS_HPP
+#pragma once
 
 #include "common.hpp"
-#include "data_statement.hpp"
 #include <map>
+#include "data_statement.hpp"
 
 namespace dbgen4
 {
   class data_statements;
   // using data_statement_vec_t = std::vector<data_statement>;
   using data_statement_map_t = std::map<str_t, data_statement>;
-  using krneki               = std::pair<data_statement_map_t::const_iterator, bool>;
+  // using krneki               = std::pair<data_statement_map_t::const_iterator, bool>;
 
   class data_statements : private log
   {
@@ -37,9 +36,11 @@ namespace dbgen4
     [[nodiscard]] data_statement_map_t map() const;
     void                               set_map(const data_statement_map_t& map);
   private:
-    str_t                summary_{};     ///< what is the purpose of this sql statements set
-    str_t                description_{}; ///< description of the usage of this sql statement set
-    data_statement_map_t map_{};         ///< individual statements
+    // NOLINTNEXTLINE (readability-redundant-member-init)
+    str_t summary_{};            ///< what is the purpose of this sql statements set
+                                 // NOLINTNEXTLINE (readability-redundant-member-init)
+    str_t description_{};        ///< description of the usage of this sql statement set
+                                 // NOLINTNEXTLINE (readability-redundant-member-init)
+    data_statement_map_t map_{}; ///< individual statements
   };
 } // namespace dbgen4
-#endif // DATA_STATEMENTS_HPP

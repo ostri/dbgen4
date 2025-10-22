@@ -21,8 +21,12 @@ Checks: '*,
 -cppcoreguidelines-init-variables
 '
 WarningsAsErrors: '*'
-HeaderFilterRegex: '*.hpp'
-AnalyzeTemporaryDtors: false
+HeaderFilterRegex: '.*'
+HeaderFileExtensions: 
+- hpp
+ImplementationFileExtensions:
+- cpp
+
 FormatStyle:     none
 ExtraArgsBefore: [
   -std=c++23"
