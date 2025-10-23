@@ -79,10 +79,13 @@ add_subdirectory(examples)
 # add_subdirectory(externals)
 
 set(SRC_SUBDIRS 
+  src/log
   src/programs
-  src/parser
-  src/parameters
-  src/common
+  src/dbgen4/parser
+  src/dbgen4/parameters
+  src/dbgen4/common
+  src/rtl
+  src/rtl/db2
 )
 # foreach(SUBDIR ${SRC_SUBDIRS})
 #   add_subdirectory(${SUBDIR})
@@ -125,38 +128,56 @@ foreach(SUBDIR ${SRC_SUBDIRS})
 endforeach()
 
 set (SRC_FILES 
-src/programs/appl.cpp 
- src/parser/parser.cpp 
- src/parser/data_statement.cpp 
- src/parser/data_statements.cpp 
- src/parameters/parameters.cpp 
- src/common/common.cpp
- src/common/build_type.cpp
- src/common/log.cpp
- src/common/parser_errors.cpp
+ src/dbgen4/parser/parser.cpp 
+ src/dbgen4/parser/data_statement.cpp 
+ src/dbgen4/parser/data_statements.cpp 
+ src/dbgen4/parameters/parameters.cpp 
+ src/dbgen4/common/build_type.cpp
+ src/dbgen4/common/parser_errors.cpp
+ src/dbgen4/common/common.cpp
+ src/log/log.cpp
+ src/programs/appl.cpp 
 )
-
+set (SRC_RTL_FILES
+ src/rtl/rtl.cpp
+ src/rtl/db2/db2_rtl.cpp
+)
 
 target_sources(${PROJECT_NAME} PRIVATE  ${SRC_FILES} )
 # Target dependencies
 target_link_libraries(${PROJECT_NAME} PRIVATE  fmt::fmt yaml-cpp::yaml-cpp  )
 #target_compile_definitions(${PROJECT_NAME} PRIVATE FMT_COMPILE=1)
 
+add_library(db2_rtl STATIC ${SRC_RTL_FILES})
+target_include_directories(db2_rtl 
+  PUBLIC 
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl 
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/db2
+)
+
 # Dodaj samostojen cilj za clang-tidy
 find_program(CLANG_TIDY_EXECUTABLE NAMES clang-tidy)
 if(CLANG_TIDY_EXECUTABLE)
-    # Seznam izvornih datotek
- 
     # Dodaj custom target za clang-tidy
     add_custom_target(
-        clang-tidy
+        dbgen4-tidy
         COMMAND ${CLANG_TIDY_EXECUTABLE}
                 -p ${CMAKE_BINARY_DIR}
                 -format-style=file
-                -header-filter=.*src.*
+                -header-filter=.*dbgen4.*
                 ${SRC_FILES}
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         COMMENT "Running clang-tidy on source files"
+    )
+    add_custom_target(
+        rtl-tidy
+        COMMAND ${CLANG_TIDY_EXECUTABLE}
+                -p ${CMAKE_BINARY_DIR}
+                -format-style=file
+                -header-filter=.*rtl.*
+                ${SRC_RTL_FILES}
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        COMMENT "Running clang-tidy on rtl library files"
     )
 else()
     message(WARNING "clang-tidy not found, skipping clang-tidy target")
