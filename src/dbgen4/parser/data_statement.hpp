@@ -1,8 +1,8 @@
-#ifndef DATA_STATEMENT_HPP
-#define DATA_STATEMENT_HPP
+#pragma once
 
 #include "common.hpp"
 #include <magic_enum.hpp>
+#include <map>
 
 namespace dbgen4
 {
@@ -53,5 +53,3 @@ namespace dbgen4
   };
 
 } // namespace dbgen4
-
-#endif // DATA_STATEMENT_HPP

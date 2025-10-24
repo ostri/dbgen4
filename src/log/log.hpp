@@ -1,7 +1,7 @@
 #pragma once
 // 1 - external fmt (dnf install)
 // 0 - embeded fmt (e.g. part of API)
-#define SPDLOG_FMT_EXTERNAL
+// #define SPDLOG_FMT_EXTERNAL
 #ifndef NDEBUG // debug build - we are tracing till trace
 #  define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_TRACE
 #else // release build - we are tracing till info

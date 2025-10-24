@@ -1,27 +1,33 @@
 {
-    "files.associations": {
-        "cmath": "cpp",
-        "initializer_list": "cpp"
-    },
-    "cmake.generator": "Unix Makefiles",
-    "cmake.configureOnOpen": true,
-    "cmake.buildBeforeRun": true,
-    "cmake.buildArgs": [
-        "-j8"
-    ],
-    "editor.formatOnSave": true,
-    "[cpp]": {
-        "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd"
-    },
-    "[hpp]": {
-        "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd"
-    },
-    "clangd.arguments": [
-        "--clang-tidy",
-        "--pretty",
-        "--fallback-style=Google",
-        "--compile-commands-dir=${workspaceFolder}/build"
-    ],
-    "C_Cpp.intelliSenseEngine": "disabled",
-    "clangd.fallbackFlags": [],
+  "files.associations": {
+    "cmath": "cpp",
+    "initializer_list": "cpp"
+  },
+  "cmake.generator": "Unix Makefiles",
+  "cmake.configureOnOpen": true,
+  "cmake.buildBeforeRun": true,
+  "cmake.buildArgs": [
+    "-j8"
+  ],
+  "editor.formatOnSave": true,
+  "[cpp]": {
+    "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd",
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true,
+    "editor.detectIndentation": false
+  },
+  "[hpp]": {
+    "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd",
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true,
+    "editor.detectIndentation": false
+  },
+  "clangd.arguments": [
+    "--clang-tidy",
+    "--pretty",
+    "--fallback-style=Google",
+    "--compile-commands-dir=${workspaceFolder}/build"
+  ],
+  "C_Cpp.intelliSenseEngine": "disabled",
+  "clangd.fallbackFlags": [],
 }

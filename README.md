@@ -28,6 +28,10 @@ database access layer generator
 
    sudo dnf install fmt.x86_64
 
+### ODBC drive instalation
+
+   sudo dnf install unixODBC-devel
+
 ## database installations
 
 ### mariadb
