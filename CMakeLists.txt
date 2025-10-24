@@ -8,8 +8,9 @@ project(
   LANGUAGES CXX
 )
 include(FetchContent)
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
-# Only do these if this is the main project, and not if it is included through add_subdirectory
+  # Only do these if this is the main project, and not if it is included through add_subdirectory
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
 
   set(CMAKE_CXX_STANDARD 23)                              # compiler level
@@ -118,13 +119,29 @@ set(SRC_SUBDIRS
 
 find_package(yaml-cpp REQUIRED)
 find_package(fmt REQUIRED)
+add_definitions(-DSPDLOG_FMT_EXTERNAL)
 find_package(spdlog REQUIRED)
+find_package(ODBC REQUIRED)
+if (ODBC_FOUND)
+    message(STATUS "ODBC library found.")
+else()
+    message(FATAL_ERROR "ODBC library not found.  sudo dnf install unixODBC-devel")
+endif()
+
+add_executable(${PROJECT_NAME}-db2 src/dbgen4.cpp )
+find_package(DB2 REQUIRED)
+if (DB2_FOUND)
+    message(STATUS "DB2 library found.")
+    target_link_libraries(${PROJECT_NAME}-db2 PRIVATE DB2::DB2)
+else()
+    message(FATAL_ERROR "DB2 knjižnica ni najdena. Preverite DB2_HOME!")
+endif()
 
 # Add main program
-add_executable(${PROJECT_NAME} src/dbgen4.cpp )
+
 
 foreach(SUBDIR ${SRC_SUBDIRS})
-  target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/${SUBDIR})
+  target_include_directories(${PROJECT_NAME}-db2 PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/${SUBDIR})
 endforeach()
 
 set (SRC_FILES 
@@ -143,19 +160,30 @@ set (SRC_RTL_FILES
  src/rtl/db2/db2_rtl.cpp
 )
 
-target_sources(${PROJECT_NAME} PRIVATE  ${SRC_FILES} )
-# Target dependencies
-target_link_libraries(${PROJECT_NAME} PRIVATE  fmt::fmt yaml-cpp::yaml-cpp  )
-#target_compile_definitions(${PROJECT_NAME} PRIVATE FMT_COMPILE=1)
-
 add_library(db2_rtl STATIC ${SRC_RTL_FILES})
 target_include_directories(db2_rtl 
-  PUBLIC 
+  PRIVATE 
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl 
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/db2
+    $ENV{IBM_DB_INCLUDE}
 )
 
-# Dodaj samostojen cilj za clang-tidy
+target_sources(${PROJECT_NAME}-db2 PRIVATE  ${SRC_FILES} )
+# Target dependencies
+target_link_libraries(${PROJECT_NAME}-db2 
+  PRIVATE  
+    ${DB2_LIBRARY} 
+    fmt::fmt 
+    yaml-cpp::yaml-cpp 
+    db2_rtl 
+    spdlog::spdlog 
+    ODBC::ODBC
+)
+#target_compile_definitions(${PROJECT_NAME} PRIVATE FMT_COMPILE=1)
+
+
+
+# tidy integration
 find_program(CLANG_TIDY_EXECUTABLE NAMES clang-tidy)
 if(CLANG_TIDY_EXECUTABLE)
     # Dodaj custom target za clang-tidy
@@ -167,7 +195,7 @@ if(CLANG_TIDY_EXECUTABLE)
                 -header-filter=.*dbgen4.*
                 ${SRC_FILES}
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        COMMENT "Running clang-tidy on source files"
+        COMMENT "Running clang-tidy on dbgen4 source files"
     )
     add_custom_target(
         rtl-tidy
