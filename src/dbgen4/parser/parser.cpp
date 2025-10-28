@@ -25,12 +25,10 @@ namespace dbgen4
    internal structure
    *
    * @param filename
-   * @return int - 0 - ok
-                 - 1 - provided filename does not exists
-                 - 2 - syntax error int tne provided file (i.e. not yaml
-   compliant)
+   * @return pars_result_t (parsed data_statements object and error code (0 if
+   *         successful, non-zero if not))
    */
-  pars_result_t parser::exec(const str_t& filename)
+  pars_result_t parser::parse_yaml_file(const str_t& filename)
   {
     std::ifstream fin(filename);
     if (! fin.is_open())
@@ -41,7 +39,7 @@ namespace dbgen4
 
     try
     {
-      return exec(YAML::Load(fin));
+      return parse_yaml_file(YAML::Load(fin));
     }
     catch (const YAML::BadFile& e)
     {
@@ -133,7 +131,7 @@ namespace dbgen4
   }
   /// parse the provided YAML node and load its contents to the internal structure
   /// return parsed data_statements object and error code
-  pars_result_t parser::exec(const YAML::Node& n)
+  pars_result_t parser::parse_yaml_file(const YAML::Node& n)
   {
     data_statements p{};
     if (n.IsMap())
