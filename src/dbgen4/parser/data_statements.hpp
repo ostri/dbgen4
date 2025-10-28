@@ -22,13 +22,13 @@ namespace dbgen4
     data_statements& operator=(const data_statements&)     = delete;
     data_statements& operator=(data_statements&&) noexcept = delete;
     /// getters
-    [[nodiscard]] str_t      summary() const;
-    [[nodiscard]] str_t      description() const;
-    [[nodiscard]] parameters params() const;
+    [[nodiscard]] str_t           summary() const;
+    [[nodiscard]] str_t           description() const;
+    [[nodiscard]] cmd_line_params params() const;
     /// setters
     void set_summary(const str_t& summary);
     void set_description(const str_t& description);
-    void set_params(const parameters& params);
+    void set_params(const cmd_line_params& params);
     /**
      * @brief add statement to the map
      *
@@ -49,6 +49,6 @@ namespace dbgen4
     str_t                summary_;     ///< description about the purpose of this sql statements set
     str_t                description_; ///< description of the usage of this sql statement set
     data_statement_map_t map_;         ///< individual statements
-    parameters           params_;      ///< command line parameters
+    cmd_line_params      params_;      ///< command line parameters
   };
 } // namespace dbgen4

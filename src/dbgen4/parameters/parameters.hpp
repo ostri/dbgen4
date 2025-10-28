@@ -9,15 +9,15 @@
 
 namespace dbgen4
 {
-  class parameters : log
+  class cmd_line_params : log
   {
   public:
-    parameters()                             = default;
-    virtual ~parameters()                    = default;
-    parameters& operator=(const parameters&) = default;
-    parameters& operator=(parameters&&)      = delete;
-    parameters(const parameters& o)          = default;
-    parameters(parameters&& o) noexcept      = default;
+    cmd_line_params()                                  = default;
+    virtual ~cmd_line_params()                         = default;
+    cmd_line_params& operator=(const cmd_line_params&) = default;
+    cmd_line_params& operator=(cmd_line_params&&)      = delete;
+    cmd_line_params(const cmd_line_params& o)          = default;
+    cmd_line_params(cmd_line_params&& o) noexcept      = default;
     [[nodiscard]] vec_str_t    files() const; //< fetch the list of gsql file to be processed
     [[nodiscard]] db_type_enum db_type()
       const; //< fetch the database type to which to generate code

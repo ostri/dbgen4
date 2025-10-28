@@ -17,18 +17,18 @@
 namespace dbgen4
 {
 
-  vec_str_t    parameters::files() const { return files_; }
-  db_type_enum parameters::db_type() const { return db_type_; }
-  str_t        parameters::db_name() const { return db_name_; }
-  str_t        parameters::out_folder() const { return out_folder_; }
-  bool         parameters::is_verbose() const { return verbose_; }
+  vec_str_t    cmd_line_params::files() const { return files_; }
+  db_type_enum cmd_line_params::db_type() const { return db_type_; }
+  str_t        cmd_line_params::db_name() const { return db_name_; }
+  str_t        cmd_line_params::out_folder() const { return out_folder_; }
+  bool         cmd_line_params::is_verbose() const { return verbose_; }
   /**
    * @brief Method returns string that describes the object attribute values
    *
    * @param offs offset from the left in log file
    * @return str_t
    */
-  str_t parameters::dump(int offs) const
+  str_t cmd_line_params::dump(int offs) const
   {
     str_t s{};
     str_t r(offs, ' ');
@@ -52,7 +52,7 @@ namespace dbgen4
     return msg;
   }
 
-  int parameters::load_parameters(int argc, char** argv, char** /*env*/)
+  int cmd_line_params::load_parameters(int argc, char** argv, char** /*env*/)
   {
     CLI::App app{"Generator of db layer for c++ programs."};
 
@@ -131,7 +131,7 @@ namespace dbgen4
     return 0;
   }
 
-  void parameters::set_log_level(bool verbose) const
+  void cmd_line_params::set_log_level(bool verbose) const
   {
     if constexpr (is_debug_build()) /* debug build */
     {

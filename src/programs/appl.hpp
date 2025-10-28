@@ -17,8 +17,8 @@ namespace dbgen4
     int   exec(int argc, char** argv, char** env); /// execute application
   private:
     /// method logs raw command line
-    void       raw_command_line(int argc, char** argv);
-    parameters p_; /// comand line parameter structure
+    void            raw_command_line(int argc, char** argv);
+    cmd_line_params p_; /// comand line parameter structure
   };
-};     // namespace dbgen4
+}; // namespace dbgen4
 #endif // APPL_HPP

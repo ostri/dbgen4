@@ -10,7 +10,7 @@ namespace dbgen4
   void  data_statements::set_summary(const str_t& summary) { summary_ = summary; }
   str_t data_statements::description() const { return description_; }
 
-  parameters data_statements::params() const { return params_; }
+  cmd_line_params data_statements::params() const { return params_; }
 
   data_statement_map_t data_statements::map() const { return map_; }
 
@@ -18,7 +18,7 @@ namespace dbgen4
 
   void data_statements::set_description(const str_t& description) { description_ = description; }
 
-  void data_statements::set_params(const parameters& params) { params_ = params; }
+  void data_statements::set_params(const cmd_line_params& params) { params_ = params; }
 
   bool data_statements::add_statement(const data_statement& s)
   {
