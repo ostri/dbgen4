@@ -3,6 +3,7 @@
 #include "common.hpp"
 #include <map>
 #include "data_statement.hpp"
+#include "parameters.hpp"
 
 namespace dbgen4
 {
@@ -14,12 +15,20 @@ namespace dbgen4
   class data_statements : private log
   {
   public:
+    data_statements()                                      = default;
+    virtual ~data_statements()                             = default;
+    data_statements(const data_statements&)                = default;
+    data_statements(data_statements&&) noexcept            = delete;
+    data_statements& operator=(const data_statements&)     = delete;
+    data_statements& operator=(data_statements&&) noexcept = delete;
     /// getters
-    [[nodiscard]] str_t summary() const;
-    [[nodiscard]] str_t description() const;
+    [[nodiscard]] str_t      summary() const;
+    [[nodiscard]] str_t      description() const;
+    [[nodiscard]] parameters params() const;
     /// setters
     void set_summary(const str_t& summary);
     void set_description(const str_t& description);
+    void set_params(const parameters& params);
     /**
      * @brief add statement to the map
      *
@@ -37,10 +46,9 @@ namespace dbgen4
     void                               set_map(const data_statement_map_t& map);
   private:
     // NOLINTNEXTLINE (readability-redundant-member-init)
-    str_t summary_{};            ///< what is the purpose of this sql statements set
-                                 // NOLINTNEXTLINE (readability-redundant-member-init)
-    str_t description_{};        ///< description of the usage of this sql statement set
-                                 // NOLINTNEXTLINE (readability-redundant-member-init)
-    data_statement_map_t map_{}; ///< individual statements
+    str_t                summary_;     ///< description about the purpose of this sql statements set
+    str_t                description_; ///< description of the usage of this sql statement set
+    data_statement_map_t map_;         ///< individual statements
+    parameters           params_;      ///< command line parameters
   };
 } // namespace dbgen4

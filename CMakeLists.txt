@@ -148,11 +148,18 @@ set (SRC_FILES
  src/dbgen4/parser/parser.cpp 
  src/dbgen4/parser/data_statement.cpp 
  src/dbgen4/parser/data_statements.cpp 
+ src/dbgen4/parser/pars_result.cpp 
+  src/dbgen4/parser/sql_col_def.cpp
+
  src/dbgen4/parameters/parameters.cpp 
+
  src/dbgen4/common/build_type.cpp
  src/dbgen4/common/parser_errors.cpp
  src/dbgen4/common/common.cpp
+ src/dbgen4/common/cli_constants.cpp
+ 
  src/log/log.cpp
+ 
  src/programs/appl.cpp 
 )
 set (SRC_RTL_FILES

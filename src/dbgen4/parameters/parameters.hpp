@@ -14,10 +14,10 @@ namespace dbgen4
   public:
     parameters()                             = default;
     virtual ~parameters()                    = default;
-    parameters& operator=(const parameters&) = delete;
+    parameters& operator=(const parameters&) = default;
     parameters& operator=(parameters&&)      = delete;
-    parameters(const parameters& o)          = delete;
-    parameters(parameters&& o) noexcept      = delete;
+    parameters(const parameters& o)          = default;
+    parameters(parameters&& o) noexcept      = default;
     [[nodiscard]] vec_str_t    files() const; //< fetch the list of gsql file to be processed
     [[nodiscard]] db_type_enum db_type()
       const; //< fetch the database type to which to generate code
@@ -37,15 +37,11 @@ namespace dbgen4
     void set_log_level(bool verbose) const;
   protected:
   private:
-    // NOLINTNEXTLINE (misc-non-private-member-variables-in-classes)
-    str_t        db_name_{};                  //< database name to connect to
+    str_t        db_name_;                    //< database name to connect to
     db_type_enum db_type_{db_type_enum::sql}; //< database type
-    // NOLINTNEXTLINE (misc-non-private-member-variables-in-classes)
-    str_t out_folder_{}; //< output folder for generated files
-    // NOLINTNEXTLINE (misc-non-private-member-variables-in-classes)
-    bool verbose_{}; //< should we make verbose output
-    // NOLINTNEXTLINE (misc-non-private-member-variables-in-classes)
-    vec_str_t files_{}; //< set of files to be processed
+    str_t        out_folder_;                 //< output folder for generated files
+    bool         verbose_{false};             //< should we make verbose output
+    vec_str_t    files_;                      //< set of files to be processed
 
   }; // namespace dbgen4
 

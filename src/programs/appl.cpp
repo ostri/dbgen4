@@ -21,18 +21,11 @@ namespace dbgen4
     // p.load_grammar();
     for (const auto& file : p_.files())
     {
-      auto r = p.parse_yaml_file(file);
-      sts    = ME::enum_integer(r.second);
+      auto r = p.parse_yaml_file(file, p_.db_type());
+      sts    = ME::enum_integer(r.e());
       // const auto* fmt = get_parser_err_str(r.second);
-      l->info("File '{}' parser status: {}", file, magic_enum::enum_name(r.second));
+      l->info("File '{}' parser status: {}", file, magic_enum::enum_name(r.e()));
     }
-
-    // const int cifra = 42;
-    // // The people are defined with brace initialization
-    // static json bad_person  = {{"age", cifra}};
-    // static json good_person = {{"name", "Albert"}, {"age", cifra}};
-
-    // for (const auto& person : {bad_person, good_person}) p.exec(person);
 
     l->info("Application exit code '{}' '{}'",
             sts,

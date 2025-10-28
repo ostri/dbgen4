@@ -27,7 +27,7 @@ namespace dbgen4
    */
   enum class db_type_enum : std::uint8_t
   {
-    sql     = 0, /// standard sql selected
+    sql     = 0, /// standard sql selected (must be the first one )
     mariadb = 1, /// maria db
     psql    = 2, /// postgresql
     db2     = 3  /// ibm db2
