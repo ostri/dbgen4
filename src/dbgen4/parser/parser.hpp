@@ -26,7 +26,7 @@ namespace dbgen4
     /// @brief loads the data from the yaml file to data structures
     /// @param filename path to the yaml file
     /// @return result of the operation, optional loaded data structure
-    pars_result_t exec(const str_t& filename);
+    pars_result_t parse_yaml_file(const str_t& filename);
     /// getters
     [[nodiscard]] str_t filename() const; ///< filename where gsql definition is stored
     /// setters
@@ -35,7 +35,7 @@ namespace dbgen4
     /// @brief loads the data from the yaml file structure to data structures
     /// @param n internal yaml file structure
     /// @return result of the operation, optional loaded data structure
-    [[nodiscard]] pars_result_t exec(const YAML::Node& n);
+    [[nodiscard]] pars_result_t parse_yaml_file(const YAML::Node& n);
     [[nodiscard]] pars_result_t process_statement(const YAML::Node& stmt, const data_statements& p);
   private:
     /// @brief extracts sql statements from the yaml node to data_statement structure
