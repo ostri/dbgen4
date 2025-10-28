@@ -151,7 +151,7 @@ set (SRC_FILES
  src/dbgen4/parser/pars_result.cpp 
   src/dbgen4/parser/sql_col_def.cpp
 
- src/dbgen4/parameters/parameters.cpp 
+ src/dbgen4/parameters/cmd_line_params.cpp 
 
  src/dbgen4/common/build_type.cpp
  src/dbgen4/common/parser_errors.cpp

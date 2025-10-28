@@ -3,7 +3,7 @@
 #include "common.hpp"
 #include <map>
 #include "data_statement.hpp"
-#include "parameters.hpp"
+#include "cmd_line_params.hpp"
 
 namespace dbgen4
 {

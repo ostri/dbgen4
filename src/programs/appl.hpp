@@ -2,7 +2,7 @@
 #define APPL_HPP
 
 #include "log.hpp"
-#include "parameters.hpp"
+#include "cmd_line_params.hpp"
 namespace dbgen4
 {
   class appl : public log
