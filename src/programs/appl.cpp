@@ -21,11 +21,10 @@ namespace dbgen4
     // p.load_grammar();
     for (const auto& file : p_.files())
     {
-      auto r = p.exec(file);
+      auto r = p.parse_yaml_file(file);
       sts    = ME::enum_integer(r.second);
       // const auto* fmt = get_parser_err_str(r.second);
-
-      l->info("File '{}' status: {}", file, magic_enum::enum_name(r.second));
+      l->info("File '{}' parser status: {}", file, magic_enum::enum_name(r.second));
     }
 
     // const int cifra = 42;
