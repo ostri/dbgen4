@@ -5,9 +5,13 @@
 #include <string>
 #include "common.hpp"
 #include "parser_errors.hpp"
+#include "db2_rtl.hpp"
+#include "rtl.hpp"
 
 namespace dbgen4
 {
+  using rtl::db_sts;
+
   appl::appl() = default;
 
   appl::~appl() { l->flush(); };
@@ -18,20 +22,38 @@ namespace dbgen4
     l->info("=========== Application initialized ===========");
     auto sts = p_.load_parameters(argc, argv, env);
     raw_command_line(argc, argv);
-    // p.load_grammar();
-    for (const auto& file : p_.files())
+    try
     {
-      auto r = p.parse_yaml_file(file, p_.db_type());
-      sts    = ME::enum_integer(r.e());
-      // const auto* fmt = get_parser_err_str(r.second);
-      l->info("File '{}' parser status: {}", file, magic_enum::enum_name(r.e()));
-    }
+      rtl::db_db2 db;
+      // auto r = db.connect(p_.db_host(), p_.db_name(), p_.db_user(), p_.db_password());
+      auto r = db.connect("localhost", p_.db_name(), "ostri", "!123alfa");
+      l->info("Database connection status: {}", ME::enum_name<db_sts>(r));
+      if (! rtl::is_success(r))
+      {
+        l->error("Unable to connect to database '{}'", p_.db_name());
+        return ME::enum_integer(parser_err_enum::connection_error);
+      }
+      for (const auto& file : p_.files())
+      {
+        auto r = p.parse_yaml_file(file, p_.db_type());
+        sts    = ME::enum_integer(r.e());
+        // const auto* fmt = get_parser_err_str(r.second);
+        l->info("File '{}' parser status: {}", file, magic_enum::enum_name(r.e()));
+      }
 
-    l->info("Application exit code '{}' '{}'",
-            sts,
-            magic_enum::enum_name(static_cast<parser_err_enum>(sts)));
-    return sts;
-  }
+      l->info("Application exit code '{}' '{}'",
+              sts,
+              magic_enum::enum_name(static_cast<parser_err_enum>(sts)));
+      db.disconnect();
+      return sts;
+    }
+    catch (...)
+    {
+      const auto* const msg = "Unexpected error during application execution";
+      l->error(msg);
+      return ME::enum_integer(parser_err_enum::unhandled_exception);
+    };
+  };
 
   void appl::raw_command_line(int argc, char** argv)
   {

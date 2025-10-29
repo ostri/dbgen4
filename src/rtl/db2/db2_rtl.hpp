@@ -1,12 +1,9 @@
 #pragma once
 
 #include <sqlcli1.h>
-// #include <sql.h>
-// #include <sqlext.h>
-// #include <sqltypes.h>
+
 #include <string>
-// #include <memory>
-// #include <stdexcept>
+
 #include <vector>
 #include "rtl.hpp"
 namespace rtl

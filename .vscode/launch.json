@@ -8,12 +8,12 @@
       "name": "(gdb) Launch ERR",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/build/dbgen4",
+      "program": "${workspaceFolder}/build/dbgen4-db2",
       "args": [
         "-t",
-        "db3",
+        "db2",
         "-n",
-        "alfa",
+        "test",
         "../yaml/t1.yaml"
       ],
       "stopAtEntry": false,
@@ -38,7 +38,7 @@
       "name": "(gdb) Launch OK",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/build/dbgen4",
+      "program": "${workspaceFolder}/build/dbgen4-db2",
       "args": [
         "-v",
         "-t",

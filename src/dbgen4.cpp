@@ -1,7 +1,7 @@
 
 #include "appl.hpp"
 #ifndef NDEBUG
-#  include <sanitizer/lsan_interface.h>
+// #  include <sanitizer/lsan_interface.h>
 #endif
 int main(int argc, char** argv, char** env)
 {
@@ -13,8 +13,8 @@ int main(int argc, char** argv, char** env)
   // x[len + 1]    = 1000;         // NOLINT
   //  delete[] x;                   // NOLINT
   auto sts = app.exec(argc, argv, env);
-#ifndef NDEBUG
-  __lsan_do_recoverable_leak_check();
-#endif
+  // #ifndef NDEBUG
+  //   __lsan_do_recoverable_leak_check();
+  // #endif
   return sts;
 }

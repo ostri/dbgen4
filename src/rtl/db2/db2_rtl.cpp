@@ -21,21 +21,21 @@ namespace rtl
                           SQLHANDLE          handle,
                           const std::string& operation) const
   {
-    constexpr const int sql_state_len = 6;
-    constexpr const int msg_len       = 1024;
+    constexpr const int sql_state_len = 5 + 1;
+    constexpr const int msg_len       = 1024 + 1;
     if (! is_success(static_cast<db_sts>(ret)))
     {
       std::array<SQLCHAR, sql_state_len> sqlState{};
       SQLINTEGER                         nativeError;
       std::array<SQLCHAR, msg_len>       messageText{};
-      SQLSMALLINT                        messageLength;
-      std::string                        err_msg;
+      SQLSMALLINT                        messageLength = 0;
+      std::string                        err_msg{};
       SQLSMALLINT                        rec_number = 1;
       SQLRETURN                          res        = SQL_SUCCESS;
 
       while (! is_no_data(static_cast<db_sts>(res)))
       {
-        res     = SQLGetDiagRec(handleType,
+        res = SQLGetDiagRec(handleType,
                             handle,
                             rec_number,
                             sqlState.data(),
@@ -43,71 +43,149 @@ namespace rtl
                             messageText.data(),
                             messageText.size(),
                             &messageLength);
+
         err_msg = fmt::format("Error in '{}': '{}' (SQLSTATE: {})\n",
                               operation,
                               std::string(messageText.begin(), messageText.begin() + messageLength),
                               std::string(sqlState.begin(), sqlState.end()));
+        l->error(err_msg);
 
         rec_number++;
       };
     }
   }
 
+  // db_sts db_db2::connect(const std::string& host,
+  //                        const std::string& database_name,
+  //                        const std::string& user,
+  //                        const std::string& password)
+  // {
+  //   // Inicializacija ODBC okolja
+  //   SQLRETURN ret = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &data()->env_handle);
+  //   checkError(ret, SQL_HANDLE_ENV, data()->env_handle, "allocating environment handle");
+  //   // clang-format off
+  //   // Nastavitev verzije ODBC na 3
+  //   SQLINTEGER ver = SQL_OV_ODBC3_80;
+  //   ret = SQLSetEnvAttr(
+  //     data()->env_handle,
+  //     SQL_ATTR_ODBC_VERSION,
+  //     reinterpret_cast<SQLPOINTER>(&ver),  // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
+  //     0);
+  //   checkError(ret, SQL_HANDLE_ENV, data()->env_handle, "setting ODBC version");
+  //   // clang-format on
+
+  //   // Inicializacija povezave
+  //   ret = SQLAllocHandle(SQL_HANDLE_DBC, data()->env_handle, &data()->conn_handle);
+  //   checkError(ret, SQL_HANDLE_DBC, data()->conn_handle, "allocating connection handle");
+
+  //   // Sestavljanje povezovalnega niza za DB2
+  //   auto connStr =
+  //     fmt::format("DRIVER={{IBM DB2 ODBC DRIVER}};HOSTNAME={};DATABASE={};UID={};PWD={};",
+  //                 host,
+  //                 database_name,
+  //                 user,
+  //                 password);
+  //   // clang-format off
+  //   // Povezava z bazo podatkov
+  //   ret = SQLDriverConnect(data()->conn_handle,
+  //                          nullptr,
+  //                          reinterpret_cast<SQLCHAR*>(connStr.data()), //
+  //                          NOLINT(cppcoreguidelines-pro-type-reinterpret-cast) SQL_NTS, nullptr,
+  //                          0,
+  //                          nullptr,
+  //                          SQL_DRIVER_NOPROMPT);
+  //   checkError(ret, SQL_HANDLE_DBC, data()->conn_handle, "connecting to DB2 database");
+  //   // clang-format on
+  //   return static_cast<db_sts>(ret);
+  // }
   db_sts db_db2::connect(const std::string& host,
                          const std::string& database_name,
                          const std::string& user,
                          const std::string& password)
   {
-    // Inicializacija ODBC okolja
-    SQLRETURN ret = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &data()->env_handle);
-    checkError(ret, SQL_HANDLE_ENV, data()->env_handle, "allocating environment handle");
+    SQLRETURN ret;
 
-    // clang-format off
-    // Nastavitev verzije ODBC na 3
-    ret = SQLSetEnvAttr(
-      data()->env_handle, 
-      SQL_ATTR_ODBC_VERSION, 
-      reinterpret_cast<SQLPOINTER>(SQL_OV_ODBC3),  // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
-      0);
-    checkError(ret, SQL_HANDLE_ENV, data()->env_handle, "setting ODBC version");
-    // clang-format on
+    // 1. Alociraj ENV
+    ret = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &data()->env_handle);
+    if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO)
+    {
+      l->error("SQLAllocHandle(ENV) failed: {}", ret);
+      return db_sts::env_error;
+    }
 
-    // Inicializacija povezave
+    l->info("ENV handle allocated: {}", data()->env_handle);
+
+    // 2. BREZ SQLSetEnvAttr → verzija nastavljena v db2cli.ini
+
+    // 3. Alociraj DBC
     ret = SQLAllocHandle(SQL_HANDLE_DBC, data()->env_handle, &data()->conn_handle);
-    checkError(ret, SQL_HANDLE_DBC, data()->conn_handle, "allocating connection handle");
+    if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO)
+    {
+      checkError(ret, SQL_HANDLE_DBC, data()->conn_handle, "SQLAllocHandle(DBC)");
+      SQLFreeHandle(SQL_HANDLE_ENV, data()->env_handle);
+      data()->env_handle = 0;
+      return db_sts::connection_error;
+    }
 
-    // Sestavljanje povezovalnega niza za DB2
-    auto connStr =
-      fmt::format("DRIVER={{IBM DB2 ODBC DRIVER}};HOSTNAME={};DATABASE={};UID={};PWD={};",
-                  host,
-                  database_name,
-                  user,
-                  password);
-    // clang-format off
-    // Povezava z bazo podatkov
+    // 4. Connection string – uporabi pravilen DRIVER ime
+    std::string connStr = fmt::format("DRIVER={{IBM DB2 ODBC DRIVER}}; "
+                                      "HOSTNAME={}; "
+                                      "PORT=50000; "
+                                      "DATABASE={}; "
+                                      "UID={}; "
+                                      "PWD={}; "
+                                      "PROTOCOL=TCPIP; "
+                                      "CURRENTFUNCTIONPATH=CURRENT PATH;",
+                                      host,
+                                      database_name,
+                                      user,
+                                      password);
+
+    l->info("Connecting with: {}", connStr);
+
+    // 5. Poveži se
+    SQLCHAR     outConnStr[1024]; // NOLINT
+    SQLSMALLINT outLen;
     ret = SQLDriverConnect(data()->conn_handle,
                            nullptr,
-                           reinterpret_cast<SQLCHAR*>(connStr.data()), // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
+                           (SQLCHAR*)connStr.c_str(), // NOLINT
                            SQL_NTS,
-                           nullptr,
-                           0,
-                           nullptr,
+                           outConnStr, // NOLINT
+                           sizeof(outConnStr),
+                           &outLen,
                            SQL_DRIVER_NOPROMPT);
-    checkError(ret, SQL_HANDLE_DBC, data()->conn_handle, "connecting to DB2 database");
-    // clang-format on
-    return static_cast<db_sts>(ret);
-  }
 
+    if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO)
+    {
+      checkError(ret, SQL_HANDLE_DBC, data()->conn_handle, "SQLDriverConnect");
+      SQLFreeHandle(SQL_HANDLE_DBC, data()->conn_handle);
+      SQLFreeHandle(SQL_HANDLE_ENV, data()->env_handle);
+      data()->conn_handle = 0;
+      data()->env_handle  = 0;
+      return db_sts::connection_error;
+    }
+
+    l->info("Connected to DB2 successfully!");
+    return db_sts::success;
+  }
   db_sts db_db2::disconnect()
   {
     SQLRETURN ret = SQL_SUCCESS;
+    if (data()->stmt_handle != 0)
+    { // statement handle still active; rollback and disconnect
+
+      rollback(); // TODO(ostri):
+    }
     if (data()->conn_handle != 0)
     {
       ret = SQLDisconnect(data()->conn_handle);
       checkError(ret, SQL_HANDLE_DBC, data()->conn_handle, "disconnecting from DB2 database");
       SQLFreeHandle(SQL_HANDLE_DBC, data()->conn_handle);
       data()->conn_handle = 0;
+      l->info("Database disconnected");
     }
+    else l->warn("Disconnecting already disconnected database");
+
     if (data()->env_handle != 0)
     {
       SQLFreeHandle(SQL_HANDLE_ENV, data()->env_handle);
@@ -115,6 +193,8 @@ namespace rtl
     }
     return static_cast<db_sts>(ret);
   }
+
+  bool db_db2::is_connected() const { return this->data()->conn_handle != 0; }
 
   std::vector<std::vector<std::string>> db_db2::executeQuery(const std::string& query)
   {

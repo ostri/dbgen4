@@ -1,5 +1,6 @@
 #pragma once
 
+#include "log.hpp"
 #include <cstdint>
 #include <memory>
 
@@ -92,7 +93,52 @@ namespace rtl
    * @param status The status code to convert
    * @return const char* String representation of the status code
    */
-  constexpr const char* db_status_to_string(db_sts status) noexcept;
+  constexpr const char* db_status_to_string(db_sts status) noexcept
+  {
+    switch (status)
+    {
+    case db_sts::success: return "Success";
+    case db_sts::success_with_info: return "Success with info";
+    case db_sts::no_data: return "No data";
+    case db_sts::error: return "Error";
+    case db_sts::invalid_handle: return "Invalid handle";
+    case db_sts::need_data: return "Need data";
+    case db_sts::still_executing: return "Still executing";
+    case db_sts::connection_error: return "Connection error";
+    case db_sts::connection_lost: return "Connection lost";
+    case db_sts::server_gone: return "Server gone";
+    case db_sts::timeout: return "Timeout";
+    case db_sts::busy: return "Database busy";
+    case db_sts::access_denied: return "Access denied";
+    case db_sts::invalid_sql: return "Invalid SQL";
+    case db_sts::syntax_error: return "Syntax error";
+    case db_sts::constraint_violation: return "Constraint violation";
+    case db_sts::duplicate_key: return "Duplicate key";
+    case db_sts::truncated: return "Data truncated";
+    case db_sts::invalid_cursor: return "Invalid cursor state";
+    case db_sts::transaction_error: return "Transaction error";
+    case db_sts::deadlock: return "Deadlock detected";
+    case db_sts::serialization_failure: return "Serialization failure";
+    case db_sts::memory_error: return "Memory error";
+    case db_sts::resource_error: return "Resource error";
+    case db_sts::disk_full: return "Disk full";
+    case db_sts::quota_exceeded: return "Quota exceeded";
+    case db_sts::driver_not_found: return "Driver not found";
+    case db_sts::env_error: return "Environment error";
+    case db_sts::not_implemented: return "Not implemented";
+    case db_sts::os_error: return "OS error";
+    case db_sts::data_conversion_error: return "Data conversion error";
+    case db_sts::data_truncated: return "Data truncated";
+    case db_sts::invalid_parameter: return "Invalid parameter";
+    case db_sts::admin_error: return "Administrative error";
+    case db_sts::config_error: return "Configuration error";
+    case db_sts::license_error: return "License error";
+    case db_sts::custom_error: return "Custom error";
+    case db_sts::unknown: return "Unknown error";
+    default: return "Undefined error";
+    }
+  }
+
 
   /// Root class for all database data structures
   /// Provides common functionality and interface for database objects
@@ -114,11 +160,11 @@ namespace rtl
    * This class is intended to be extended for specific database implementations.
    * It manages the connection lifecycle and basic transaction operations.
    */
-  class db
+  class db : protected dbgen4::log
   {
   public:
-    db()                     = default;
-    virtual ~db()            = default;
+    db() = default;
+    virtual ~db();
     db(const db&)            = delete;
     db& operator=(const db&) = delete;
     db(db&&)                 = delete;
@@ -146,20 +192,9 @@ namespace rtl
      * @brief Checks if the database connection is currently established.
      * @return true if connected, false otherwise.
      */
-    [[nodiscard]] virtual bool is_connected() const;
-    /**
-     * @brief Commits the current transaction.
-     * @return db_sts Status code indicating the result of the commit operation.
-     */
-    virtual db_sts commit() { return db_sts::success; }
-    /**
-     * @brief Roll back the current transaction
-     * @return db_sts Status code indicating the result of the rollback operation
-     *
-     * This method should be overridden by derived classes to implement
-     * database-specific rollback logic.
-     */
-    virtual db_sts                    rollback() { return db_sts::success; }
+    [[nodiscard]] virtual bool        is_connected() const;
+    virtual db_sts                    commit();
+    virtual db_sts                    rollback();
     [[nodiscard]] const db_data_root* data() const;
   protected:
     /**

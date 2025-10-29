@@ -1,5 +1,6 @@
 #pragma once
 
+#include "rtl.hpp"
 #include <cstdint>
 #include <fmt/format.h>
 
@@ -17,9 +18,11 @@ namespace dbgen4
     duplicated_stmt_id,
     sql_statement_missing,
     no_sql_stmt_found,
-    parse_error
+    parse_error,
+    unhandled_exception,
+    connection_error
   };
-
+  // parser_err_enum cvt(rtl::db_sts s) { return reinterpret_cast<parser_err_enum>(s); }
   /**
    * @brief Gets human readable string format for the provided error code
    * @param code error code
@@ -41,6 +44,8 @@ namespace dbgen4
     case parser_err_enum::sql_statement_missing:     return "Document '{}' SQL statement is missing '{}' line: {} column: {}";
     case parser_err_enum::no_sql_stmt_found:         return "Document '{}' No SQL statement found '{}' line: {} column: {}";
     case parser_err_enum::parse_error:               return "Document '{}' Unknown parser error '{}' line: {} column: {}";
+    case parser_err_enum::unhandled_exception:       return "Document '{}' unhandled exception";
+    case parser_err_enum::connection_error:          return "Can't connect to db host: {} db {} user {} err: {} error '{}";
     default:                                         return "Document '{}' Unknown error '{}' line: {} column: {}";
       // clang-format on
     }

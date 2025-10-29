@@ -66,20 +66,28 @@ namespace dbgen4
   /// @brief establish the log
   void log::establish_log()
   {
-    if (sink_ != nullptr) return; // already established
+    if (l != nullptr) return; // already established
     auto log_filename = fmt::format("{}.log", log_name_);
     auto console_sink = std::make_shared<spd::sinks::stdout_color_sink_mt>();
-    console_sink->set_level(spd::level::err);
+    auto file_sink    = std::make_shared<spd::sinks::daily_file_sink_mt>(log_filename,
+                                                                      2,
+                                                                      0); // rotate 2:00 am
+    if constexpr (is_debug_build())
+    {
+      console_sink->set_level(spd::level::info);
+      file_sink->set_level(spd::level::trace);
+    }
+    else
+    {
+      console_sink->set_level(spd::level::err);
+      file_sink->set_level(spd::level::info);
+    }
 
-    sink_ = std::make_shared<spd::sinks::daily_file_sink_mt>(log_filename, 2,
-                                                             0); // rotate 2:00 am
-    // sink_->set_level(spd::level::debug);
-
-    l = std::make_shared<spd::logger>(log_name_, spd::sinks_init_list{sink_, console_sink});
+    l = std::make_shared<spd::logger>(log_name_, spd::sinks_init_list{file_sink, console_sink});
     spd::register_logger(l);
-    if constexpr (is_debug_build()) sink_->set_level(spd::level::debug);
-    else sink_->set_level(spd::level::warn);
-    auto level = sink_->level();
+    if constexpr (is_debug_build()) l->set_level(spd::level::trace);
+    else l->set_level(spd::level::info);
+    auto level = l->level();
     l->info("Logger '{}' is successfully initialized at '{}' level build type '{}'.",
             log_name_,
             magic_enum::enum_name(level),

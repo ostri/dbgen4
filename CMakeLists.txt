@@ -27,7 +27,7 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
       -Werror
       -Wnarrowing
       # -pthread
-      -fsanitize=leak
+      #-fsanitize=leak
       #-fsanitize=address
       #-fno-omit-frame-pointer
       #-fsanitize=undefined
@@ -39,7 +39,7 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
       )
       add_link_options(
         -fno-omit-frame-pointer
-        -fsanitize=address
+      #  -fsanitize=address
       #  -fsanitize=undefined
       )
     # elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
@@ -121,35 +121,54 @@ find_package(yaml-cpp REQUIRED)
 find_package(fmt REQUIRED)
 add_definitions(-DSPDLOG_FMT_EXTERNAL)
 find_package(spdlog REQUIRED)
-find_package(ODBC REQUIRED)
-if (ODBC_FOUND)
-    message(STATUS "ODBC library found.")
-else()
-    message(FATAL_ERROR "ODBC library not found.  sudo dnf install unixODBC-devel")
-endif()
+# find_package(ODBC REQUIRED)
+# if (ODBC_FOUND)
+#     message(STATUS "ODBC library found.")
+# else()
+#     message(FATAL_ERROR "ODBC library not found.  sudo dnf install unixODBC-devel")
+# endif()
 
-add_executable(${PROJECT_NAME}-db2 src/dbgen4.cpp )
+
 find_package(DB2 REQUIRED)
 if (DB2_FOUND)
     message(STATUS "DB2 library found.")
-    target_link_libraries(${PROJECT_NAME}-db2 PRIVATE DB2::DB2)
 else()
     message(FATAL_ERROR "DB2 knjižnica ni najdena. Preverite DB2_HOME!")
 endif()
 
-# Add main program
+### RTL library for DB2  -------------------------------------------------------------------------------
+set (SRC_RTL_FILES
+ ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/rtl.cpp
+ ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/db2/db2_rtl.cpp
+ #${CMAKE_CURRENT_SOURCE_DIR}/src/log/log.cpp
+ #${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common/build_type.cpp
+)
+
+add_library(db2_rtl STATIC ${SRC_RTL_FILES})
+target_include_directories(db2_rtl 
+  PUBLIC 
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl 
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/db2
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/log
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common
+  PRIVATE
+    $ENV{IBM_DB_INCLUDE}
+)
+target_link_libraries ( db2_rtl 
+  PUBLIC DB2::DB2
+)
 
 
-foreach(SUBDIR ${SRC_SUBDIRS})
-  target_include_directories(${PROJECT_NAME}-db2 PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/${SUBDIR})
-endforeach()
 
+
+### Main executable ------------------------------------------------------------------------------------
+add_executable(${PROJECT_NAME}-db2 src/dbgen4.cpp )
 set (SRC_FILES 
  src/dbgen4/parser/parser.cpp 
  src/dbgen4/parser/data_statement.cpp 
  src/dbgen4/parser/data_statements.cpp 
  src/dbgen4/parser/pars_result.cpp 
-  src/dbgen4/parser/sql_col_def.cpp
+ src/dbgen4/parser/sql_col_def.cpp
 
  src/dbgen4/parameters/cmd_line_params.cpp 
 
@@ -160,37 +179,32 @@ set (SRC_FILES
  
  src/log/log.cpp
  
- src/programs/appl.cpp 
-)
-set (SRC_RTL_FILES
- src/rtl/rtl.cpp
- src/rtl/db2/db2_rtl.cpp
-)
+ src/programs/appl.cpp
+# src/rtl/db2/db2_rtl.cpp
+# src/rtl/rtl.cpp
 
-add_library(db2_rtl STATIC ${SRC_RTL_FILES})
-target_include_directories(db2_rtl 
-  PRIVATE 
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl 
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/db2
-    $ENV{IBM_DB_INCLUDE}
 )
-
 target_sources(${PROJECT_NAME}-db2 PRIVATE  ${SRC_FILES} )
+
+foreach(SUBDIR ${SRC_SUBDIRS})
+  target_include_directories(${PROJECT_NAME}-db2 PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/${SUBDIR})
+endforeach()
 # Target dependencies
+# target_link_options(dbgen4-db2 PRIVATE LINKER:--whole-archive $<TARGET_FILE:db2_rtl> LINKER:--no-whole-archive)
 target_link_libraries(${PROJECT_NAME}-db2 
   PRIVATE  
+    db2_rtl 
     ${DB2_LIBRARY} 
     fmt::fmt 
     yaml-cpp::yaml-cpp 
-    db2_rtl 
     spdlog::spdlog 
-    ODBC::ODBC
+    #ODBC::ODBC
 )
-#target_compile_definitions(${PROJECT_NAME} PRIVATE FMT_COMPILE=1)
+#target_compile_definitions(${PROJECT_NAME}-db2 PRIVATE FMT_COMPILE=1)
 
 
 
-# tidy integration
+# tidy integration ------------------------------------------------------------------------------------
 find_program(CLANG_TIDY_EXECUTABLE NAMES clang-tidy)
 if(CLANG_TIDY_EXECUTABLE)
     # Dodaj custom target za clang-tidy
