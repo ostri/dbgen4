@@ -1,9 +1,7 @@
 #pragma once
 
 #include <sqlcli1.h>
-
 #include <string>
-
 #include <vector>
 #include "rtl.hpp"
 namespace rtl
@@ -43,7 +41,9 @@ namespace rtl
      * This method should be overridden by derived classes to implement
      * database-specific connection logic.
      */
+    db_sts connect(const std::string& name) override;
     db_sts connect(const std::string& host,
+                   const std::string& port,
                    const std::string& database_name,
                    const std::string& user,
                    const std::string& password) override;
@@ -63,7 +63,7 @@ namespace rtl
      * @brief Commits the current transaction.
      * @return db_sts Status code indicating the result of the commit operation.
      */
-    db_sts commit() override { return db_sts::success; }
+    db_sts commit() override; // Zamenjano z override
     /**
      * @brief Roll back the current transaction
      * @return db_sts Status code indicating the result of the rollback operation
@@ -71,20 +71,23 @@ namespace rtl
      * This method should be overridden by derived classes to implement
      * database-specific rollback logic.
      */
-    db_sts rollback() override { return db_sts::success; }
+    db_sts rollback() override; // Zamenjano z override
   private:
+    ///
+    db_sts internal_connect(const std::string& connStr);
+    db_sts internal_allocate_handles();
+
     // Metoda za izvajanje SQL poizvedb, ki vračajo rezultate
     std::vector<std::vector<std::string>> executeQuery(const std::string& query);
 
     // Metoda za izvajanje SQL ukazov brez rezultatov
     void executeNonQuery(const std::string& query);
-
-
-    // Pomožna metoda za preverjanje ODBC napak
-    void                       checkError(SQLRETURN          ret,
-                                          SQLSMALLINT        handleType,
-                                          SQLHANDLE          handle,
-                                          const std::string& operation) const;
+    /// check what is wrong and report to the log
+    void chk_error(SQLRETURN          ret,
+                   SQLSMALLINT        handleType,
+                   SQLHANDLE          handle,
+                   const std::string& operation) const;
+    /// access to the database attributes
     [[nodiscard]] db_data_db2* data() const { return dynamic_cast<db_data_db2*>(data_.get()); };
   }; // db_db2;
 } // namespace rtl

@@ -20,8 +20,10 @@ namespace dbgen4
 {
   /// NOLINTNEXTLINE(fuchsia-statically-constructed-objects)
   sink_t log::sink_ = nullptr;
+  log_t  log::l{}; // NOLINT
+
   log::log()
-  : l(spd::get(log_name_))
+  //: l(spd::get(log_name_))
   {
     try
     {
@@ -34,6 +36,7 @@ namespace dbgen4
         if (l) l->debug("log reference was established");
         else establish_log(); // no it didn't we should do it
       }
+      else l->debug("Log is already created.");
     }
     catch (const spd::spdlog_ex& e)
     {
@@ -66,7 +69,7 @@ namespace dbgen4
   /// @brief establish the log
   void log::establish_log()
   {
-    if (l != nullptr) return; // already established
+    if (l) return; // already established
     auto log_filename = fmt::format("{}.log", log_name_);
     auto console_sink = std::make_shared<spd::sinks::stdout_color_sink_mt>();
     auto file_sink    = std::make_shared<spd::sinks::daily_file_sink_mt>(log_filename,

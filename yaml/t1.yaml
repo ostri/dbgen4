@@ -8,10 +8,13 @@ statements:
   sql: |
           kar en sql
           čez nekaj
-          vrst
+          vrst generičen
   mariadb: |
           specific sql
           for mariadb
+  db2: |
+          specific sql
+          for db2
 
 - id: sql_2
   sql: "2-single line sql statement : & # *"

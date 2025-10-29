@@ -48,7 +48,8 @@ namespace dbgen4
     [[nodiscard]] stmt_result_t extract_sql(const YAML::Node&     n,
                                             const data_statement& s,
                                             db_type_enum          db_type) const;
-
+    [[nodiscard]] str_t         extract_sql(const YAML::Node& n, db_type_enum db_type) const;
+    ///
     str_t filename_; //< filename where gsql definition is stored
   };
 } // namespace dbgen4

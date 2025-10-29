@@ -177,7 +177,9 @@ namespace rtl
      * This method should be overridden by derived classes to implement
      * database-specific connection logic.
      */
+    virtual db_sts connect(const std::string& name);
     virtual db_sts connect(const std::string& host,
+                           const std::string& port,
                            const std::string& database_name,
                            const std::string& user,
                            const std::string& password);

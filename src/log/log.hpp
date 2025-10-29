@@ -28,7 +28,7 @@ namespace dbgen4
     void                                 set_sink_level(spd::level::level_enum level) const;
     [[nodiscard]] spd::level::level_enum get_sink_level() const;
     // NOLINTNEXTLINE (misc-non-private-member-variables-in-classes)
-    log_t l; //< log instance
+    static log_t l; //< log instance
   private:
     void              establish_log();
     [[nodiscard]] int find_sink() const;

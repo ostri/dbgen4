@@ -4,13 +4,17 @@ namespace rtl
 {
   db::~db() { }; // NOLINT
 
+  db_sts db::connect(const std::string& name) { return connect("", "", name, "", ""); }
+
   db_sts db::connect(const std::string& host,
+                     const std::string& port,
                      const std::string& database_name,
                      const std::string& user,
                      const std::string& password)
   {
-    l->error("Connection error - db2 method not implemented host: {} db {} user {} pass {}",
+    l->error("Connection error - db2 method not implemented host: {} port {} db {} user {} pass {}",
              host,
+             port,
              database_name,
              user,
              password);

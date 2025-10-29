@@ -66,6 +66,12 @@ namespace dbgen4
 
   void parser::set_filename(const str_t& filename) { filename_ = filename; }
 
+  str_t parser::extract_sql(const YAML::Node& n, db_type_enum db_type) const
+  {
+    auto db_type_name = ME::enum_name(db_type);
+    return n[db_type_name].IsDefined() ? n[db_type_name].as<str_t>() : "";
+  }
+
   /// extract sql statements from the yaml node to data_statement structure
   /// @param n yaml node representing sql statements
   /// @param s data_statement structure where sql statements will be stored
@@ -74,32 +80,18 @@ namespace dbgen4
                                     const data_statement& s,
                                     db_type_enum          db_type) const
   {
-    auto found_sql = false;
     auto res(s);
-    /// walk over all sql variants going from general to more specific
-    /// more specific sql ovevrites genero one.
-    for (auto v : ME::enum_entries<db_type_enum>())
+    auto sql = extract_sql(n, db_type); // specific sql
+    if (sql.empty()) sql = extract_sql(n, db_type_enum::sql);
+    if (sql.empty())
     {
-      if ((v.first == db_type_enum::sql) || (v.first == db_type))
-      { // generic sql type or specific requested type
-        str_t db_type_name(v.second);
-        found_sql = n[db_type_name].IsDefined();
-        if (found_sql)
-        { // we have generic or specific sql statement
-          res.set_sql(n[db_type_name].as<str_t>());
-          l->debug("statement '{}' {} sql:'{}'", s.id(), db_type_name, res.sql());
-        }
-      }
-    }
-    if (! found_sql)
-    { /** no sql provided*/
-      l->error("No general or specific SQL statements provided in the definition statement. "
-               "statement '{}' genereic {} specific {}",
-               s.id(),
-               ME::enum_name(db_type_enum::sql),
-               ME::enum_name(db_type));
+      std::stringstream ss;
+      ss << n;
+      l->warn("No SQL statement provided. '{}'", ss.str());
       return {{}, parser_err_enum::no_sql_stmt_found};
     }
+    res.set_sql(sql);
+    l->debug("sql: '{}'", sql);
     return {res, parser_err_enum::ok};
   }
   pars_result parser::process_statement(const YAML::Node&      stmt,
@@ -145,7 +137,10 @@ namespace dbgen4
   /// return parsed data_statements object and error code
   pars_result parser::parse_yaml_file(const YAML::Node& n, db_type_enum db_type)
   {
-    data_statements p{};
+    data_statements   p{};
+    std::stringstream s;
+    s << n;
+    l->debug("yaml contents: \n", s.str());
     if (n.IsMap())
     {
       /// walk over whole document
