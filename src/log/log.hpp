@@ -1,39 +1,36 @@
+// Log.h
 #pragma once
-// 1 - external fmt (dnf install)
-// 0 - embeded fmt (e.g. part of API)
-// #define SPDLOG_FMT_EXTERNAL
-#ifndef NDEBUG // debug build - we are tracing till trace
-#  define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_TRACE
-#else // release build - we are tracing till info
-#  define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_INFO
-#endif
-#include <spdlog/spdlog.h> // IWYU pragma: export
+
+#include <cstdint>
+#include <spdlog/sinks/stdout_color_sinks.h>
+#include <spdlog/spdlog.h>
 #include <spdlog/sinks/daily_file_sink.h>
+#include <spdlog/async.h>
+#include <memory>
+#include <string_view>
+// #include <chrono>
 
-namespace spd = spdlog;
-
-namespace dbgen4
+class log
 {
-  using log_t  = std::shared_ptr<spd::logger>;
-  using sink_t = std::shared_ptr<spd::sinks::daily_file_sink_mt>;
-  class log
+public:
+  enum class Mode : uint8_t
   {
-  public:
-    log();
-    ~log();
-    log(const log&)                                            = default;
-    log(log&&)                                                 = default;
-    log&                                 operator=(const log&) = default;
-    log&                                 operator=(log&&)      = default;
-    void                                 set_sink_level(spd::level::level_enum level) const;
-    [[nodiscard]] spd::level::level_enum get_sink_level() const;
-    // NOLINTNEXTLINE (misc-non-private-member-variables-in-classes)
-    static log_t l; //< log instance
-  private:
-    void              establish_log();
-    [[nodiscard]] int find_sink() const;
-    /// members
-    static constexpr const char* log_name_ = "dbgen4";
-    static sink_t                sink_;
+    Sync,
+    Async
   };
-}; // namespace dbgen4
+
+  static void init(std::string_view          app_name      = "app",
+                   Mode                      mode          = Mode::Sync,
+                   spdlog::level::level_enum console_level = spdlog::level::warn // privzeto: warn+
+  );
+
+  static void set_console_level(spdlog::level::level_enum level);
+  static void set_file_level(spdlog::level::level_enum level);
+
+  static spdlog::logger* get();
+private:
+  // NOLINTNEXTLINE(fuchsia-statically-constructed-objects)
+  inline static std::shared_ptr<spdlog::sinks::stdout_color_sink_mt> console_sink_;
+  // NOLINTNEXTLINE(fuchsia-statically-constructed-objects)
+  inline static std::shared_ptr<spdlog::sinks::daily_file_sink_mt> file_sink_;
+};

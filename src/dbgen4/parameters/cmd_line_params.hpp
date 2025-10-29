@@ -36,6 +36,8 @@ namespace dbgen4
     /// set log level based on verbose flag andtype of build
     void set_log_level(bool verbose) const;
   protected:
+    // NOLINTNEXTLINE(cert-err58-cpp)
+    inline static const auto log = log::get();
   private:
     str_t        db_name_;                    //< database name to connect to
     db_type_enum db_type_{db_type_enum::sql}; //< database type

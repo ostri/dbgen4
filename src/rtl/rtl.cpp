@@ -12,12 +12,13 @@ namespace rtl
                      const std::string& user,
                      const std::string& password)
   {
-    l->error("Connection error - db2 method not implemented host: {} port {} db {} user {} pass {}",
-             host,
-             port,
-             database_name,
-             user,
-             password);
+    log->error(
+      "Connection error - db2 method not implemented host: {} port {} db {} user {} pass {}",
+      host,
+      port,
+      database_name,
+      user,
+      password);
     return db_sts::connection_error;
   }
 

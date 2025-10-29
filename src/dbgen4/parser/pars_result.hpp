@@ -4,7 +4,7 @@
 namespace dbgen4
 {
 
-  class pars_result : private log
+  class pars_result
   {
   public:
     explicit pars_result(parser_err_enum e);
@@ -16,6 +16,9 @@ namespace dbgen4
     pars_result&                  operator=(pars_result&&) noexcept = delete;
     [[nodiscard]] parser_err_enum e() const;
     [[nodiscard]] data_statements s() const;
+  protected:
+    // NOLINTNEXTLINE(cert-err58-cpp)
+    inline static const auto log = log::get();
   private:
     data_statements s_;                      ///< parsed statements
     parser_err_enum e_{parser_err_enum::ok}; ///< error code of the parsing operation

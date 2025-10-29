@@ -23,7 +23,7 @@ namespace dbgen4
   bool data_statements::add_statement(const data_statement& s)
   {
     auto r = map_.emplace(s.id(), s);
-    if (! r.second) l->error("Statement id: {} is duplicated.", s.id());
+    if (! r.second) log->error("Statement id: {} is duplicated.", s.id());
     return r.second;
   }
 }; // namespace dbgen4

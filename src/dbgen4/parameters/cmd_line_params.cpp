@@ -101,63 +101,35 @@ namespace dbgen4
       app.parse(argc, argv);
       set_log_level(verbose_);
 
-      auto level   = get_sink_level();
-      bool tracing = level == spd::level::trace;
-      l->info("Log level '{}' tracing '{}'", ME::enum_name(level), tracing);
-      l->info("Command line parameter values :\n{}", dump(2));
-      // l->trace("Tracing is switched ON");
-      //  l->critical("param");
-      //  l->trace("======trace================");
-      //  l->debug("======debug================");
-      //  l->info("=======info===============");
-      //  l->warn("=======warn===============");
-      //  l->error("======error================");
-      //  l->critical("===critical===================");
+      // auto level   = get_sink_level();
+      // bool tracing = level == spd::level::trace;
+      // log->info("Log level '{}' tracing '{}'", ME::enum_name(level), tracing);
+      log->info("Command line parameter values :\n{}", dump(2));
+      // log->trace("Tracing is switched ON");
+      //  log->critical("param");
+      //  log->trace("======trace================");
+      //  log->debug("======debug================");
+      //  log->info("=======info===============");
+      //  log->warn("=======warn===============");
+      //  log->error("======error================");
+      //  log->critical("===critical===================");
     }
     catch (const CLI::CallForHelp& e)
     {
-      l->info("Help command.");
-      //      l->flush();
+      log->info("Help command.");
+      //      log->flush();
       return app.exit(e);
     }
     catch (const CLI::ParseError& e)
     {
       auto msg =
         fmt::format("name: '{}' code: {} msg: '{}'", e.get_name(), e.get_exit_code(), e.what());
-      l->info(msg);
-      l->info("Parameters with error(s) \n{}", dump(2));
+      log->info(msg);
+      log->info("Parameters with error(s) \n{}", dump(2));
       return app.exit(e);
     }
     return 0;
   }
 
-  void cmd_line_params::set_log_level(bool verbose) const
-  {
-    if constexpr (is_debug_build()) /* debug build */
-    {
-      if (verbose)
-      {
-        set_sink_level(spd::level::trace);
-        l->set_level(spd::level::trace);
-      }
-      else
-      {
-        set_sink_level(spd::level::debug);
-        l->set_level(spd::level::debug);
-      }
-    }
-    else /* release build*/
-    {
-      if (verbose)
-      {
-        set_sink_level(spd::level::info);
-        l->set_level(spd::level::info);
-      }
-      else
-      {
-        set_sink_level(spd::level::warn);
-        l->set_level(spd::level::warn);
-      }
-    };
-  }
+  void cmd_line_params::set_log_level(bool /*verbose*/) const { }
 }; // namespace dbgen4

@@ -1,8 +1,9 @@
 #pragma once
 
-#include "log.hpp"
 #include <cstdint>
 #include <memory>
+// NOLINTNEXTLINE(unused-includes)
+#include "log.hpp"
 
 namespace rtl
 {
@@ -145,6 +146,9 @@ namespace rtl
   /// empty on purpose, to be extended for specific database data implementations
   class db_data_root
   {
+  protected:
+    // NOLINTNEXTLINE(cert-err58-cpp)
+    inline static const auto log = log::get();
   public:
     db_data_root()                               = default;
     virtual ~db_data_root()                      = default;
@@ -160,8 +164,11 @@ namespace rtl
    * This class is intended to be extended for specific database implementations.
    * It manages the connection lifecycle and basic transaction operations.
    */
-  class db : protected dbgen4::log
+  class db
   {
+  protected:
+    // NOLINTNEXTLINE(cert-err58-cpp)
+    inline static const auto log = log::get();
   public:
     db() = default;
     virtual ~db();

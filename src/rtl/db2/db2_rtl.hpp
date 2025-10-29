@@ -10,6 +10,9 @@ namespace rtl
   class db_data_db2 : public db_data_root
   {
     static constexpr const std::size_t DB2_DATA_ALIGNMENT = 16;
+  protected:
+    // NOLINTNEXTLINE(cert-err58-cpp)
+    inline static const auto log = log::get();
   public:
     SQLHENV  env_handle{};  // NOLINT(misc-non-private-member-variables-in-classes)
     SQLHDBC  conn_handle{}; // NOLINT(misc-non-private-member-variables-in-classes)

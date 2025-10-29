@@ -34,7 +34,7 @@ namespace dbgen4
     std::ifstream fin(filename);
     if (! fin.is_open())
     {
-      l->error("Error: Could not open file '{}'.", std::filesystem::absolute(filename).c_str());
+      log->error("Error: Could not open file '{}'.", std::filesystem::absolute(filename).c_str());
       return pars_result{parser_err_enum::file_cant_be_open};
     }
 
@@ -44,19 +44,19 @@ namespace dbgen4
     }
     catch (const YAML::BadFile& e)
     {
-      l->error("File {} can not be read. '{}' '{}'", filename, e.msg, e.what());
+      log->error("File {} can not be read. '{}' '{}'", filename, e.msg, e.what());
       return pars_result(parser_err_enum::file_cant_be_open);
     }
     catch (const YAML::ParserException& e)
     {
-      l->error("File {} has syntactical error(s). '{}' '{}'", filename, e.msg, e.what());
+      log->error("File {} has syntactical error(s). '{}' '{}'", filename, e.msg, e.what());
       return {data_statements{}, parser_err_enum::yaml_syntax_error};
     }
     catch (...)
     {
       auto msg = fmt::format(
         get_parser_err_str(parser_err_enum::parse_error), filename, "unknown error", 0, 0);
-      l->error(msg);
+      log->error(msg);
       std::cerr << msg << '\n';
       return {data_statements{}, parser_err_enum::parse_error};
     }
@@ -87,11 +87,11 @@ namespace dbgen4
     {
       std::stringstream ss;
       ss << n;
-      l->warn("No SQL statement provided. '{}'", ss.str());
+      log->warn("No SQL statement provided. '{}'", ss.str());
       return {{}, parser_err_enum::no_sql_stmt_found};
     }
     res.set_sql(sql);
-    l->debug("sql: '{}'", sql);
+    log->debug("sql: '{}'", sql);
     return {res, parser_err_enum::ok};
   }
   pars_result parser::process_statement(const YAML::Node&      stmt,
@@ -114,19 +114,19 @@ namespace dbgen4
           { /// duplicated statement id
             // const char* fmt = get_parser_err_str(parser_err_enum::duplicated_stmt_id);
             const auto msg = fmt::format("duplicate id {} {}", filename_, s.id());
-            l->error(msg);
+            log->error(msg);
             return pars_result{res.second};
           }
         }
         else
         {
-          l->error("No sql statements found for statement id '{}'.", s.id());
+          log->error("No sql statements found for statement id '{}'.", s.id());
           return pars_result{parser_err_enum::no_sql_stmt_found};
         }
       }
       else
       {
-        l->error("id tag is missing.");
+        log->error("id tag is missing.");
         return pars_result{parser_err_enum::stmt_unique_id_is_missing};
       }
     }
@@ -140,7 +140,7 @@ namespace dbgen4
     data_statements   p{};
     std::stringstream s;
     s << n;
-    l->debug("yaml contents: \n", s.str());
+    log->debug("yaml contents: \n", s.str());
     if (n.IsMap())
     {
       /// walk over whole document
@@ -154,13 +154,13 @@ namespace dbgen4
       }
       else
       {
-        l->error("statements tag is missing.");
+        log->error("statements tag is missing.");
         return {{}, parser_err_enum::statements_attr_missing};
       }
     }
     else
     {
-      l->error("Invalid yaml file structure. Top level element should be object");
+      log->error("Invalid yaml file structure. Top level element should be object");
       return {p, parser_err_enum::inv_top_level_struct};
     }
     return {p, parser_err_enum::ok};

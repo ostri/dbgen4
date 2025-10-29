@@ -5,7 +5,12 @@
 #endif
 int main(int argc, char** argv, char** env)
 {
+  // Inicializacija: sinhrono, app "moj_program", konzola od warn naprej
+  log::init("dbgen4", log::Mode::Sync, spdlog::level::warn);
+  log::get()->info("Program started");
   dbgen4::appl app;
+  // Spremeni nivo konzole v teku
+  log::set_console_level(spdlog::level::info); // zdaj vidiš tudi info
   // NOLINT
   // const int len = 2000;
   // int*      x   = new int[len]; // NOLINT

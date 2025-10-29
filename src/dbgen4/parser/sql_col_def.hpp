@@ -1,7 +1,6 @@
 #pragma once
 #include "cli_constants.hpp"
 #include "common.hpp"
-#include "log.hpp"
 #include <cstdint>
 #include <vector>
 
@@ -38,6 +37,9 @@ namespace dbgen4
     void set_name(const str_t& name);
     void set_type(const sql_data_type& type);
     void is_nullable(bool nullable);
+  protected:
+    // NOLINTNEXTLINE(cert-err58-cpp)
+    inline static const auto log = log::get();
   private:
     uint16_t      position_{0};    ///< position of the column in the select list or parameter list
     str_t         name_;           ///< name of the column/parameter

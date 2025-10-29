@@ -1,7 +1,6 @@
 #ifndef APPL_HPP
 #define APPL_HPP
 
-#include "log.hpp"
 #include "cmd_line_params.hpp"
 namespace dbgen4
 {
@@ -15,6 +14,9 @@ namespace dbgen4
     appl& operator=(const appl&) = delete;
     appl& operator=(appl&&)      = delete;
     int   exec(int argc, char** argv, char** env); /// execute application
+  protected:
+    // NOLINTNEXTLINE(cert-err58-cpp)
+    inline static const auto log = log::get();
   private:
     /// method logs raw command line
     void            raw_command_line(int argc, char** argv);

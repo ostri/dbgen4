@@ -1,114 +1,61 @@
 #include "log.hpp"
-#include "build_type.hpp"
-#include <fmt/core.h>
-#include <fmt/format.h>
-#include <iostream>
-#include <magic_enum.hpp>
-#include <memory>
-#include <mutex>
-#include <spdlog/common.h>
-#include <spdlog/sinks/stdout_color_sinks.h>
-#include <spdlog/sinks/daily_file_sink.h>
-#include <spdlog/logger.h>
 
-namespace
+// Inicializacija (kliče se enkrat na začetku aplikacije)
+void log::init(std::string_view app_name, Mode mode, spdlog::level::level_enum console_level)
 {
-  // NOLINTNEXTLINE(readability-static-definition-in-anonymous-namespace)
-  std::mutex mtx; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
-} // namespace
-namespace dbgen4
+  const auto msg_max = 8192; /// maximum number of messages in buffer
+  const auto keep    = 7;    /// keep last 7 log files
+  // 1. Ustvarimo sink-e
+  auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
+  console_sink->set_level(console_level);
+
+  // Dnevna datoteka: zamenja ob 02:00, hrani 7 dni
+  auto file_sink = std::make_shared<spdlog::sinks::daily_file_sink_mt>(
+    std::string(app_name) + "_log", 2, 0, true, keep); // 02:00, rotacija 7 dni
+  file_sink->set_level(spdlog::level::trace);          // vse v datoteko
+
+  std::vector<spdlog::sink_ptr> sinks = {console_sink, file_sink};
+
+  std::shared_ptr<spdlog::logger> logger;
+
+  if (mode == Mode::Async)
+  {
+    // Async: thread pool (8192 sporočil, 1 nit)
+    spdlog::init_thread_pool(msg_max, 1);
+    logger = std::make_shared<spdlog::async_logger>(std::string(app_name),
+                                                    sinks.begin(),
+                                                    sinks.end(),
+                                                    spdlog::thread_pool(),
+                                                    spdlog::async_overflow_policy::overrun_oldest);
+  }
+  else
+  {
+    // Sync
+    logger = std::make_shared<spdlog::logger>(std::string(app_name), sinks.begin(), sinks.end());
+  }
+
+  // Nastavimo globalni logger
+  spdlog::set_default_logger(logger);
+  spdlog::set_level(spdlog::level::trace); // globalno omogočimo vse
+  spdlog::set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%n] [%l] [%t] %v");
+
+  // Shrani referenco na console sink za kasnejše spreminjanje
+  console_sink_ = console_sink;
+  // Shrani referenco na file sink za kasnejše spreminjanje
+  file_sink_ = file_sink;
+}
+
+// Spremeni nivo izpisa na konzolo v teku
+void log::set_console_level(spdlog::level::level_enum level)
 {
-  /// NOLINTNEXTLINE(fuchsia-statically-constructed-objects)
-  sink_t log::sink_ = nullptr;
-  log_t  log::l{}; // NOLINT
+  if (console_sink_) { console_sink_->set_level(level); }
+}
 
-  log::log()
-  //: l(spd::get(log_name_))
-  {
-    try
-    {
-      //      std::cerr << "log konstruktor\n";
-      if (! l) // log or reference to log does not exists
-      {
-        // NOLINTNEXTLINE(concurrency-mt-unsafe, misc-const-correctness)
-        std::lock_guard<std::mutex> lock(mtx); // wait until be served
-        l = spd::get(log_name_); // it is our turn. maybe somebody creaated log in between
-        if (l) l->debug("log reference was established");
-        else establish_log(); // no it didn't we should do it
-      }
-      else l->debug("Log is already created.");
-    }
-    catch (const spd::spdlog_ex& e)
-    {
-      std::cerr << fmt::format("Can't initialize log '{}' reason: ", log_name_, e.what());
-      throw;
-    }
-  };
+// Spremeni nivo izpisa na konzolo v teku
+void log::set_file_level(spdlog::level::level_enum level)
+{
+  if (file_sink_) { console_sink_->set_level(level); }
+}
 
-  log::~log()
-  {
-    //    std::cerr << "log destruktor\n";
-    spd::drop_all();
-  }
-
-  void log::set_sink_level(spd::level::level_enum level) const
-  {
-    auto ndx = find_sink();
-    if (ndx >= 0) l->sinks()[ndx]->set_level(level);
-    else l->error("no file log defined. Something is wrong.");
-  }
-
-  spd::level::level_enum log::get_sink_level() const
-  {
-    auto ndx = find_sink();
-    if (ndx >= 0) { return l->sinks()[ndx]->level(); }
-    l->error("no file log defined. Something is wrong.");
-    return spd::level::level_enum::critical;
-  }
-
-  /// @brief establish the log
-  void log::establish_log()
-  {
-    if (l) return; // already established
-    auto log_filename = fmt::format("{}.log", log_name_);
-    auto console_sink = std::make_shared<spd::sinks::stdout_color_sink_mt>();
-    auto file_sink    = std::make_shared<spd::sinks::daily_file_sink_mt>(log_filename,
-                                                                      2,
-                                                                      0); // rotate 2:00 am
-    if constexpr (is_debug_build())
-    {
-      console_sink->set_level(spd::level::info);
-      file_sink->set_level(spd::level::trace);
-    }
-    else
-    {
-      console_sink->set_level(spd::level::err);
-      file_sink->set_level(spd::level::info);
-    }
-
-    l = std::make_shared<spd::logger>(log_name_, spd::sinks_init_list{file_sink, console_sink});
-    spd::register_logger(l);
-    if constexpr (is_debug_build()) l->set_level(spd::level::trace);
-    else l->set_level(spd::level::info);
-    auto level = l->level();
-    l->info("Logger '{}' is successfully initialized at '{}' level build type '{}'.",
-            log_name_,
-            magic_enum::enum_name(level),
-            build_type_name());
-  }
-
-  int log::find_sink() const
-  {
-    // sink_t sink;
-    auto cnt = 0;
-    for (const auto& tmp : l->sinks())
-    {
-      // NOLINTNEXTLINE(hicpp-use-auto, modernize-use-auto)
-      spd::sinks::daily_file_sink_mt* x = dynamic_cast<spd::sinks::daily_file_sink_mt*>(tmp.get());
-      if (x != nullptr) return cnt;
-      cnt++;
-    }
-    return -1;
-  }
-
-}; // namespace dbgen4
+// Getter za logger (uporaba: Log::get()->info("...")
+spdlog::logger* log::get() { return spdlog::default_logger().get(); }

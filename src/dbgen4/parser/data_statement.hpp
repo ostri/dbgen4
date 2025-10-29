@@ -48,6 +48,8 @@ namespace dbgen4
     void set_par_defs(const sql_col_def_vec_t& defs);
     void set_res_defs(const sql_col_def_vec_t& defs);
   protected:
+    // NOLINTNEXTLINE(cert-err58-cpp)
+    inline static const auto log = log::get();
   private:
     str_t             id_;       ///< unique id of the data statement
     str_t             sql_;      ///< sql statement (generic or specific for RDBMS)
