@@ -150,11 +150,16 @@ endif()
 # -----------------------------------------------------------------------------
 # Build the log library (header-only wrapper)
 # -----------------------------------------------------------------------------
-add_library(log INTERFACE)
+set (LOG_SRC_FILES
+ ${CMAKE_CURRENT_SOURCE_DIR}/src/log/log.cpp
+)
+add_library(log STATIC ${LOG_SRC_FILES})
 target_include_directories(log INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/src/log)
-target_link_libraries(log INTERFACE 
+target_link_libraries(log 
+PRIVATE 
     spdlog::spdlog 
     nlohmann_json::nlohmann_json
+    
 )
 ### RTL library for DB2  -------------------------------------------------------------------------------
 set (SRC_RTL_FILES
@@ -200,7 +205,7 @@ set (SRC_FILES
  src/dbgen4/common/common.cpp
  src/dbgen4/common/cli_constants.cpp
  
- src/log/log.cpp
+# src/log/log.cpp
  
  src/programs/appl.cpp
 # src/rtl/db2/db2_rtl.cpp
@@ -224,9 +229,10 @@ target_link_libraries(${PROJECT_NAME}-db2
     #ODBC::ODBC
     stdc++exp
     log
+  
 )
 #target_compile_definitions(${PROJECT_NAME}-db2 PRIVATE FMT_COMPILE=1)
-
+#target_link_options(${PROJECT_NAME}-db2 PRIVATE "-rdynamic")
 
 
 # tidy integration ------------------------------------------------------------------------------------
