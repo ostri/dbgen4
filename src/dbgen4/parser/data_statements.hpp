@@ -44,10 +44,9 @@ namespace dbgen4
   protected:
     [[nodiscard]] data_statement_map_t map() const;
     void                               set_map(const data_statement_map_t& map);
-
-    // NOLINTNEXTLINE(cert-err58-cpp)
-    inline static const auto log = log::get();
   private:
+    [[nodiscard]] auto log() const { return log::get(); }
+
     // NOLINTNEXTLINE (readability-redundant-member-init)
     str_t                summary_;     ///< description about the purpose of this sql statements set
     str_t                description_; ///< description of the usage of this sql statement set

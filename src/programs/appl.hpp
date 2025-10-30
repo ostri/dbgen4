@@ -4,7 +4,7 @@
 #include "cmd_line_params.hpp"
 namespace dbgen4
 {
-  class appl : public log
+  class appl
   {
   public:
     appl();
@@ -14,9 +14,7 @@ namespace dbgen4
     appl& operator=(const appl&) = delete;
     appl& operator=(appl&&)      = delete;
     int   exec(int argc, char** argv, char** env); /// execute application
-  protected:
-    // NOLINTNEXTLINE(cert-err58-cpp)
-    inline static const auto log = log::get();
+    auto  log() { return log::get(); };
   private:
     /// method logs raw command line
     void            raw_command_line(int argc, char** argv);

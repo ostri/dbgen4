@@ -40,10 +40,9 @@ namespace dbgen4
     [[nodiscard]] pars_result process_statement(const YAML::Node&      stmt,
                                                 const data_statements& p,
                                                 db_type_enum           db_type);
-
-    // NOLINTNEXTLINE(cert-err58-cpp)
-    inline static const auto log = log::get();
   private:
+    [[nodiscard]] auto log() const { return log::get(); }
+
     /// @brief extracts sql statements from the yaml node to data_statement structure
     /// @param stmt yaml node representing single statement
     /// @param s data_statement structure where sql statements will be stored

@@ -22,6 +22,10 @@ namespace dbgen4
   str_t        cmd_line_params::db_name() const { return db_name_; }
   str_t        cmd_line_params::out_folder() const { return out_folder_; }
   bool         cmd_line_params::is_verbose() const { return verbose_; }
+  str_t        cmd_line_params::user() const { return user_; }
+  str_t        cmd_line_params::pass() const { return pass_; }
+  str_t        cmd_line_params::host() const { return host_; }
+  size_t       cmd_line_params::port() const { return port_; }
   /**
    * @brief Method returns string that describes the object attribute values
    *
@@ -81,8 +85,20 @@ namespace dbgen4
         //return true;
         return "";
       });
+    /// host name
+    app.add_option("--host", host_, "host where database resides")
+      ->default_val("localhost");
+    /// port
+      app.add_option("--port", port_, "port of host where database resides")
+      ->default_val(50000); // NOLINT
     /// database name
     app.add_option("-n,--db-name", db_name_, "database name")
+      ->required();
+    /// database user
+    app.add_option("-u,--username", user_, "database user")
+      ->required();
+    /// database user password
+    app.add_option("-p,--password", db_name_, "database user password")
       ->required();
     /// output folder
     app.add_option("-o,--out-folder", out_folder_, "output folder for generated files.")
@@ -101,34 +117,28 @@ namespace dbgen4
       app.parse(argc, argv);
       set_log_level(verbose_);
 
-      // auto level   = get_sink_level();
-      // bool tracing = level == spd::level::trace;
-      // log->info("Log level '{}' tracing '{}'", ME::enum_name(level), tracing);
-      log->info("Command line parameter values :\n{}", dump(2));
-      // log->trace("Tracing is switched ON");
-      //  log->critical("param");
-      //  log->trace("======trace================");
-      //  log->debug("======debug================");
-      //  log->info("=======info===============");
-      //  log->warn("=======warn===============");
-      //  log->error("======error================");
-      //  log->critical("===critical===================");
+      log()->info("Command line parameter values :\n{}", dump(2));
     }
     catch (const CLI::CallForHelp& e)
     {
-      log->info("Help command.");
-      //      log->flush();
+      log()->info("Help command.");
       return app.exit(e);
     }
     catch (const CLI::ParseError& e)
     {
       auto msg =
         fmt::format("name: '{}' code: {} msg: '{}'", e.get_name(), e.get_exit_code(), e.what());
-      log->info(msg);
-      log->info("Parameters with error(s) \n{}", dump(2));
+      log()->warn(msg);
+      log()->warn("Parameters with error(s) \n{}", dump(2));
       return app.exit(e);
     }
-    return 0;
+    catch (...)
+    {
+      auto msg = fmt::format("Unhadled exception. file: {} line {}", __FILE_NAME__, __LINE__);
+      log()->critical(msg);
+      throw;
+    }
+    return 55; // NOLINT
   }
 
   void cmd_line_params::set_log_level(bool /*verbose*/) const { }

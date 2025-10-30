@@ -48,7 +48,7 @@ namespace rtl
                               operation,
                               std::string(messageText.begin(), messageText.begin() + messageLength),
                               std::string(sqlState.begin(), sqlState.end()));
-        log->error(err_msg);
+        log()->error(err_msg);
 
         rec_number++;
       };
@@ -59,7 +59,7 @@ namespace rtl
   {
     SQLCHAR     outConnStr[1024]; // NOLINT
     SQLSMALLINT outLen;
-    log->info("Connecting with: {}", connStr);
+    log()->info("Connecting with: {}", connStr);
     auto ret = SQLDriverConnect(data()->conn_handle,
                                 nullptr,
                                 (SQLCHAR*)connStr.c_str(), // NOLINT
@@ -79,7 +79,7 @@ namespace rtl
       return db_sts::connection_error;
     }
 
-    log->info("Connected to DB2 successfully!");
+    log()->info("Connected to DB2 successfully!");
     return db_sts::success;
   }
 
@@ -88,11 +88,11 @@ namespace rtl
     auto ret = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &data()->env_handle);
     if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO)
     {
-      log->error("SQLAllocHandle(ENV) failed: {}", ret);
+      log()->error("SQLAllocHandle(ENV) failed: {}", ret);
       return db_sts::env_error;
     }
 
-    log->info("ENV handle allocated: {}", data()->env_handle);
+    log()->info("ENV handle allocated: {}", data()->env_handle);
 
     // 3. Alociraj DBC
     ret = SQLAllocHandle(SQL_HANDLE_DBC, data()->env_handle, &data()->conn_handle);
@@ -159,9 +159,9 @@ namespace rtl
       chk_error(ret, SQL_HANDLE_DBC, data()->conn_handle, "disconnecting from DB2 database");
       SQLFreeHandle(SQL_HANDLE_DBC, data()->conn_handle);
       data()->conn_handle = 0;
-      log->info("Database disconnected");
+      log()->info("Database disconnected");
     }
-    else log->warn("Disconnecting already disconnected database");
+    else log()->warn("Disconnecting already disconnected database");
 
     if (data()->env_handle != 0)
     {
@@ -178,15 +178,15 @@ namespace rtl
   {
     if (data()->conn_handle == 0)
     {
-      log->error("Attempted to commit on a disconnected database.");
+      log()->error("Attempted to commit on a disconnected database.");
       return db_sts::connection_error;
     }
 
     SQLRETURN ret = SQLEndTran(SQL_HANDLE_DBC, data()->conn_handle, SQL_COMMIT);
     chk_error(ret, SQL_HANDLE_DBC, data()->conn_handle, "commit transaction");
 
-    if (is_success(static_cast<db_sts>(ret))) { log->info("Transaction committed successfully."); }
-    else { log->error("Transaction commit failed."); }
+    if (is_success(static_cast<db_sts>(ret))) { log()->info("Transaction committed successfully."); }
+    else { log()->error("Transaction commit failed."); }
 
     return static_cast<db_sts>(ret);
   }
@@ -196,15 +196,15 @@ namespace rtl
   {
     if (data()->conn_handle == 0)
     {
-      log->error("Attempted to rollback on a disconnected database.");
+      log()->error("Attempted to rollback on a disconnected database.");
       return db_sts::connection_error;
     }
 
     SQLRETURN ret = SQLEndTran(SQL_HANDLE_DBC, data()->conn_handle, SQL_ROLLBACK);
     chk_error(ret, SQL_HANDLE_DBC, data()->conn_handle, "rollback transaction");
 
-    if (is_success(static_cast<db_sts>(ret))) { log->info("Transaction rolled back successfully."); }
-    else { log->error("Transaction rollback failed."); }
+    if (is_success(static_cast<db_sts>(ret))) { log()->info("Transaction rolled back successfully."); }
+    else { log()->error("Transaction rollback failed."); }
 
     return static_cast<db_sts>(ret);
   }

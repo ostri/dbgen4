@@ -77,8 +77,10 @@ namespace rtl
     db_sts rollback() override; // Zamenjano z override
   private:
     ///
-    db_sts internal_connect(const std::string& connStr);
-    db_sts internal_allocate_handles();
+    db_sts             internal_connect(const std::string& connStr);
+    db_sts             internal_allocate_handles();
+    [[nodiscard]] auto log() const { return log::get(); }
+
 
     // Metoda za izvajanje SQL poizvedb, ki vračajo rezultate
     std::vector<std::vector<std::string>> executeQuery(const std::string& query);

@@ -166,9 +166,9 @@ namespace rtl
    */
   class db
   {
-  protected:
-    // NOLINTNEXTLINE(cert-err58-cpp)
-    inline static const auto log = log::get();
+    // protected:
+    //   // NOLINTNEXTLINE(cert-err58-cpp)
+    //   inline static const auto log = log::get();
   public:
     db() = default;
     virtual ~db();
@@ -218,6 +218,7 @@ namespace rtl
       /// NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)
       std::unique_ptr<db_data_root> data_; //NOLINT(cppcoreguidelines-non-private-member-variables-in-classes)
     // clang-format on
+    [[nodiscard]] auto log() const { return log::get(); }
   };
 
 }; // namespace rtl

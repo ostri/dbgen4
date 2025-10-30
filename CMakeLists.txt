@@ -23,7 +23,7 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
       add_compile_options(
       -Wall
       -Wextra
-      -pedantic
+      -Wpedantic
       -Werror
       -Wnarrowing
       # -pthread
@@ -36,12 +36,22 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
       #-fsanitize=float-cast-overflow
       #-fno-sanitize=null
       #-fno-sanitize=alignment
+    #   $<$<CONFIG:Debug>:-O0>
+    # $<$<CONFIG:Debug>:-g>
+    # $<$<CONFIG:Debug>:-fsanitize=address>
+    # $<$<CONFIG:Debug>:-fsanitize=undefined>
       )
       add_link_options(
         -fno-omit-frame-pointer
       #  -fsanitize=address
       #  -fsanitize=undefined
+
+
+    # $<$<CONFIG:Debug>:-fsanitize=address>
+    # $<$<CONFIG:Debug>:-fsanitize=undefined>
+    # -lstdc++exp   # <<< THIS IS REQUIRED FOR std::stacktrace
       )
+      
     # elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     #   set(OPTIONS /W4 /WX)
     #   if(HAS_PERMISSIVE_FLAG)
@@ -121,6 +131,7 @@ find_package(yaml-cpp REQUIRED)
 find_package(fmt REQUIRED)
 add_definitions(-DSPDLOG_FMT_EXTERNAL)
 find_package(spdlog REQUIRED)
+find_package(nlohmann_json REQUIRED)
 # find_package(ODBC REQUIRED)
 # if (ODBC_FOUND)
 #     message(STATUS "ODBC library found.")
@@ -136,6 +147,15 @@ else()
     message(FATAL_ERROR "DB2 knjižnica ni najdena. Preverite DB2_HOME!")
 endif()
 
+# -----------------------------------------------------------------------------
+# Build the log library (header-only wrapper)
+# -----------------------------------------------------------------------------
+add_library(log INTERFACE)
+target_include_directories(log INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/src/log)
+target_link_libraries(log INTERFACE 
+    spdlog::spdlog 
+    nlohmann_json::nlohmann_json
+)
 ### RTL library for DB2  -------------------------------------------------------------------------------
 set (SRC_RTL_FILES
  ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/rtl.cpp
@@ -155,7 +175,10 @@ target_include_directories(db2_rtl
     $ENV{IBM_DB_INCLUDE}
 )
 target_link_libraries ( db2_rtl 
-  PUBLIC DB2::DB2
+  PUBLIC 
+    DB2::DB2
+  PRIVATE
+    log
 )
 
 
@@ -199,6 +222,8 @@ target_link_libraries(${PROJECT_NAME}-db2
     yaml-cpp::yaml-cpp 
     spdlog::spdlog 
     #ODBC::ODBC
+    stdc++exp
+    log
 )
 #target_compile_definitions(${PROJECT_NAME}-db2 PRIVATE FMT_COMPILE=1)
 

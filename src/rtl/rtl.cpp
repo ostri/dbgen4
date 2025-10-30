@@ -12,7 +12,7 @@ namespace rtl
                      const std::string& user,
                      const std::string& password)
   {
-    log->error(
+    log()->error(
       "Connection error - db2 method not implemented host: {} port {} db {} user {} pass {}",
       host,
       port,

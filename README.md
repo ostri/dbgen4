@@ -32,6 +32,10 @@ database access layer generator
 
    sudo dnf install unixODBC-devel
 
+### nlohmann
+
+   sudo dnf install nlohmann-json-devel
+
 ## database installations
 
 ### mariadb
