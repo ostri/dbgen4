@@ -3,7 +3,7 @@
 #include <string_view>
 #include <sqlcli1.h>
 
-namespace dbgen4
+namespace rtl
 {
 
   /**
@@ -156,4 +156,4 @@ namespace dbgen4
     // Cast the enum value back to its underlying integer type and reuse the code-based function.
     return get_sql_type_mnemonic(static_cast<std::int16_t>(type));
   }
-} // namespace dbgen4
+} // namespace rtl

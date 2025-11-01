@@ -7,7 +7,7 @@ namespace dbgen4
 
   str_t sql_col_def::name() const { return name_; }
 
-  sql_data_type sql_col_def::type() const { return type_; }
+  rtl::sql_data_type sql_col_def::type() const { return type_; }
 
   bool sql_col_def::nullable() const { return nullable_; }
 
@@ -16,7 +16,7 @@ namespace dbgen4
 
   void sql_col_def::set_name(const str_t& name) { name_ = name; }
 
-  void sql_col_def::set_type(const sql_data_type& type) { type_ = type; }
+  void sql_col_def::set_type(const rtl::sql_data_type& type) { type_ = type; }
 
   void sql_col_def::is_nullable(bool nullable) { nullable_ = nullable; }
 

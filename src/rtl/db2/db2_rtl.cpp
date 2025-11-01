@@ -268,4 +268,126 @@ namespace rtl
     chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, "executing non-query");
     // clang-format on
   }
+  // db2_rtl.cpp – inside namespace rtl
+
+  query_metadata db_db2::get_sql_metadata(const std::string& query)
+  {
+    query_metadata result;
+
+    if (data()->conn_handle == 0)
+    {
+      log()->error("get_sql_metadata: No active database connection");
+      result.status = db_sts::connection_error;
+      return result;
+    }
+
+    // --- Allocate statement handle ---
+    SQLRETURN ret = SQLAllocHandle(SQL_HANDLE_STMT, data()->conn_handle, &data()->stmt_handle);
+    if (! is_success(static_cast<db_sts>(ret)))
+    {
+      chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, "allocating statement handle");
+      result.status = db_sts::resource_error;
+      return result;
+    }
+
+    // --- Prepare the statement (no execution) ---
+    auto tmp = reinterpret_cast<SQLCHAR*>(const_cast<char*>(query.c_str())); // NOLINT
+    ret      = SQLPrepare(data()->stmt_handle, tmp, SQL_NTS);
+    if (! is_success(static_cast<db_sts>(ret)))
+    {
+      chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, "SQLPrepare");
+      SQLFreeHandle(SQL_HANDLE_STMT, data()->stmt_handle);
+      data()->stmt_handle = 0;
+      result.status       = db_sts::invalid_sql;
+      return result;
+    }
+
+    // --- Describe input parameters ---
+    SQLSMALLINT num_params = 0;
+    ret                    = SQLNumParams(data()->stmt_handle, &num_params);
+    chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, "SQLNumParams");
+
+    for (SQLSMALLINT i = 1; i <= num_params; ++i)
+    {
+      parameter_description param{};
+      param.parameter_number = i;
+
+      SQLSMALLINT data_type      = 0;
+      SQLSMALLINT decimal_digits = 0;
+      SQLSMALLINT nullable       = 0;
+      SQLULEN     parameter_size = 0;
+
+      ret = SQLDescribeParam(
+        data()->stmt_handle, i, &data_type, &parameter_size, &decimal_digits, &nullable);
+
+      if (is_success(static_cast<db_sts>(ret)))
+      {
+        param.sql_type       = data_type;
+        param.type           = static_cast<sql_data_type>(data_type);
+        param.parameter_size = parameter_size;
+        param.decimal_digits = decimal_digits;
+        param.nullable       = nullable;
+        result.parameters.push_back(param);
+      }
+      else
+      {
+        chk_error(ret,
+                  SQL_HANDLE_STMT,
+                  data()->stmt_handle,
+                  fmt::format("SQLDescribeParam for parameter {}", i));
+        // Continue — partial metadata is acceptable
+      }
+    }
+
+    // --- Describe result-set columns ---
+    SQLSMALLINT num_columns = 0;
+    ret                     = SQLNumResultCols(data()->stmt_handle, &num_columns);
+    chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, "SQLNumResultCols");
+
+    for (SQLSMALLINT i = 1; i <= num_columns; ++i)
+    {
+      column_description       col{};
+      std::array<SQLCHAR, 256> col_name{}; // NOLINT
+      SQLSMALLINT              name_len       = 0;
+      SQLSMALLINT              data_type      = 0;
+      SQLSMALLINT              decimal_digits = 0;
+      SQLSMALLINT              nullable       = 0;
+      SQLULEN                  column_size    = 0;
+
+      ret = SQLDescribeCol(data()->stmt_handle,
+                           i,
+                           col_name.data(),
+                           col_name.size(),
+                           &name_len,
+                           &data_type,
+                           &column_size,
+                           &decimal_digits,
+                           &nullable);
+
+      if (is_success(static_cast<db_sts>(ret)))
+      {
+        col.name           = std::string(col_name.begin(), col_name.begin() + name_len);
+        col.sql_type       = data_type;
+        col.type           = static_cast<sql_data_type>(data_type);
+        col.column_size    = column_size;
+        col.decimal_digits = decimal_digits;
+        col.nullable       = nullable;
+        result.columns.push_back(col);
+      }
+      else
+      {
+        chk_error(ret,
+                  SQL_HANDLE_STMT,
+                  data()->stmt_handle,
+                  fmt::format("SQLDescribeCol for column {}", i));
+      }
+    }
+
+    // --- Cleanup ---
+    SQLFreeHandle(SQL_HANDLE_STMT, data()->stmt_handle);
+    data()->stmt_handle = 0;
+
+    result.status = db_sts::success;
+    return result;
+  }
 }; // namespace rtl
