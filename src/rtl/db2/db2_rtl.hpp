@@ -6,8 +6,8 @@
 #include "rtl.hpp"
 #include "cli_constants.hpp"
 
-constexpr auto align_64 = 64;
-constexpr auto align_16 = 16;
+constexpr auto DATA_ALIGNMENT_64 = 64;
+constexpr auto DATA_ALIGNMENT_16 = 16;
 namespace rtl
 {
   // db2_rtl.hpp – namespace rtl
@@ -15,54 +15,59 @@ namespace rtl
   /**
    * @brief Description of a single result-set column
    */
-  struct column_description
+  struct meta_dscr
   {
-    std::string   name;           ///< Column name as returned by the database
-    sql_data_type type;           ///< Mapped type from dbgen4::sql_data_type
-    SQLSMALLINT   sql_type;       ///< Raw ODBC SQL type code (e.g., SQL_INTEGER)
-    SQLULEN       column_size;    ///< Maximum column size in characters/bytes
-    SQLSMALLINT   decimal_digits; ///< Number of digits after decimal point (for numeric)
-    SQLSMALLINT   nullable;       ///< SQL_NO_NULLS, SQL_NULLABLE, or SQL_NULLABLE_UNKNOWN
-  } __attribute__((aligned(align_64)));
+    int16_t     index; ///< 1-based index of the parameter
+    std::string name;  ///< Column name as returned by the db
+                       ///<  or the parameter name provided to the database
+    sql_type type;     ///< Mapped type from dbgen4::sql_type
+    int16_t  sql_type; ///< Raw ODBC SQL type code (e.g., SQL_INTEGER)
+    size_t   size;     ///< Maximum column size in characters/bytes
+    int16_t  digits;   ///< Number of digits after decimal point (for numeric)
+    int16_t  nullable; ///< SQL_NO_NULLS, SQL_NULLABLE, or SQL_NULLABLE_UNKNOWN
+  } __attribute__((aligned(DATA_ALIGNMENT_64)));
+  using meta_vec = std::vector<meta_dscr>;
 
-  /**
-   * @brief Description of a single parameter in a prepared statement
-   */
-  struct parameter_description
-  {
-    SQLSMALLINT   parameter_number; ///< 1-based index of the parameter
-    sql_data_type type;             ///< Mapped type from dbgen4::sql_data_type
-    SQLSMALLINT   sql_type;         ///< Raw ODBC SQL type code
-    SQLULEN       parameter_size;   ///< Maximum size of the parameter value
-    SQLSMALLINT   decimal_digits;   ///< Decimal precision
-    SQLSMALLINT   nullable;         ///< SQL_NO_NULLS or SQL_NULLABLE
-  } __attribute__((aligned(align_16)));
+  // /**
+  //  * @brief Description of a single parameter in a prepared statement
+  //  */
+  // struct param_dscr
+  // {
+  //   SQLSMALLINT   param_number; ///< 1-based index of the parameter
+  //   sql_data_type type;         ///< Mapped type from dbgen4::sql_data_type
+  //   SQLSMALLINT   sql_type;     ///< Raw ODBC SQL type code
+  //   SQLULEN       param_size;   ///< Maximum size of the parameter value
+  //   SQLSMALLINT   dec_digits;   ///< Decimal precision
+  //   SQLSMALLINT   nullable;     ///< SQL_NO_NULLS or SQL_NULLABLE
+  // } __attribute__((aligned(DATA_ALIGNMENT_16)));
+
 
   /**
    * @brief Result of parsing a SQL statement – contains only metadata
    */
-  struct query_metadata
+  // NOLINTBEGIN(misc-non-private-member-variables-in-classes)
+  struct qry_metadata
   {
-    // NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)
-    db_sts status = db_sts::error; ///< Execution status
-    // NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)
-    std::vector<column_description> columns; ///< Result-set column metadata
-    // NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)
-    std::vector<parameter_description> parameters; ///< Input parameter metadata
+    db_sts   status{db_sts::error}; ///< Execution status
+    meta_vec columns;               ///< Result-set column metadata
+    meta_vec params;                ///< Input parameter metadata
 
     /**
      * @brief Check if metadata extraction was successful
      * @return true if status is success or success_with_info
      */
-    [[nodiscard]] bool success() const noexcept { return is_success(status); }
-  } __attribute__((aligned(align_64)));
+    [[nodiscard]] bool success() const noexcept;
+  } __attribute__((aligned(DATA_ALIGNMENT_64)));
+  // NOLINTEND(misc-non-private-member-variables-in-classes)
   class db_data_db2 : public db_data_root
   {
-    static constexpr const std::size_t DB2_DATA_ALIGNMENT = 16;
   public:
-    SQLHENV  env_handle{};  // NOLINT(misc-non-private-member-variables-in-classes)
-    SQLHDBC  conn_handle{}; // NOLINT(misc-non-private-member-variables-in-classes)
-    SQLHSTMT stmt_handle{}; // NOLINT(misc-non-private-member-variables-in-classes)
+    // NOLINTBEGIN(misc-non-private-member-variables-in-classes)
+    SQLHENV  env_handle{};  ///< environment handle
+    SQLHDBC  conn_handle{}; ///< connection handle
+    SQLHSTMT stmt_handle{}; ///< statement handle
+
+    // NOLINTEND(misc-non-private-member-variables-in-classes)
 
     db_data_db2() = default;
     ~db_data_db2() override;
@@ -73,7 +78,7 @@ namespace rtl
   private:
     [[nodiscard]] auto log() const { return log::get(); }
 
-  } __attribute__((aligned(DB2_DATA_ALIGNMENT)));
+  } __attribute__((aligned(DATA_ALIGNMENT_64)));
 
   class db_db2 : public db
   {
@@ -128,7 +133,7 @@ namespace rtl
      * @param query SQL statement (may contain ? placeholders)
      * @return query_metadata with status, column and parameter descriptions
      */
-    query_metadata get_sql_metadata(const std::string& query);
+    qry_metadata get_sql_metadata(const std::string& query);
   private:
     ///
     db_sts             internal_connect(const std::string& connStr);
@@ -141,11 +146,7 @@ namespace rtl
 
     // Metoda za izvajanje SQL ukazov brez rezultatov
     void executeNonQuery(const std::string& query);
-    /// check what is wrong and report to the log
-    void chk_error(SQLRETURN          ret,
-                   SQLSMALLINT        handleType,
-                   SQLHANDLE          handle,
-                   const std::string& operation) const;
+
     /// access to the database attributes
     [[nodiscard]] db_data_db2* data() const { return dynamic_cast<db_data_db2*>(data_.get()); };
   }; // db_db2;

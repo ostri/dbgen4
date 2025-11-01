@@ -11,7 +11,7 @@ namespace rtl
    * * Each enumerator is assigned its value via the standard SQL_* mnemonic defined
    * in the ODBC/CLI headers, ensuring direct correlation.
    */
-  enum class sql_data_type : std::int16_t
+  enum class sql_type : std::int16_t
   {
     // === Core and Numeric Types ===
     Unknown   = 0, // Default or error state (Explicitly 0 as it's not a standard SQL_ type code)
@@ -79,66 +79,66 @@ namespace rtl
    * @param sql_type The integer value (e.g., 4 for SQL_INTEGER).
    * @return std::string_view The string representation (e.g., "SQL_INTEGER").
    */
-  constexpr std::string_view get_sql_type_mnemonic(std::int16_t sql_type) noexcept
+  constexpr std::string_view get_sql_type_mnemonic(std::int16_t a_sql_type) noexcept
   {
     // Convert the integer input to the enum for use in the switch statement
     // This provides symbol safety and clarity.
-    switch (static_cast<sql_data_type>(sql_type))
+    switch (static_cast<sql_type>(a_sql_type))
     {
     // Core and Numeric Types
-    case sql_data_type::Char: return "SQL_CHAR";
-    case sql_data_type::Numeric: return "SQL_NUMERIC";
-    case sql_data_type::Decimal: return "SQL_DECIMAL";
-    case sql_data_type::Integer: return "SQL_INTEGER";
-    case sql_data_type::SmallInt: return "SQL_SMALLINT";
-    case sql_data_type::Float: return "SQL_FLOAT";
-    case sql_data_type::Real: return "SQL_REAL";
-    case sql_data_type::Double: return "SQL_DOUBLE";
-    case sql_data_type::Date: return "SQL_DATE";
-    case sql_data_type::Time: return "SQL_TIME";
-    case sql_data_type::Timestamp: return "SQL_TIMESTAMP";
-    case sql_data_type::Varchar: return "SQL_VARCHAR";
+    case sql_type::Char: return "SQL_CHAR";
+    case sql_type::Numeric: return "SQL_NUMERIC";
+    case sql_type::Decimal: return "SQL_DECIMAL";
+    case sql_type::Integer: return "SQL_INTEGER";
+    case sql_type::SmallInt: return "SQL_SMALLINT";
+    case sql_type::Float: return "SQL_FLOAT";
+    case sql_type::Real: return "SQL_REAL";
+    case sql_type::Double: return "SQL_DOUBLE";
+    case sql_type::Date: return "SQL_DATE";
+    case sql_type::Time: return "SQL_TIME";
+    case sql_type::Timestamp: return "SQL_TIMESTAMP";
+    case sql_type::Varchar: return "SQL_VARCHAR";
 
     // Negative Codes (Extended Types)
-    case sql_data_type::LongVarchar: return "SQL_LONGVARCHAR";
-    case sql_data_type::Binary: return "SQL_BINARY";
-    case sql_data_type::VarBinary: return "SQL_VARBINARY";
-    case sql_data_type::LongVarBinary: return "SQL_LONGVARBINARY";
-    case sql_data_type::BigInt: return "SQL_BIGINT";
-    case sql_data_type::TinyInt: return "SQL_TINYINT";
-    case sql_data_type::Bit: return "SQL_BIT";
-    case sql_data_type::WChar: return "SQL_WCHAR";
-    case sql_data_type::WVarchar: return "SQL_WVARCHAR";
-    case sql_data_type::WLongVarchar: return "SQL_WLONGVARCHAR";
-    case sql_data_type::Guid: return "SQL_GUID";
+    case sql_type::LongVarchar: return "SQL_LONGVARCHAR";
+    case sql_type::Binary: return "SQL_BINARY";
+    case sql_type::VarBinary: return "SQL_VARBINARY";
+    case sql_type::LongVarBinary: return "SQL_LONGVARBINARY";
+    case sql_type::BigInt: return "SQL_BIGINT";
+    case sql_type::TinyInt: return "SQL_TINYINT";
+    case sql_type::Bit: return "SQL_BIT";
+    case sql_type::WChar: return "SQL_WCHAR";
+    case sql_type::WVarchar: return "SQL_WVARCHAR";
+    case sql_type::WLongVarchar: return "SQL_WLONGVARCHAR";
+    case sql_type::Guid: return "SQL_GUID";
 
     // ODBC 3.x Date/Time Codes
-    case sql_data_type::TypeDate: return "SQL_TYPE_DATE";
-    case sql_data_type::TypeTime: return "SQL_TYPE_TIME";
-    case sql_data_type::TypeTimestamp: return "SQL_TYPE_TIMESTAMP";
+    case sql_type::TypeDate: return "SQL_TYPE_DATE";
+    case sql_type::TypeTime: return "SQL_TYPE_TIME";
+    case sql_type::TypeTimestamp: return "SQL_TYPE_TIMESTAMP";
 
     // Complete Interval Types
-    case sql_data_type::IntervalYear: return "SQL_INTERVAL_YEAR";
-    case sql_data_type::IntervalMonth: return "SQL_INTERVAL_MONTH";
-    case sql_data_type::IntervalYearToMonth: return "SQL_INTERVAL_YEAR_TO_MONTH";
-    case sql_data_type::IntervalDay: return "SQL_INTERVAL_DAY";
-    case sql_data_type::IntervalHour: return "SQL_INTERVAL_HOUR";
-    case sql_data_type::IntervalMinute: return "SQL_INTERVAL_MINUTE";
-    case sql_data_type::IntervalSecond: return "SQL_INTERVAL_SECOND";
-    case sql_data_type::IntervalDayToHour: return "SQL_INTERVAL_DAY_TO_HOUR";
-    case sql_data_type::IntervalDayToMinute: return "SQL_INTERVAL_DAY_TO_MINUTE";
-    case sql_data_type::IntervalDayToSecond: return "SQL_INTERVAL_DAY_TO_SECOND";
-    case sql_data_type::IntervalHourToMinute: return "SQL_INTERVAL_HOUR_TO_MINUTE";
-    case sql_data_type::IntervalHourToSecond: return "SQL_INTERVAL_HOUR_TO_SECOND";
-    case sql_data_type::IntervalMinuteToSecond: return "SQL_INTERVAL_MINUTE_TO_SECOND";
+    case sql_type::IntervalYear: return "SQL_INTERVAL_YEAR";
+    case sql_type::IntervalMonth: return "SQL_INTERVAL_MONTH";
+    case sql_type::IntervalYearToMonth: return "SQL_INTERVAL_YEAR_TO_MONTH";
+    case sql_type::IntervalDay: return "SQL_INTERVAL_DAY";
+    case sql_type::IntervalHour: return "SQL_INTERVAL_HOUR";
+    case sql_type::IntervalMinute: return "SQL_INTERVAL_MINUTE";
+    case sql_type::IntervalSecond: return "SQL_INTERVAL_SECOND";
+    case sql_type::IntervalDayToHour: return "SQL_INTERVAL_DAY_TO_HOUR";
+    case sql_type::IntervalDayToMinute: return "SQL_INTERVAL_DAY_TO_MINUTE";
+    case sql_type::IntervalDayToSecond: return "SQL_INTERVAL_DAY_TO_SECOND";
+    case sql_type::IntervalHourToMinute: return "SQL_INTERVAL_HOUR_TO_MINUTE";
+    case sql_type::IntervalHourToSecond: return "SQL_INTERVAL_HOUR_TO_SECOND";
+    case sql_type::IntervalMinuteToSecond: return "SQL_INTERVAL_MINUTE_TO_SECOND";
 
     // LOB (Large Object) Types
-    case sql_data_type::Blob: return "SQL_BLOB";
-    case sql_data_type::Clob: return "SQL_CLOB";
-    case sql_data_type::DBCLOB: return "SQL_DBCLOB";
+    case sql_type::Blob: return "SQL_BLOB";
+    case sql_type::Clob: return "SQL_CLOB";
+    case sql_type::DBCLOB: return "SQL_DBCLOB";
 
     // Explicitly handle Unknown and all other unlisted or vendor-specific codes
-    case sql_data_type::Unknown:
+    case sql_type::Unknown:
     default: return "SQL_UNKNOWN_TYPE";
     }
   }
@@ -151,7 +151,7 @@ namespace rtl
    * @param type The SqlDataType enum value.
    * @return std::string_view The string representation (e.g., "SQL_INTEGER").
    */
-  constexpr std::string_view get_sql_type_mnemonic(sql_data_type type) noexcept
+  constexpr std::string_view get_sql_type_mnemonic(sql_type type) noexcept
   {
     // Cast the enum value back to its underlying integer type and reuse the code-based function.
     return get_sql_type_mnemonic(static_cast<std::int16_t>(type));

@@ -2,8 +2,8 @@
 
 #include <cstdint>
 #include <memory>
-// NOLINTNEXTLINE(unused-includes)
-#include "log.hpp"
+
+#include "log.hpp" // NOLINT(unused-includes)
 
 namespace rtl
 {
@@ -147,8 +147,6 @@ namespace rtl
   class db_data_root
   {
   protected:
-    // NOLINTNEXTLINE(cert-err58-cpp)
-    inline static const auto log = log::get();
   public:
     db_data_root()                               = default;
     virtual ~db_data_root()                      = default;

@@ -2,28 +2,18 @@
 #include "rtl.hpp"
 #include <fmt/format.h>
 #include <array>
-// #include <sstream>
-// #include <iomanip>
-namespace rtl
+namespace
 {
-  db_data_db2::~db_data_db2()
-  {
-    if (env_handle != 0) SQLFreeHandle(SQL_HANDLE_ENV, env_handle);
-    if (conn_handle != 0) SQLFreeHandle(SQL_HANDLE_DBC, conn_handle);
-    if (stmt_handle != 0) SQLFreeHandle(SQL_HANDLE_STMT, stmt_handle);
-  }
 
-  db_db2::db_db2() { this->data_ = std::make_unique<db_data_db2>(); }
-  db_db2::~db_db2() { disconnect(); }
-
-  void db_db2::chk_error(SQLRETURN          ret,
-                         SQLSMALLINT        handleType,
-                         SQLHANDLE          handle,
-                         const std::string& operation) const
+  /// check what is wrong and report to the log
+  void chk_error(SQLRETURN          ret,
+                 SQLSMALLINT        handleType,
+                 SQLHANDLE          handle,
+                 const std::string& operation)
   {
     constexpr const int sql_state_len = 5 + 1;
     constexpr const int msg_len       = 1024 + 1;
-    if (! is_success(static_cast<db_sts>(ret)))
+    if (! is_success(static_cast<rtl::db_sts>(ret)))
     {
       std::array<SQLCHAR, sql_state_len> sqlState{};
       SQLINTEGER                         nativeError;
@@ -33,7 +23,7 @@ namespace rtl
       SQLSMALLINT                        rec_number = 1;
       SQLRETURN                          res        = SQL_SUCCESS;
 
-      while (! is_no_data(static_cast<db_sts>(res)))
+      while (! is_no_data(static_cast<rtl::db_sts>(res)))
       {
         res = SQLGetDiagRec(handleType,
                             handle,
@@ -48,12 +38,26 @@ namespace rtl
                               operation,
                               std::string(messageText.begin(), messageText.begin() + messageLength),
                               std::string(sqlState.begin(), sqlState.end()));
-        log()->error(err_msg);
+        log::get()->error(err_msg);
 
         rec_number++;
       };
     }
   }
+}; // namespace
+namespace rtl
+{
+
+  db_data_db2::~db_data_db2()
+  {
+    if (env_handle != 0) SQLFreeHandle(SQL_HANDLE_ENV, env_handle);
+    if (conn_handle != 0) SQLFreeHandle(SQL_HANDLE_DBC, conn_handle);
+    if (stmt_handle != 0) SQLFreeHandle(SQL_HANDLE_STMT, stmt_handle);
+  }
+
+  db_db2::db_db2() { this->data_ = std::make_unique<db_data_db2>(); }
+  db_db2::~db_db2() { disconnect(); }
+
 
   db_sts db_db2::internal_connect(const std::string& connStr)
   {
@@ -270,9 +274,9 @@ namespace rtl
   }
   // db2_rtl.cpp – inside namespace rtl
 
-  query_metadata db_db2::get_sql_metadata(const std::string& query)
+  qry_metadata db_db2::get_sql_metadata(const std::string& query)
   {
-    query_metadata result;
+    qry_metadata result;
 
     if (data()->conn_handle == 0)
     {
@@ -309,25 +313,25 @@ namespace rtl
 
     for (SQLSMALLINT i = 1; i <= num_params; ++i)
     {
-      parameter_description param{};
-      param.parameter_number = i;
+      meta_dscr param{};
+      param.index = i;
 
-      SQLSMALLINT data_type      = 0;
-      SQLSMALLINT decimal_digits = 0;
-      SQLSMALLINT nullable       = 0;
-      SQLULEN     parameter_size = 0;
+      SQLSMALLINT data_type  = 0;
+      SQLSMALLINT dec_digits = 0;
+      SQLSMALLINT nullable   = 0;
+      SQLULEN     param_size = 0;
 
-      ret = SQLDescribeParam(
-        data()->stmt_handle, i, &data_type, &parameter_size, &decimal_digits, &nullable);
+      ret =
+        SQLDescribeParam(data()->stmt_handle, i, &data_type, &param_size, &dec_digits, &nullable);
 
       if (is_success(static_cast<db_sts>(ret)))
       {
-        param.sql_type       = data_type;
-        param.type           = static_cast<sql_data_type>(data_type);
-        param.parameter_size = parameter_size;
-        param.decimal_digits = decimal_digits;
-        param.nullable       = nullable;
-        result.parameters.push_back(param);
+        param.sql_type = data_type;
+        param.type     = static_cast<sql_type>(data_type);
+        param.size     = param_size;
+        param.digits   = dec_digits;
+        param.nullable = nullable;
+        result.params.push_back(param);
       }
       else
       {
@@ -346,7 +350,7 @@ namespace rtl
 
     for (SQLSMALLINT i = 1; i <= num_columns; ++i)
     {
-      column_description       col{};
+      meta_dscr                col{};
       std::array<SQLCHAR, 256> col_name{}; // NOLINT
       SQLSMALLINT              name_len       = 0;
       SQLSMALLINT              data_type      = 0;
@@ -366,12 +370,12 @@ namespace rtl
 
       if (is_success(static_cast<db_sts>(ret)))
       {
-        col.name           = std::string(col_name.begin(), col_name.begin() + name_len);
-        col.sql_type       = data_type;
-        col.type           = static_cast<sql_data_type>(data_type);
-        col.column_size    = column_size;
-        col.decimal_digits = decimal_digits;
-        col.nullable       = nullable;
+        col.name     = std::string(col_name.begin(), col_name.begin() + name_len);
+        col.sql_type = data_type;
+        col.type     = static_cast<sql_type>(data_type);
+        col.size     = column_size;
+        col.digits   = decimal_digits;
+        col.nullable = nullable;
         result.columns.push_back(col);
       }
       else
@@ -390,4 +394,6 @@ namespace rtl
     result.status = db_sts::success;
     return result;
   }
+
+  bool qry_metadata::success() const noexcept { return is_success(status); }
 }; // namespace rtl
