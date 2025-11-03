@@ -1,16 +1,17 @@
+#include "log.hpp"
 #include "rtl.hpp"
 
 namespace rtl
 {
   db::~db() { }; // NOLINT
 
-  db_sts db::connect(const std::string& name) { return connect("", "", name, "", ""); }
+  db_sts db::connect(const std::string& /*conn_str*/) { return db_sts::driver_not_found; }
 
   db_sts db::connect(const std::string& host,
-                     const std::string& port,
+                     uint16_t           port,
                      const std::string& database_name,
                      const std::string& user,
-                     const std::string& password)
+                     const std::string& /*password*/)
   {
     log()->error(
       "Connection error - db2 method not implemented host: {} port {} db {} user {} pass {}",
@@ -18,7 +19,7 @@ namespace rtl
       port,
       database_name,
       user,
-      password);
+      "*****");
     return db_sts::connection_error;
   }
 
@@ -40,6 +41,10 @@ namespace rtl
   db_sts db::rollback() { return db_sts::success; }
 
   const db_data_root* db::data() const { return data_.get(); }
+
+  spdlog::logger* db::log() const { return log::get(); }
+
+  spdlog::logger* db_data_root::log() const { return log::get(); }
 
 
 } // namespace rtl

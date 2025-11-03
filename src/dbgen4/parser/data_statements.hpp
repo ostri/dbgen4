@@ -12,23 +12,27 @@ namespace dbgen4
   using data_statement_map_t = std::map<str_t, data_statement>;
   // using krneki               = std::pair<data_statement_map_t::const_iterator, bool>;
 
-  class data_statements : private log
+  class data_statements
   {
   public:
     data_statements()                                      = default;
     virtual ~data_statements()                             = default;
     data_statements(const data_statements&)                = default;
-    data_statements(data_statements&&) noexcept            = delete;
-    data_statements& operator=(const data_statements&)     = delete;
-    data_statements& operator=(data_statements&&) noexcept = delete;
+    data_statements(data_statements&&) noexcept            = default;
+    data_statements& operator=(const data_statements&)     = default;
+    data_statements& operator=(data_statements&&) noexcept = default;
     /// getters
     [[nodiscard]] str_t           summary() const;
     [[nodiscard]] str_t           description() const;
     [[nodiscard]] cmd_line_params params() const;
+    [[nodiscard]] str_t           filename() const;
     /// setters
     void set_summary(const str_t& summary);
     void set_description(const str_t& description);
     void set_params(const cmd_line_params& params);
+    void set_filename(const str_t& filename) { filename_ = filename; }
+
+    [[nodiscard]] data_statement_map_t map() const;
     /**
      * @brief add statement to the map
      *
@@ -42,15 +46,14 @@ namespace dbgen4
      */
     bool add_statement(const data_statement& s);
   protected:
-    [[nodiscard]] data_statement_map_t map() const;
-    void                               set_map(const data_statement_map_t& map);
+    void set_map(const data_statement_map_t& map);
   private:
-    [[nodiscard]] auto log() const { return log::get(); }
+    [[nodiscard]] spdlog::logger* log() const;
 
-    // NOLINTNEXTLINE (readability-redundant-member-init)
     str_t                summary_;     ///< description about the purpose of this sql statements set
     str_t                description_; ///< description of the usage of this sql statement set
     data_statement_map_t map_;         ///< individual statements
     cmd_line_params      params_;      ///< command line parameters
+    str_t                filename_;    ///< path to the file whic is processed
   };
 } // namespace dbgen4

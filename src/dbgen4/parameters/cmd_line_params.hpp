@@ -16,7 +16,7 @@ namespace dbgen4
     cmd_line_params()                                  = default;
     virtual ~cmd_line_params()                         = default;
     cmd_line_params& operator=(const cmd_line_params&) = default;
-    cmd_line_params& operator=(cmd_line_params&&)      = delete;
+    cmd_line_params& operator=(cmd_line_params&&)      = default;
     cmd_line_params(const cmd_line_params& o)          = default;
     cmd_line_params(cmd_line_params&& o) noexcept      = default;
     [[nodiscard]] vec_str_t    files() const;      ///< fetch the list of gsql file to be processed

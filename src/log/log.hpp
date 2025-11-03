@@ -1,6 +1,7 @@
 // log.h
 #pragma once
 
+// #include "build_type.hpp"
 #include <fmt/format.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
@@ -132,19 +133,21 @@ public:
     }
 
     spdlog::set_default_logger(logger);
-    // spdlog::set_level(console_lvl);
     spdlog::set_pattern(std::string(pattern));
 
-    console_sink_ = console_sink;
-    file_sink_    = file_sink;
-
-    get()->info("logger initialized");
-    get()->info("log level: {} console: {} file: {} param: {} {}",
-                level_to_string(get()->level()),
-                level_to_string(console_sink_->level()),
-                level_to_string(file_sink_->level()),
-                level_to_string(console_lvl),
-                level_to_string(file_lvl));
+    console_sink_     = console_sink;
+    file_sink_        = file_sink;
+    const auto* debug = std::getenv("LOG_DEBUG"); // NOLINT(concurrency-mt-unsafe)
+    if (debug != nullptr)
+    {
+      get()->info("logger initialized");
+      get()->info("log level: {} console: {} file: {} param: {} {}",
+                  level_to_string(get()->level()),
+                  level_to_string(console_sink_->level()),
+                  level_to_string(file_sink_->level()),
+                  level_to_string(console_lvl),
+                  level_to_string(file_lvl));
+    }
   }
 
   /* -------------------------------------------------------------

@@ -152,9 +152,11 @@ endif()
 # -----------------------------------------------------------------------------
 set (LOG_SRC_FILES
  ${CMAKE_CURRENT_SOURCE_DIR}/src/log/log.cpp
+ ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common/build_type.cpp
+ 
 )
 add_library(log STATIC ${LOG_SRC_FILES})
-target_include_directories(log INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/src/log)
+target_include_directories(log PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/log ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common)
 target_link_libraries(log 
 PRIVATE 
     spdlog::spdlog 

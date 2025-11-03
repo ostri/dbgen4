@@ -13,10 +13,10 @@ statements:
           specific sql
           for mariadb
   db2: |
-          specific sql
-          for db2
+    select * where col_smallint = 1
 
 - id: sql_2
   sql: "2-single line sql statement : & # *"
 - id: sql_3
-  sql: "3-single line sql statement : & # *"
+  sql:  |
+      insert into test (col_smallint, col_integer) values (?, ?)

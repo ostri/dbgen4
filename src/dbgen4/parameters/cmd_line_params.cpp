@@ -40,19 +40,27 @@ namespace dbgen4
     const auto* db_type = ME::enum_name(db_type_).data();
     for (auto const& el : files_) { s += fmt::format("{}{}{}\n", r, r, el); }
     // if (! s.empty()) s.pop_back(); // cut last space off
-    auto msg = fmt::format("{}db_name:    {}\n{}db_type:    {}\n{}out folder: "
-                           "{}\n{}verbose:    {}\n{}files:   \n{}",
-                           r,
+    auto msg = fmt::format(R"(
+  host:       {}
+  port:       {}
+  db_name:    {}
+  db_type:    {}
+  user:       {}
+  pass:       {}
+  out folder: {}
+  verbose:    {}
+  files:   
+)",
+                           host_,
+                           port_,
                            db_name_,
-                           r,
                            db_type,
-                           r,
+                           user_,
+                           "****",
                            out_folder_,
-                           r,
                            verbose_,
-                           r,
                            s);
-    msg.pop_back();
+    // msg.pop_back();
     return msg;
   }
 
@@ -70,7 +78,7 @@ namespace dbgen4
     /// database type
     auto help_str = fmt::format("database type : [{}]", s);
     app.add_option("-t,--db-type", enum_str, help_str      )
-      ->required()
+      ->default_val(db_type_enum::sql)
       ->check([s, this](const std::string& v)
       {
         auto res = ME::enum_cast<db_type_enum>(v);
@@ -98,7 +106,7 @@ namespace dbgen4
     app.add_option("-u,--username", user_, "database user")
       ->required();
     /// database user password
-    app.add_option("-p,--password", db_name_, "database user password")
+    app.add_option("-p,--password", pass_, "database user password")
       ->required();
     /// output folder
     app.add_option("-o,--out-folder", out_folder_, "output folder for generated files.")
@@ -113,6 +121,7 @@ namespace dbgen4
     // clang-format on
     try
     {
+      set_log_level(false);
       if (argc == 1) throw CLI::CallForHelp();
       app.parse(argc, argv);
       set_log_level(verbose_);
@@ -121,7 +130,7 @@ namespace dbgen4
     }
     catch (const CLI::CallForHelp& e)
     {
-      log()->info("Help command.");
+      log()->debug("Help command.");
       return app.exit(e);
     }
     catch (const CLI::ParseError& e)
@@ -139,7 +148,12 @@ namespace dbgen4
       throw;
     }
     return 55; // NOLINT
+    // FIXME(ostri) popravi to magično številko
   }
 
-  void cmd_line_params::set_log_level(bool /*verbose*/) const { }
+  void cmd_line_params::set_log_level(bool verbose) const
+  {
+    if (is_debug_build()) { log()->set_level(verbose ? log::debug : log::info); }
+    else { log()->set_level(verbose ? log::info : log::warn); };
+  }
 }; // namespace dbgen4

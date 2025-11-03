@@ -1,9 +1,11 @@
 #include "appl.hpp"
-#include "../parser/parser.hpp"
+#include "parser.hpp"
 #include <magic_enum.hpp>
 #include <vector>
 #include <string>
+// #include "build_type.hpp"
 #include "common.hpp"
+#include "pars_result.hpp"
 #include "parser_errors.hpp"
 #include "db2_rtl.hpp"
 #include "rtl.hpp"
@@ -18,35 +20,42 @@ namespace dbgen4
 
   int appl::exec(int argc, char** argv, char** env)
   {
+    if (is_debug_build()) log()->info("Debug build");
+    else log()->info("Release build");
+
     parser p;
-    log()->info("=========== Application initialized ===========");
+    log()->debug("=========== Application initialized ===========");
     auto sts = p_.load_parameters(argc, argv, env);
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers)
     if (sts != 55) return 0; // exit on help or error in parsing
+    // FIXME(ostri) magic number
+
     raw_command_line(argc, argv);
     try
     {
       rtl::db_db2 db;
       // auto r = db.connect(p_.db_host(), p_.db_name(), p_.db_user(), p_.db_password());
-      //      auto r = db.connect("localhost", "50000", p_.db_name(), "ostri", "!123alfa");
-      auto r = db.connect(p_.db_name());
+      auto r = db.connect(p_.host(), p_.port(), p_.db_name(), p_.user(), p_.pass());
+      // auto r = db.connect(p_.db_name());
       log()->info("Database connection status: {}", ME::enum_name<db_sts>(r));
       if (! rtl::is_success(r))
       {
         log()->error("Unable to connect to database '{}'", p_.db_name());
         return ME::enum_integer(parser_err_enum::connection_error);
       }
-      for (const auto& file : p_.files())
+      /// walk over all parameter files
+      for (const auto& filename : p_.files())
       {
-        auto r = p.parse_yaml_file(file, p_.db_type());
+        auto r = p.parse_yaml_file(filename, p_.db_type());
         sts    = ME::enum_integer(r.e());
-        // const auto* fmt = get_parser_err_str(r.second);
-        log()->info("File '{}' parser status: {}", file, magic_enum::enum_name(r.e()));
+        log()->info("File '{}' parser status: {}", filename, magic_enum::enum_name(r.e()));
+        r = p.load_meta_data(r.s(), db);
       }
 
       log()->info("Application exit code '{}' '{}'",
                   sts,
                   magic_enum::enum_name(static_cast<parser_err_enum>(sts)));
+      db.rollback();
       db.disconnect();
       return sts;
     }

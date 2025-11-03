@@ -97,9 +97,9 @@ namespace rtl
      * This method should be overridden by derived classes to implement
      * database-specific connection logic.
      */
-    db_sts connect(const std::string& name) override;
+    db_sts connect(const std::string& conn_str) override;
     db_sts connect(const std::string& host,
-                   const std::string& port,
+                   uint16_t           port,
                    const std::string& database_name,
                    const std::string& user,
                    const std::string& password) override;
@@ -133,19 +133,23 @@ namespace rtl
      * @param query SQL statement (may contain ? placeholders)
      * @return query_metadata with status, column and parameter descriptions
      */
-    qry_metadata get_sql_metadata(const std::string& query);
+    qry_metadata get_sql_metadata(const std::string& sql);
+
+    void free_stmt_handle() const; ///< release current statement handle NOLINT
+    void free_conn_handle() const; ///< free connection handle NOLINT
+    void free_env_handle() const;  ///< free environment handle NOLINT
   private:
     ///
-    db_sts             internal_connect(const std::string& connStr);
-    db_sts             internal_allocate_handles();
-    [[nodiscard]] auto log() const { return log::get(); }
+    db_sts                        internal_connect(const std::string& connStr);
+    db_sts                        internal_allocate_handles();
+    [[nodiscard]] spdlog::logger* log() const;
 
 
     // Metoda za izvajanje SQL poizvedb, ki vračajo rezultate
     std::vector<std::vector<std::string>> executeQuery(const std::string& query);
 
     // Metoda za izvajanje SQL ukazov brez rezultatov
-    void executeNonQuery(const std::string& query);
+    void executeNonQuery(const std::string& sql);
 
     /// access to the database attributes
     [[nodiscard]] db_data_db2* data() const { return dynamic_cast<db_data_db2*>(data_.get()); };

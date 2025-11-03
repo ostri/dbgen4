@@ -1,7 +1,9 @@
+#include "log.hpp"
 #include "db2_rtl.hpp"
 #include "rtl.hpp"
 #include <fmt/format.h>
 #include <array>
+#include <stdexcept>
 namespace
 {
 
@@ -13,15 +15,16 @@ namespace
   {
     constexpr const int sql_state_len = 5 + 1;
     constexpr const int msg_len       = 1024 + 1;
+    auto                res           = SQL_SUCCESS;
+    log::get()->trace("{} status: {}", operation, ret);
     if (! is_success(static_cast<rtl::db_sts>(ret)))
     {
       std::array<SQLCHAR, sql_state_len> sqlState{};
-      SQLINTEGER                         nativeError;
+      SQLINTEGER                         native_error;
       std::array<SQLCHAR, msg_len>       messageText{};
       SQLSMALLINT                        messageLength = 0;
       std::string                        err_msg{};
       SQLSMALLINT                        rec_number = 1;
-      SQLRETURN                          res        = SQL_SUCCESS;
 
       while (! is_no_data(static_cast<rtl::db_sts>(res)))
       {
@@ -29,20 +32,33 @@ namespace
                             handle,
                             rec_number,
                             sqlState.data(),
-                            &nativeError,
+                            &native_error,
                             messageText.data(),
                             messageText.size(),
                             &messageLength);
 
-        err_msg = fmt::format("Error in '{}': '{}' (SQLSTATE: {})\n",
+        err_msg = fmt::format(R"(
+  Error in {} 
+  db error {} 
+  native err {}
+)",
                               operation,
                               std::string(messageText.begin(), messageText.begin() + messageLength),
-                              std::string(sqlState.begin(), sqlState.end()));
+                              native_error);
         log::get()->error(err_msg);
-
         rec_number++;
       };
     }
+  }
+  void free_handle(SQLHSTMT h, SQLSMALLINT h_type, const char* info, const char* err)
+  {
+    if (h != 0)
+    {
+      auto ret = SQLFreeHandle(h_type, h);
+      auto tmp = fmt::format(fmt::runtime(err), h);
+      if (! is_success(static_cast<rtl::db_sts>(ret))) chk_error(ret, h_type, h, tmp);
+    }
+    log::get()->debug(fmt::runtime(info), h);
   }
 }; // namespace
 namespace rtl
@@ -50,9 +66,9 @@ namespace rtl
 
   db_data_db2::~db_data_db2()
   {
-    if (env_handle != 0) SQLFreeHandle(SQL_HANDLE_ENV, env_handle);
-    if (conn_handle != 0) SQLFreeHandle(SQL_HANDLE_DBC, conn_handle);
-    if (stmt_handle != 0) SQLFreeHandle(SQL_HANDLE_STMT, stmt_handle);
+    if (stmt_handle != 0) log()->critical("statement handle is not deallocated.");
+    if (conn_handle != 0) log()->critical("connection handle is not deallocated.");
+    if (env_handle != 0) log()->critical("environment handle is not deallocated.");
   }
 
   db_db2::db_db2() { this->data_ = std::make_unique<db_data_db2>(); }
@@ -63,7 +79,7 @@ namespace rtl
   {
     SQLCHAR     outConnStr[1024]; // NOLINT
     SQLSMALLINT outLen;
-    log()->info("Connecting with: {}", connStr);
+    log()->debug("Connecting with: {}", connStr);
     auto ret = SQLDriverConnect(data()->conn_handle,
                                 nullptr,
                                 (SQLCHAR*)connStr.c_str(), // NOLINT
@@ -83,50 +99,48 @@ namespace rtl
       return db_sts::connection_error;
     }
 
-    log()->info("Connected to DB2 successfully!");
     return db_sts::success;
   }
 
   db_sts db_db2::internal_allocate_handles()
   {
     auto ret = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &data()->env_handle);
-    if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO)
+    if (! is_success(static_cast<db_sts>(ret)))
     {
-      log()->error("SQLAllocHandle(ENV) failed: {}", ret);
+      chk_error(ret, SQL_HANDLE_ENV, data()->env_handle, "Env allocation failed");
       return db_sts::env_error;
     }
 
-    log()->info("ENV handle allocated: {}", data()->env_handle);
+    log()->debug("ENV handle allocated: {}", data()->env_handle);
 
     // 3. Alociraj DBC
     ret = SQLAllocHandle(SQL_HANDLE_DBC, data()->env_handle, &data()->conn_handle);
-    if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO)
+    if (! is_success(static_cast<db_sts>(ret)))
     {
       chk_error(ret, SQL_HANDLE_DBC, data()->conn_handle, "SQLAllocHandle(DBC)");
-      SQLFreeHandle(SQL_HANDLE_ENV, data()->env_handle);
-      data()->env_handle = 0;
+      free_env_handle();
       return db_sts::connection_error;
     }
+    log()->debug("Connection handle allocated: {}", data()->conn_handle);
 
     // Dodana nastavitev za izklop Auto-commit-a (SQL_AUTOCOMMIT_OFF)
     ret = SQLSetConnectAttr(data()->conn_handle,
                             SQL_ATTR_AUTOCOMMIT,
                             (SQLPOINTER)SQL_AUTOCOMMIT_OFF, // NOLINT
                             SQL_IS_INTEGER);
-    if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO)
+    if (! is_success(static_cast<db_sts>(ret)))
     {
       chk_error(ret, SQL_HANDLE_DBC, data()->conn_handle, "SQLSetConnectAttr(AUTOCOMMIT OFF)");
       return db_sts::config_error;
     }
+    log()->debug("Autocommit disabled.");
     return db_sts::success;
   }
+  spdlog::logger* db_db2::log() const { return log::get(); }
   ///
-  db_sts db_db2::connect(const std::string& name)
-  {
-    return connect("localhost", "50000", name, "", "");
-  }
+  db_sts db_db2::connect(const std::string& conn_str) { return internal_connect(conn_str); }
   db_sts db_db2::connect(const std::string& host,
-                         const std::string& port,
+                         uint16_t           port,
                          const std::string& name,
                          const std::string& user,
                          const std::string& pass)
@@ -139,13 +153,14 @@ namespace rtl
                              "CURRENTFUNCTIONPATH=CURRENT PATH; ";
       // clang-format off
       conn_str += !host.empty() ? fmt::format("HOSTNAME={}; ", host) : "";
-      conn_str += !port.empty() ? fmt::format("PORT={}; ",     port) : "";
+      conn_str += port != 0     ? fmt::format("PORT={}; ",     port) : "";
       conn_str += !name.empty() ? fmt::format("DATABASE={}; ", name) : "";
       conn_str += !user.empty() ? fmt::format("UID={}; ",      user) : "";
       conn_str += !pass.empty() ? fmt::format("PWD={}; ",      pass) : "";
-      // clang-format off
+      // clang-format on
 
-      return internal_connect(conn_str);
+      ret = internal_connect(conn_str);
+      log()->info("Connected to database host:{}:{} db {} as user {}", host, port, name, user);
     }
     return ret;
   }
@@ -154,24 +169,19 @@ namespace rtl
     SQLRETURN ret = SQL_SUCCESS;
     if (data()->stmt_handle != 0)
     { // statement handle still active; rollback and disconnect
-
-      rollback(); // TODO(ostri):
+      rollback();
+      free_stmt_handle();
     }
     if (data()->conn_handle != 0)
     {
       ret = SQLDisconnect(data()->conn_handle);
-      chk_error(ret, SQL_HANDLE_DBC, data()->conn_handle, "disconnecting from DB2 database");
-      SQLFreeHandle(SQL_HANDLE_DBC, data()->conn_handle);
-      data()->conn_handle = 0;
+      if (! is_success(static_cast<db_sts>(ret)))
+        chk_error(ret, SQL_HANDLE_DBC, data()->conn_handle, "disconnecting from DB2 database");
+      free_conn_handle();
       log()->info("Database disconnected");
     }
-    else log()->warn("Disconnecting already disconnected database");
 
-    if (data()->env_handle != 0)
-    {
-      SQLFreeHandle(SQL_HANDLE_ENV, data()->env_handle);
-      data()->env_handle = 0;
-    }
+    if (data()->env_handle != 0) free_env_handle();
     return static_cast<db_sts>(ret);
   }
 
@@ -189,7 +199,10 @@ namespace rtl
     SQLRETURN ret = SQLEndTran(SQL_HANDLE_DBC, data()->conn_handle, SQL_COMMIT);
     chk_error(ret, SQL_HANDLE_DBC, data()->conn_handle, "commit transaction");
 
-    if (is_success(static_cast<db_sts>(ret))) { log()->info("Transaction committed successfully."); }
+    if (is_success(static_cast<db_sts>(ret)))
+    {
+      log()->info("Transaction committed successfully.");
+    }
     else { log()->error("Transaction commit failed."); }
 
     return static_cast<db_sts>(ret);
@@ -207,7 +220,10 @@ namespace rtl
     SQLRETURN ret = SQLEndTran(SQL_HANDLE_DBC, data()->conn_handle, SQL_ROLLBACK);
     chk_error(ret, SQL_HANDLE_DBC, data()->conn_handle, "rollback transaction");
 
-    if (is_success(static_cast<db_sts>(ret))) { log()->info("Transaction rolled back successfully."); }
+    if (is_success(static_cast<db_sts>(ret)))
+    {
+      log()->info("Transaction rolled back successfully.");
+    }
     else { log()->error("Transaction rollback failed."); }
 
     return static_cast<db_sts>(ret);
@@ -254,7 +270,7 @@ namespace rtl
     return results;
   }
 
-  void db_db2::executeNonQuery(const std::string& query)
+  void db_db2::executeNonQuery(const std::string& sql)
   {
     if (data()->conn_handle == 0) { throw std::runtime_error("No active database connection"); }
 
@@ -267,14 +283,14 @@ namespace rtl
     // Izvedba ukaza
     ret = SQLExecDirect(
       data()->stmt_handle, 
-      reinterpret_cast<SQLCHAR*>(const_cast<char*>(query.c_str())), // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast, cppcoreguidelines-pro-type-const-cast)
+      reinterpret_cast<SQLCHAR*>(const_cast<char*>(sql.c_str())), // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast, cppcoreguidelines-pro-type-const-cast)
       SQL_NTS);
     chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, "executing non-query");
     // clang-format on
   }
   // db2_rtl.cpp – inside namespace rtl
 
-  qry_metadata db_db2::get_sql_metadata(const std::string& query)
+  qry_metadata db_db2::get_sql_metadata(const std::string& sql)
   {
     qry_metadata result;
 
@@ -295,11 +311,14 @@ namespace rtl
     }
 
     // --- Prepare the statement (no execution) ---
-    auto tmp = reinterpret_cast<SQLCHAR*>(const_cast<char*>(query.c_str())); // NOLINT
-    ret      = SQLPrepare(data()->stmt_handle, tmp, SQL_NTS);
+    auto tmp = reinterpret_cast<SQLCHAR*>(const_cast<char*>(sql.c_str())); // NOLINT
+    // NOLINTNEXTLINE(cppcoreguidelines-narrowing-conversions, bugprone-narrowing-conversions)
+    SQLINTEGER len = sql.size();
+    ret            = SQLPrepare(data()->stmt_handle, tmp, len);
     if (! is_success(static_cast<db_sts>(ret)))
     {
-      chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, "SQLPrepare");
+      auto msg = fmt::format("{} sql {}", "SQLPrepare", sql);
+      chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, msg);
       SQLFreeHandle(SQL_HANDLE_STMT, data()->stmt_handle);
       data()->stmt_handle = 0;
       result.status       = db_sts::invalid_sql;
@@ -309,7 +328,8 @@ namespace rtl
     // --- Describe input parameters ---
     SQLSMALLINT num_params = 0;
     ret                    = SQLNumParams(data()->stmt_handle, &num_params);
-    chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, "SQLNumParams");
+    auto msg               = fmt::format("{} sql {}", "SQLNumParams", sql);
+    chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, msg);
 
     for (SQLSMALLINT i = 1; i <= num_params; ++i)
     {
@@ -346,7 +366,8 @@ namespace rtl
     // --- Describe result-set columns ---
     SQLSMALLINT num_columns = 0;
     ret                     = SQLNumResultCols(data()->stmt_handle, &num_columns);
-    chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, "SQLNumResultCols");
+    msg                     = fmt::format("{} sql {}", "SQLNumResultCols", sql);
+    chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, msg);
 
     for (SQLSMALLINT i = 1; i <= num_columns; ++i)
     {
@@ -394,6 +415,39 @@ namespace rtl
     result.status = db_sts::success;
     return result;
   }
+
+  void db_db2::free_stmt_handle() const
+  {
+    auto            h      = data()->stmt_handle;
+    constexpr auto  h_type = SQL_HANDLE_STMT;
+    constexpr auto* info   = "statement handle {} deallocated.";
+    constexpr auto* err    = "error deallocating statement handle {}";
+    data()->stmt_handle    = 0;
+    free_handle(h, h_type, info, err);
+  }
+
+  void db_db2::free_conn_handle() const
+  {
+    auto            h      = data()->conn_handle;
+    constexpr auto  h_type = SQL_HANDLE_DBC;
+    constexpr auto* info   = "connection handle {} deallocated.";
+    constexpr auto* err    = "error deallocating connection handle {}";
+    data()->conn_handle    = 0;
+
+    free_handle(h, h_type, info, err);
+  }
+
+  void db_db2::free_env_handle() const
+  {
+    auto            h      = data()->env_handle;
+    constexpr auto  h_type = SQL_HANDLE_ENV;
+    constexpr auto* info   = "environment handle {} deallocated.";
+    constexpr auto* err    = "error deallocating environment handle {}";
+    data()->env_handle     = 0;
+
+    free_handle(h, h_type, info, err);
+  }
+
 
   bool qry_metadata::success() const noexcept { return is_success(status); }
 }; // namespace rtl

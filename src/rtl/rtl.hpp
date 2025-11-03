@@ -154,6 +154,8 @@ namespace rtl
     db_data_root& operator=(const db_data_root&) = delete;
     db_data_root(db_data_root&&)                 = delete;
     db_data_root& operator=(db_data_root&&)      = delete;
+  private:
+    [[nodiscard]] spdlog::logger* log() const;
   };
   /**
    * @brief Root class for all database implementations
@@ -182,9 +184,9 @@ namespace rtl
      * This method should be overridden by derived classes to implement
      * database-specific connection logic.
      */
-    virtual db_sts connect(const std::string& name);
+    virtual db_sts connect(const std::string& conn_str);
     virtual db_sts connect(const std::string& host,
-                           const std::string& port,
+                           uint16_t           port,
                            const std::string& database_name,
                            const std::string& user,
                            const std::string& password);
@@ -216,7 +218,7 @@ namespace rtl
       /// NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)
       std::unique_ptr<db_data_root> data_; //NOLINT(cppcoreguidelines-non-private-member-variables-in-classes)
     // clang-format on
-    [[nodiscard]] auto log() const { return log::get(); }
+    [[nodiscard]] spdlog::logger* log() const;
   };
 
 }; // namespace rtl

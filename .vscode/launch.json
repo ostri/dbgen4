@@ -5,15 +5,19 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "(gdb) Launch main test",
+      "name": "Main test",
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}/build/dbgen4-db2",
       "args": [
-        "-t",
-        "db2",
         "-n",
         "test",
+        "-t",
+        "db2",
+        "-u",
+        "ostri",
+        "-p",
+        "!123alfa",
         "../yaml/t1.yaml"
       ],
       "stopAtEntry": false,
@@ -35,7 +39,7 @@
       ]
     },
     {
-      "name": "(gdb) Launch help",
+      "name": "help",
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}/build/dbgen4-db2",
@@ -61,7 +65,7 @@
       ]
     },
     {
-      "name": "(gdb) Launch OK",
+      "name": "maria",
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}/build/dbgen4-db2",

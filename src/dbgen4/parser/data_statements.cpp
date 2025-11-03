@@ -12,9 +12,13 @@ namespace dbgen4
 
   cmd_line_params data_statements::params() const { return params_; }
 
+  str_t data_statements::filename() const { return filename_; }
+
   data_statement_map_t data_statements::map() const { return map_; }
 
   void data_statements::set_map(const data_statement_map_t& map) { map_ = map; }
+
+  spdlog::logger* data_statements::log() const { return log::get(); }
 
   void data_statements::set_description(const str_t& description) { description_ = description; }
 
