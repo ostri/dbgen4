@@ -1,20 +1,32 @@
-#ifndef BUILD_TYPE_HPP
-#define BUILD_TYPE_HPP
+#pragma once
 
 #include <cstdint>
-enum class build_type_enum : std::uint8_t { debug, release };
-#ifndef NDEBUG // debug
+
+/**
+ * @brief Enum representing build configuration type
+ */
+enum class build_type_enum : std::uint8_t
+{
+  debug,
+  release
+};
+
+#ifndef NDEBUG
+/// @brief Current build type (compile-time constant)
 constexpr static const build_type_enum build_type = build_type_enum::debug;
-#else // release
+#else
+/// @brief Current build type (compile-time constant)
 constexpr static const build_type_enum build_type = build_type_enum::release;
 #endif
 
-/// @brief build type is debug
-/// @return true if the build type is debug, otherwise false
+/**
+ * @brief Check if current build is Debug
+ * @return true if Debug build, false if Release
+ */
 consteval bool is_debug_build() { return build_type == build_type_enum::debug; }
-/// @brief build type as a string
-/// @return returns string denoting the build type (debug or release)
-consteval const char *build_type_name() {
-  return ::is_debug_build() ? "debug" : "release";
-}
-#endif // BUILD_TYPE_HPP
+
+/**
+ * @brief Get build type as string
+ * @return "debug" or "release"
+ */
+consteval const char* build_type_name() { return is_debug_build() ? "debug" : "release"; }
