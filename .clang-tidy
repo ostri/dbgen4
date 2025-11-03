@@ -22,9 +22,12 @@ Checks: '*,
 '
 WarningsAsErrors: '*'
 HeaderFilterRegex: '.*'
-HeaderFileExtensions: 
+HeaderFileExtensions:
+
 - hpp
+  
 ImplementationFileExtensions:
+
 - cpp
 
 FormatStyle:     none

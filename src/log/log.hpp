@@ -2,6 +2,7 @@
 #pragma once
 
 // #include "build_type.hpp"
+#include "build_type.hpp"
 #include <fmt/format.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
@@ -43,6 +44,31 @@ public:
   /* -------------------------------------------------------------
      Initialize from JSON config file
      ------------------------------------------------------------- */
+  inline static spdlog::level::level_enum flush_level_from_string(const std::string& level)
+  {
+    if (level == "trace") return spdlog::level::trace;
+    if (level == "debug") return spdlog::level::debug;
+    if (level == "info") return spdlog::level::info;
+    if (level == "warn") return spdlog::level::warn;
+    if (level == "err" || level == "error") return spdlog::level::err;
+    if (level == "critical") return spdlog::level::critical;
+    if (level == "off") return spdlog::level::off;
+    return spdlog::level::err; // default: err
+  }
+  inline static void init_fallback()
+  {
+    init_raw("dbgen4",
+             mode::sync,
+             is_debug_build() ? spdlog::level::info : spdlog::level::warn,
+             is_debug_build() ? spdlog::level::debug : spdlog::level::info,
+             0,
+             0,
+             3,
+             "[%Y-%m-%d %H:%M:%S.%e] [%n] [%l] %v",
+             "./logs",
+             spdlog::level::warn // default flush_on
+    );
+  }
   static void init_from_json(const std::string& config_path = "")
   {
     auto cfg_filename = config_path;
@@ -53,7 +79,7 @@ public:
     {
       // failed to open provided log config file. Opening default to accomodate
       // at least basic logging
-      init_raw("fallback_log.log", log::mode::sync);
+      init_fallback();
       get()->warn("Failed to open '{}' log config file.", config_path);
     }
 
@@ -65,7 +91,7 @@ public:
     }
     catch (const std::exception& e)
     {
-      init_raw("fallback_log.log", log::mode::sync);
+      init_fallback();
       get()->warn("Syntax of '{}' log config file is broken.", config_path);
     }
 
@@ -80,13 +106,24 @@ public:
       auto keep_days   = j.value("keep_days", keep_days_default);
       auto pattern     = j.value("pattern", "[%Y-%m-%d %H:%M:%S.%e] [%n] [%l] [%t] %v");
       auto log_folder  = j.value("log-folder", "/tmp");
+      auto flush_str   = j.value("flush_on", "warn");
+      auto flush_lvl   = flush_level_from_string(flush_str);
 
-      init_raw(app_name, m, console_lvl, file_lvl, rot_h, rot_m, keep_days, pattern, log_folder);
+      init_raw(app_name,
+               m,
+               console_lvl,
+               file_lvl,
+               rot_h,
+               rot_m,
+               keep_days,
+               pattern,
+               log_folder,
+               flush_lvl);
     }
     catch (const std::exception& e)
     {
-      init_raw("fallback_log.log", log::mode::sync);
-      get()->warn("Error parsing log config: {}", e.what());
+      init_fallback();
+      get()->warn("Error parsing log config: {}. fallback activated", e.what());
       throw;
     }
   }
@@ -102,13 +139,16 @@ public:
     int                       rotation_hour   = 2,
     int                       rotation_minute = 0,
     int keep_days = 7, // NOLINT(cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers)
-    std::string_view pattern    = "[%Y-%m-%d %H:%M:%S.%e] [%n] [%l] [%t] %v",
-    std::string_view log_folder = "/tmp")
+    std::string_view          pattern    = "[%Y-%m-%d %H:%M:%S.%e] [%n] [%l] [%t] %v",
+    std::string_view          log_folder = "/tmp",
+    spdlog::level::level_enum flush_lvl  = spdlog::level::warn)
   {
+    std::filesystem::create_directories(log_folder);
+    ///< console sink
     auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
     console_sink->set_level(console_lvl);
-
-    auto log_filename = fmt::format("{}/{}_log", log_folder, app_name);
+    ///< filesink
+    auto log_filename = fmt::format("{}/{}.log", log_folder, app_name);
     auto file_sink    = std::make_shared<spdlog::sinks::daily_file_sink_mt>(
       log_filename, rotation_hour, rotation_minute, true, keep_days);
     file_sink->set_level(file_lvl);
@@ -134,6 +174,7 @@ public:
 
     spdlog::set_default_logger(logger);
     spdlog::set_pattern(std::string(pattern));
+    get()->flush_on(flush_lvl);
 
     console_sink_     = console_sink;
     file_sink_        = file_sink;
