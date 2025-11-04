@@ -1,4 +1,15 @@
-#include "log.hpp"
+/**
+ * @file rtl.cpp
+ * @author your name (you@domain.com)
+ * @brief
+ * @version 0.1
+ * @date 2025-11-04
+ *
+ * @copyright Copyright (c) 2025
+ *
+ */
+#include "log.hpp" // NOLINT
+#include <cstdint>
 #include "rtl.hpp"
 
 namespace rtl

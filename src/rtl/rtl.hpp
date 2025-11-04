@@ -2,8 +2,9 @@
 
 #include <cstdint>
 #include <memory>
+#include <spdlog/spdlog.h>
 
-#include "log.hpp" // NOLINT(unused-includes)
+// #include "log.hpp" // NOLINT(unused-includes)
 
 namespace rtl
 {

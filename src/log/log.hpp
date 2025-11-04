@@ -44,7 +44,7 @@ public:
   /* -------------------------------------------------------------
      Initialize from JSON config file
      ------------------------------------------------------------- */
-  inline static spdlog::level::level_enum flush_level_from_string(const std::string& level)
+  static spdlog::level::level_enum flush_level_from_string(const std::string& level)
   {
     if (level == "trace") return spdlog::level::trace;
     if (level == "debug") return spdlog::level::debug;
@@ -55,7 +55,7 @@ public:
     if (level == "off") return spdlog::level::off;
     return spdlog::level::err; // default: err
   }
-  inline static void init_fallback()
+  static void init_fallback()
   {
     init_raw("dbgen4",
              mode::sync,

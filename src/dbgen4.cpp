@@ -1,21 +1,24 @@
 
 #include "appl.hpp"
-#include <magic_enum.hpp>
-#ifndef NDEBUG
-// #  include <sanitizer/lsan_interface.h>
-#endif
+#include "log.hpp" // NOLINT(unused-includes)
+namespace fs = std::filesystem;
+
 int main(int argc, char** argv, char** env)
 {
   try
   {
     // Log initialization
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
-    log::init_from_json(std::getenv("LOG_CONFIG"));
+    const auto* config_file = std::getenv("LOG_CONFIG");
+    log::init_from_json(config_file != nullptr ? config_file : "");
     log::setup_terminate_handler();
     log::setup_signal_handler();
-    log::get()->info("Program started");
+    const auto* program_name = argv[0]; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    fs::path    p(program_name);
+    log::get()->info("Program {} started", p.filename().string());
+    /// application initialization
     dbgen4::appl app;
-    // Spremeni nivo konzole v teku
+    /// start with parsing and generating
     auto sts = app.exec(argc, argv, env);
     return sts;
   }
