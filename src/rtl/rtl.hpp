@@ -207,7 +207,7 @@ namespace rtl
     virtual db_sts                    rollback();
     [[nodiscard]] const db_data_root* data() const;
     [[nodiscard]] spdlog::logger*     log() const;
-  private:
+  protected:
     /**
      * @brief Pointer to database-specific data implementation.
      *
