@@ -2,7 +2,8 @@
 
 #include <cstdint>
 #include <memory>
-#include <spdlog/spdlog.h>
+// #include <spdlog/spdlog.h>
+#include "log.hpp"
 
 // #include "log.hpp" // NOLINT(unused-includes)
 

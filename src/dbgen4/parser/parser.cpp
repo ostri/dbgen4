@@ -82,7 +82,7 @@ namespace dbgen4
       log()->debug(
         "statement: {} sts: {} sql: {}", sql_id, ME::enum_name<rtl::db_sts>(res.status()), sql);
       if (! res.is_success()) return pars_result{parser_err_enum::sql_syntax_err};
-      log()->debug("meta data: {}", res.dump());
+      log()->trace("meta data: {}", res.dump());
     };
     log()->info("  {} sql statements processed", s.map().size());
     return {{}, parser_err_enum::ok};

@@ -2,6 +2,7 @@
 // Created by ostri on 2024/02/04
 //
 
+#include "log.hpp"
 #include "cmd_line_params.hpp"
 #include "common.hpp"
 #include <fmt/format.h>
@@ -14,7 +15,7 @@
 #include "CLI/Formatter.hpp" // IWYU pragma: export
 #include <CLI/Error.hpp>
 #include <CLI/Validators.hpp>
-#include <spdlog/common.h>
+// #include <spdlog/common.h>
 
 namespace dbgen4
 {
@@ -34,13 +35,18 @@ namespace dbgen4
    * @param offs offset from the left in log file
    * @return str_t
    */
-  str_t cmd_line_params::dump(int offs) const
+  str_t cmd_line_params::dump(int /*offs*/) const
   {
     str_t s{};
-    str_t r(offs, ' ');
+    // str_t r(offs, ' ');
 
     const auto* db_type = ME::enum_name(db_type_).data();
-    for (auto const& el : files_) { s += fmt::format("{}{}{}\n", r, r, el); }
+    for (auto const& el : files_)
+    {
+      s += fmt::format(R"(    {}
+)",
+                       el);
+    }
     // if (! s.empty()) s.pop_back(); // cut last space off
     auto msg = fmt::format(R"(
   host:       {}
@@ -51,7 +57,8 @@ namespace dbgen4
   pass:       {}
   out folder: {}
   verbose:    {}
-  files:   
+  files:      
+{}
 )",
                            host_,
                            port_,
@@ -128,7 +135,9 @@ namespace dbgen4
       app.parse(argc, argv);
       set_log_level(verbose_);
 
-      log()->info("Command line parameter values :\n{}", dump(2));
+      log()->info(R"(Command line parameter values :
+{})",
+                  dump(2));
     }
     catch (const CLI::CallForHelp& e)
     {
@@ -155,7 +164,7 @@ namespace dbgen4
 
   void cmd_line_params::set_log_level(bool verbose) const
   {
-    if (is_debug_build()) { log()->set_level(verbose ? log::debug : log::info); }
+    if (is_debug_build()) { log()->set_level(verbose ? log::trace : log::info); }
     else { log()->set_level(verbose ? log::info : log::warn); };
   }
 }; // namespace dbgen4

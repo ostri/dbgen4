@@ -1,4 +1,5 @@
 #include "appl.hpp"
+#include "build_type.hpp"
 #include "parser.hpp"
 #define MAGIC_ENUM_RANGE_MIN -400
 #define MAGIC_ENUM_RANGE_MAX 100
@@ -22,8 +23,7 @@ namespace dbgen4
 
   int appl::exec(int argc, char** argv, char** env)
   {
-    if (is_debug_build()) log()->info("Debug build");
-    else log()->info("Release build");
+    log()->info("build type: {}", build_type_name());
 
     parser p;
     log()->debug("=========== Application initialized ===========");
