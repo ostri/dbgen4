@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <array>
 #include <fstream>
+#include <sys/stat.h>
 namespace fs = std::filesystem;
 /* -------------------------------------------------------------
    Initialize from JSON config file
@@ -120,7 +121,18 @@ void log::init_raw(
 {
   auto            log_folder_abs = fs::absolute(fs::path(log_folder)).string();
   std::error_code ec;
-  auto            log_folder_created = fs::create_directories(log_folder_abs, ec);
+  bool            log_folder_created = false;
+  if (! fs::exists(log_folder_abs))
+  { /// try to create a log folder if it does not exists
+#ifdef false
+    /// bug in clang it doesn't work
+    auto log_folder_created = fs::create_directories(log_folder_abs, ec);
+#endif
+    auto sts = mkdir(log_folder_abs.c_str(), 0755); // NOLINT
+    if (sts != 0) throw std::runtime_error(fmt::format("Can't create folder '{}'", log_folder_abs));
+    log_folder_created = true;
+  }
+
   ///< console sink
   auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
   console_sink->set_level(console_lvl);
@@ -305,8 +317,8 @@ void log::signal_handler(int sig)
 
   log_backtrace("BACKTRACE at signal:");
 
-  spdlog::shutdown();
-  // NOLINTNEXTLINE(concurrency-mt-unsafe, readability-magic-numbers)
+  // spdlog::shutdown();
+  //  NOLINTNEXTLINE(concurrency-mt-unsafe, readability-magic-numbers)
   std::exit(128 + sig); // NOLINT(cppcoreguidelines-avoid-magic-numbers)
 }
 

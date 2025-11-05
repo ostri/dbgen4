@@ -22,6 +22,7 @@ int main(int argc, char** argv, char** env)
     auto sts = app.exec(argc, argv, env);
     log::get()->info("Program is finished. return status {}", sts);
     log::get()->flush();
+    // spdlog::shutdown();
     return sts;
   }
   catch (...)

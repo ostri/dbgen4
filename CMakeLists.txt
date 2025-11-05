@@ -47,7 +47,11 @@ target_include_directories(log
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common
 )
 target_link_libraries(log PRIVATE spdlog::spdlog nlohmann_json::nlohmann_json)
-target_compile_definitions(log PRIVATE SPDLOG_FMT_EXTERNAL)
+target_compile_definitions(log 
+  PRIVATE 
+    SPDLOG_FMT_EXTERNAL 
+    SPDLOG_COMPILED_LIB
+)
 
 # === db2_rtl ===
 set(SRC_RTL_FILES
@@ -81,8 +85,8 @@ set(SRC_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common/cli_constants.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/programs/appl.cpp
 )
-
 add_executable(${PROJECT_NAME}-db2 ${SRC_FILES})
+target_compile_definitions(${PROJECT_NAME}-db2 PRIVATE SPDLOG_COMPILED_LIB)
 
 target_include_directories(${PROJECT_NAME}-db2 PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/log
