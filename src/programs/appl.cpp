@@ -26,7 +26,7 @@ namespace dbgen4
     log()->info("build type: {}", build_type_name());
 
     parser p;
-    log()->debug("=========== Application initialized ===========");
+    log()->info("=========== Application initialized ===========");
     auto sts = p_.load_parameters(argc, argv, env);
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers)
     if (sts != 55) return 0; // exit on help or error in parsing

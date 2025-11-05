@@ -479,7 +479,7 @@ namespace rtl
 
   void qry_metadata::set_id(const std::string& id) { id_ = id; }
 
-  db_sts qry_metadata::set_status(const db_sts& status) { return status_ = status; }
+  void qry_metadata::set_status(const db_sts& status) { status_ = status; }
 
   void qry_metadata::set_sql(const std::string& sql) { sql_ = sql; }
 

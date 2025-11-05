@@ -50,8 +50,7 @@ namespace rtl
   /**
    * @brief Result of parsing a SQL statement – contains only metadata
    */
-  // NOLINTBEGIN(misc-non-private-member-variables-in-classes)
-  struct qry_metadata
+  class qry_metadata
   {
   public:
     /// getters
@@ -62,26 +61,23 @@ namespace rtl
     [[nodiscard]] meta_vec    params() const;
     [[nodiscard]] bool        is_success() const noexcept;
     [[nodiscard]] std::string dump() const;
+    std::string dump_meta_vector(const char* fmt, const char* header, const meta_vec& v) const;
     /// setters
-    void   set_sql(const std::string& sql);
-    db_sts set_status(const db_sts& status);
-    void   set_columns(const meta_vec& columns_);
-    void   set_params(const meta_vec& params_);
-    void   add_col_dscr(const meta_dscr& dscr);
-    void   add_par_dscr(const meta_dscr& dscr);
-
     void set_id(const std::string& id);
+    void set_sql(const std::string& sql);
+    void set_status(const db_sts& status);
+    void set_columns(const meta_vec& columns_);
+    void set_params(const meta_vec& params_);
+    void add_col_dscr(const meta_dscr& dscr);
+    void add_par_dscr(const meta_dscr& dscr);
   private:
     std::string id_;
     std::string sql_;
     db_sts      status_{db_sts::error}; ///< Execution status
     meta_vec    columns_;               ///< Result-set column metadata
     meta_vec    params_;                ///< Input parameter metadata
-
-    std::string dump_meta_vector(const char* fmt, const char* header, const meta_vec& v) const;
-
   } __attribute__((aligned(DATA_ALIGNMENT_128)));
-  // NOLINTEND(misc-non-private-member-variables-in-classes)
+
   class db_data_db2 : public db_data_root
   {
   public:
