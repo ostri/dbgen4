@@ -80,11 +80,16 @@ namespace dbgen4
       res.set_sql(sql);
       res.set_id(sql_id);
       log()->debug(
-        "statement: {} sts: {} sql: {}", sql_id, ME::enum_name<rtl::db_sts>(res.status()), sql);
+        R"(
+id: {} sts: {} 
+sql: {})",
+        sql_id,
+        ME::enum_name<rtl::db_sts>(res.status()),
+        sql);
       if (! res.is_success()) return pars_result{parser_err_enum::sql_syntax_err};
       log()->trace("meta data: {}", res.dump());
     };
-    log()->info("  {} sql statements processed", s.map().size());
+    log()->info("{} sql statements processed", s.map().size());
     return {{}, parser_err_enum::ok};
   }
 
