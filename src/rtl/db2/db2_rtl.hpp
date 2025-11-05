@@ -5,9 +5,14 @@
 #include <vector>
 #include "rtl.hpp"
 #include "cli_constants.hpp"
+#include <common.hpp>
 
-constexpr auto DATA_ALIGNMENT_64 = 64;
-constexpr auto DATA_ALIGNMENT_16 = 16;
+constexpr auto DATA_ALIGNMENT_128 = 128;
+constexpr auto DATA_ALIGNMENT_64  = 64;
+constexpr auto DATA_ALIGNMENT_16  = 16;
+
+namespace ME  = magic_enum; // NOLINT(misc-unused-alias-decls)
+namespace spd = spdlog;     // NOLINT(misc-unused-alias-decls)
 namespace rtl
 {
   // db2_rtl.hpp – namespace rtl
@@ -17,14 +22,14 @@ namespace rtl
    */
   struct meta_dscr
   {
-    int16_t     index; ///< 1-based index of the parameter
-    std::string name;  ///< Column name as returned by the db
-                       ///<  or the parameter name provided to the database
-    sql_type type;     ///< Mapped type from dbgen4::sql_type
-    int16_t  sql_type; ///< Raw ODBC SQL type code (e.g., SQL_INTEGER)
-    size_t   size;     ///< Maximum column size in characters/bytes
-    int16_t  digits;   ///< Number of digits after decimal point (for numeric)
-    int16_t  nullable; ///< SQL_NO_NULLS, SQL_NULLABLE, or SQL_NULLABLE_UNKNOWN
+    int16_t     index;  ///< 1-based index of the parameter
+    std::string name;   ///< Column name as returned by the db
+                        ///<  or the parameter name provided to the database
+    sql_type type;      ///< Mapped type from dbgen4::sql_type
+    int16_t  odbc_type; ///< Raw ODBC SQL type code (e.g., SQL_INTEGER)
+    uint32_t size;      ///< Maximum column size in characters/bytes
+    int16_t  digits;    ///< Number of digits after decimal point (for numeric)
+    int16_t  nullable;  ///< SQL_NO_NULLS, SQL_NULLABLE, or SQL_NULLABLE_UNKNOWN
   } __attribute__((aligned(DATA_ALIGNMENT_64)));
   using meta_vec = std::vector<meta_dscr>;
 
@@ -48,16 +53,34 @@ namespace rtl
   // NOLINTBEGIN(misc-non-private-member-variables-in-classes)
   struct qry_metadata
   {
-    db_sts   status{db_sts::error}; ///< Execution status
-    meta_vec columns;               ///< Result-set column metadata
-    meta_vec params;                ///< Input parameter metadata
+  public:
+    /// getters
+    [[nodiscard]] std::string id() const;
+    [[nodiscard]] std::string sql() const;
+    [[nodiscard]] db_sts      status() const;
+    [[nodiscard]] meta_vec    columns() const;
+    [[nodiscard]] meta_vec    params() const;
+    [[nodiscard]] bool        is_success() const noexcept;
+    [[nodiscard]] std::string dump() const;
+    /// setters
+    void   set_sql(const std::string& sql);
+    db_sts set_status(const db_sts& status);
+    void   set_columns(const meta_vec& columns_);
+    void   set_params(const meta_vec& params_);
+    void   add_col_dscr(const meta_dscr& dscr);
+    void   add_par_dscr(const meta_dscr& dscr);
 
-    /**
-     * @brief Check if metadata extraction was successful
-     * @return true if status is success or success_with_info
-     */
-    [[nodiscard]] bool success() const noexcept;
-  } __attribute__((aligned(DATA_ALIGNMENT_64)));
+    void set_id(const std::string& id);
+  private:
+    std::string id_;
+    std::string sql_;
+    db_sts      status_{db_sts::error}; ///< Execution status
+    meta_vec    columns_;               ///< Result-set column metadata
+    meta_vec    params_;                ///< Input parameter metadata
+
+    std::string dump_meta_vector(const char* fmt, const char* header, const meta_vec& v) const;
+
+  } __attribute__((aligned(DATA_ALIGNMENT_128)));
   // NOLINTEND(misc-non-private-member-variables-in-classes)
   class db_data_db2 : public db_data_root
   {
@@ -76,7 +99,7 @@ namespace rtl
     db_data_db2(db_data_db2&&)                 = delete;
     db_data_db2& operator=(db_data_db2&&)      = delete;
   private:
-    [[nodiscard]] auto log() const { return log::get(); }
+    [[nodiscard]] spdlog::logger* log() const;
 
   } __attribute__((aligned(DATA_ALIGNMENT_64)));
 
@@ -145,13 +168,16 @@ namespace rtl
     [[nodiscard]] spdlog::logger* log() const;
 
 
-    // Metoda za izvajanje SQL poizvedb, ki vračajo rezultate
-    std::vector<std::vector<std::string>> executeQuery(const std::string& query);
+    // // Metoda za izvajanje SQL poizvedb, ki vračajo rezultate
+    // std::vector<std::vector<std::string>> executeQuery(const std::string& query);
 
-    // Metoda za izvajanje SQL ukazov brez rezultatov
-    void executeNonQuery(const std::string& sql);
+    // // Metoda za izvajanje SQL ukazov brez rezultatov
+    // void executeNonQuery(const std::string& sql);
 
     /// access to the database attributes
-    [[nodiscard]] db_data_db2* data() const { return dynamic_cast<db_data_db2*>(data_.get()); };
+    [[nodiscard]] db_data_db2* data() const;
+
+    qry_metadata error_cleanup(SQLRETURN ret, const std::string& msg, db_sts err_code);
   }; // db_db2;
+
 } // namespace rtl

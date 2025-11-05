@@ -14,60 +14,64 @@ namespace rtl
   enum class sql_type : std::int16_t
   {
     // === Core and Numeric Types ===
-    Unknown   = 0, // Default or error state (Explicitly 0 as it's not a standard SQL_ type code)
-    Char      = SQL_CHAR,
-    Numeric   = SQL_NUMERIC,
-    Decimal   = SQL_DECIMAL,
-    Integer   = SQL_INTEGER,
-    SmallInt  = SQL_SMALLINT,
-    Float     = SQL_FLOAT,
-    Real      = SQL_REAL,
-    Double    = SQL_DOUBLE,
-    Date      = SQL_DATE,
-    Time      = SQL_TIME,
-    Timestamp = SQL_TIMESTAMP,
-    Varchar   = SQL_VARCHAR,
+    unknown   = SQL_UNKNOWN_TYPE, // Default or error state
+    char_     = SQL_CHAR,         //
+    numeric   = SQL_NUMERIC,      //
+    decimal   = SQL_DECIMAL,      //
+    integer   = SQL_INTEGER,      //
+    smallInt  = SQL_SMALLINT,     //
+    float_    = SQL_FLOAT,        //
+    real      = SQL_REAL,         //
+    double_   = SQL_DOUBLE,       //
+    date      = SQL_DATETIME,     //
+    time      = SQL_TIME,         //
+    timestamp = SQL_TIMESTAMP,    //
+    var_char  = SQL_VARCHAR,      //
+    decfloat  = SQL_DECFLOAT,     //
 
     // === Negative Codes (Extended Types) ===
-    LongVarchar   = SQL_LONGVARCHAR,
-    Binary        = SQL_BINARY,
-    VarBinary     = SQL_VARBINARY,
-    LongVarBinary = SQL_LONGVARBINARY,
-    BigInt        = SQL_BIGINT,
-    TinyInt       = SQL_TINYINT,
-    Bit           = SQL_BIT,
+    long_var_char   = SQL_LONGVARCHAR,
+    binary          = SQL_BINARY,
+    var_binary      = SQL_VARBINARY,
+    long_var_binary = SQL_LONGVARBINARY,
+    bigint          = SQL_BIGINT,
+    tiny_int        = SQL_TINYINT,
+    bit             = SQL_BIT,
+    graphic         = SQL_GRAPHIC,
+    var_graphic     = SQL_VARGRAPHIC,
 
     // Unicode Types (W = Wide/National)
-    WChar        = SQL_WCHAR,
-    WVarchar     = SQL_WVARCHAR,
-    WLongVarchar = SQL_WLONGVARCHAR,
-    Guid         = SQL_GUID,
+    wchar          = SQL_WCHAR,
+    wvar_char      = SQL_WVARCHAR,
+    wlong_var_char = SQL_WLONGVARCHAR,
+    guid           = SQL_GUID,
 
     // === ODBC 3.x Date/Time Codes (More precise types) ===
-    TypeDate      = SQL_TYPE_DATE,
-    TypeTime      = SQL_TYPE_TIME,
-    TypeTimestamp = SQL_TYPE_TIMESTAMP,
+    type_date      = SQL_TYPE_DATE,
+    type_time      = SQL_TYPE_TIME,
+    type_timestamp = SQL_TYPE_TIMESTAMP,
 
     // === Interval Types (All possible codes 100-112) ===
-    IntervalYear           = SQL_INTERVAL_YEAR,
-    IntervalMonth          = SQL_INTERVAL_MONTH,
-    IntervalYearToMonth    = SQL_INTERVAL_YEAR_TO_MONTH,
-    IntervalDay            = SQL_INTERVAL_DAY,
-    IntervalHour           = SQL_INTERVAL_HOUR,
-    IntervalMinute         = SQL_INTERVAL_MINUTE,
-    IntervalSecond         = SQL_INTERVAL_SECOND,
-    IntervalDayToHour      = SQL_INTERVAL_DAY_TO_HOUR,
-    IntervalDayToMinute    = SQL_INTERVAL_DAY_TO_MINUTE,
-    IntervalDayToSecond    = SQL_INTERVAL_DAY_TO_SECOND,
-    IntervalHourToMinute   = SQL_INTERVAL_HOUR_TO_MINUTE,
-    IntervalHourToSecond   = SQL_INTERVAL_HOUR_TO_SECOND,
-    IntervalMinuteToSecond = SQL_INTERVAL_MINUTE_TO_SECOND,
+    interval_year             = SQL_INTERVAL_YEAR,
+    interval_month            = SQL_INTERVAL_MONTH,
+    interval_year_to_month    = SQL_INTERVAL_YEAR_TO_MONTH,
+    interval_day              = SQL_INTERVAL_DAY,
+    interval_hour             = SQL_INTERVAL_HOUR,
+    interval_minute           = SQL_INTERVAL_MINUTE,
+    interval_second           = SQL_INTERVAL_SECOND,
+    interval_day_to_hour      = SQL_INTERVAL_DAY_TO_HOUR,
+    interval_day_to_minute    = SQL_INTERVAL_DAY_TO_MINUTE,
+    interval_day_to_second    = SQL_INTERVAL_DAY_TO_SECOND,
+    interval_hour_to_minute   = SQL_INTERVAL_HOUR_TO_MINUTE,
+    interval_hour_to_second   = SQL_INTERVAL_HOUR_TO_SECOND,
+    interval_minute_to_second = SQL_INTERVAL_MINUTE_TO_SECOND,
 
     // === LOB (Large Object) Types ===
 
-    Blob   = SQL_BLOB,
-    Clob   = SQL_CLOB,
-    DBCLOB = SQL_DBCLOB,
+    blob   = SQL_BLOB,   //
+    clob   = SQL_CLOB,   //
+    dbclob = SQL_DBCLOB, //
+    xml    = SQL_XML     //
   };
 
   // 1. Function to map the numeric code to a string mnemonic
@@ -86,60 +90,66 @@ namespace rtl
     switch (static_cast<sql_type>(a_sql_type))
     {
     // Core and Numeric Types
-    case sql_type::Char: return "SQL_CHAR";
-    case sql_type::Numeric: return "SQL_NUMERIC";
-    case sql_type::Decimal: return "SQL_DECIMAL";
-    case sql_type::Integer: return "SQL_INTEGER";
-    case sql_type::SmallInt: return "SQL_SMALLINT";
-    case sql_type::Float: return "SQL_FLOAT";
-    case sql_type::Real: return "SQL_REAL";
-    case sql_type::Double: return "SQL_DOUBLE";
-    case sql_type::Date: return "SQL_DATE";
-    case sql_type::Time: return "SQL_TIME";
-    case sql_type::Timestamp: return "SQL_TIMESTAMP";
-    case sql_type::Varchar: return "SQL_VARCHAR";
+    case sql_type::char_: return "SQL_CHAR";
+    case sql_type::numeric: return "SQL_NUMERIC";
+    case sql_type::decimal: return "SQL_DECIMAL";
+    case sql_type::integer: return "SQL_INTEGER";
+    case sql_type::smallInt: return "SQL_SMALLINT";
+    case sql_type::float_: return "SQL_FLOAT";
+    case sql_type::real: return "SQL_REAL";
+    case sql_type::double_: return "SQL_DOUBLE";
+    case sql_type::date: return "SQL_DATE";
+    case sql_type::time: return "SQL_TIME";
+    case sql_type::timestamp: return "SQL_TIMESTAMP";
+    case sql_type::var_char: return "SQL_VARCHAR";
+    case sql_type::decfloat: return "SQL_DECFLOAT";
 
     // Negative Codes (Extended Types)
-    case sql_type::LongVarchar: return "SQL_LONGVARCHAR";
-    case sql_type::Binary: return "SQL_BINARY";
-    case sql_type::VarBinary: return "SQL_VARBINARY";
-    case sql_type::LongVarBinary: return "SQL_LONGVARBINARY";
-    case sql_type::BigInt: return "SQL_BIGINT";
-    case sql_type::TinyInt: return "SQL_TINYINT";
-    case sql_type::Bit: return "SQL_BIT";
-    case sql_type::WChar: return "SQL_WCHAR";
-    case sql_type::WVarchar: return "SQL_WVARCHAR";
-    case sql_type::WLongVarchar: return "SQL_WLONGVARCHAR";
-    case sql_type::Guid: return "SQL_GUID";
+    case sql_type::long_var_char: return "SQL_LONGVARCHAR";
+    case sql_type::binary: return "SQL_BINARY";
+    case sql_type::var_binary: return "SQL_VARBINARY";
+    case sql_type::long_var_binary: return "SQL_LONGVARBINARY";
+    case sql_type::bigint: return "SQL_BIGINT";
+    case sql_type::tiny_int: return "SQL_TINYINT";
+    case sql_type::bit: return "SQL_BIT";
+    case sql_type::graphic: return "SQL_GRAPHIC";
+    case sql_type::var_graphic: return "SQL_VARGRAPHIC";
+    case sql_type::wchar: return "SQL_WCHAR";
+    case sql_type::wvar_char: return "SQL_WVARCHAR";
+    case sql_type::wlong_var_char: return "SQL_WLONGVARCHAR";
+    case sql_type::guid: return "SQL_GUID";
 
     // ODBC 3.x Date/Time Codes
-    case sql_type::TypeDate: return "SQL_TYPE_DATE";
-    case sql_type::TypeTime: return "SQL_TYPE_TIME";
-    case sql_type::TypeTimestamp: return "SQL_TYPE_TIMESTAMP";
+    case sql_type::type_date: return "SQL_TYPE_DATE";
+    case sql_type::type_time: return "SQL_TYPE_TIME";
+    case sql_type::type_timestamp: return "SQL_TYPE_TIMESTAMP";
 
     // Complete Interval Types
-    case sql_type::IntervalYear: return "SQL_INTERVAL_YEAR";
-    case sql_type::IntervalMonth: return "SQL_INTERVAL_MONTH";
-    case sql_type::IntervalYearToMonth: return "SQL_INTERVAL_YEAR_TO_MONTH";
-    case sql_type::IntervalDay: return "SQL_INTERVAL_DAY";
-    case sql_type::IntervalHour: return "SQL_INTERVAL_HOUR";
-    case sql_type::IntervalMinute: return "SQL_INTERVAL_MINUTE";
-    case sql_type::IntervalSecond: return "SQL_INTERVAL_SECOND";
-    case sql_type::IntervalDayToHour: return "SQL_INTERVAL_DAY_TO_HOUR";
-    case sql_type::IntervalDayToMinute: return "SQL_INTERVAL_DAY_TO_MINUTE";
-    case sql_type::IntervalDayToSecond: return "SQL_INTERVAL_DAY_TO_SECOND";
-    case sql_type::IntervalHourToMinute: return "SQL_INTERVAL_HOUR_TO_MINUTE";
-    case sql_type::IntervalHourToSecond: return "SQL_INTERVAL_HOUR_TO_SECOND";
-    case sql_type::IntervalMinuteToSecond: return "SQL_INTERVAL_MINUTE_TO_SECOND";
+    case sql_type::interval_year: return "SQL_INTERVAL_YEAR";
+    case sql_type::interval_month: return "SQL_INTERVAL_MONTH";
+    case sql_type::interval_year_to_month: return "SQL_INTERVAL_YEAR_TO_MONTH";
+    case sql_type::interval_day: return "SQL_INTERVAL_DAY";
+    case sql_type::interval_hour: return "SQL_INTERVAL_HOUR";
+    case sql_type::interval_minute: return "SQL_INTERVAL_MINUTE";
+    case sql_type::interval_second: return "SQL_INTERVAL_SECOND";
+    case sql_type::interval_day_to_hour: return "SQL_INTERVAL_DAY_TO_HOUR";
+    case sql_type::interval_day_to_minute: return "SQL_INTERVAL_DAY_TO_MINUTE";
+    case sql_type::interval_day_to_second: return "SQL_INTERVAL_DAY_TO_SECOND";
+    case sql_type::interval_hour_to_minute: return "SQL_INTERVAL_HOUR_TO_MINUTE";
+    case sql_type::interval_hour_to_second: return "SQL_INTERVAL_HOUR_TO_SECOND";
+    case sql_type::interval_minute_to_second: return "SQL_INTERVAL_MINUTE_TO_SECOND";
 
     // LOB (Large Object) Types
-    case sql_type::Blob: return "SQL_BLOB";
-    case sql_type::Clob: return "SQL_CLOB";
-    case sql_type::DBCLOB: return "SQL_DBCLOB";
+    case sql_type::blob: return "SQL_BLOB";
+    case sql_type::clob: return "SQL_CLOB";
+    case sql_type::dbclob: return "SQL_DBCLOB";
+    case sql_type::xml: return "SQL_XML";
 
     // Explicitly handle Unknown and all other unlisted or vendor-specific codes
-    case sql_type::Unknown:
-    default: return "SQL_UNKNOWN_TYPE";
+    case sql_type::unknown:
+    default:
+      __builtin_unreachable();
+      // return "SQL_UNKNOWN_TYPE";
     }
   }
 

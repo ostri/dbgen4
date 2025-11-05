@@ -1,6 +1,6 @@
 #pragma once
 
-#include "rtl.hpp"
+// #include "rtl.hpp"
 #include <cstdint>
 #include <fmt/format.h>
 
@@ -8,19 +8,22 @@ namespace dbgen4
 {
   enum class parser_err_enum : std::uint8_t
   {
-    ok,
-    file_cant_be_open,
-    yaml_syntax_error,
-    inv_top_level_struct,
-    statements_attr_missing,
+    // clang-format off
+    ok,                         // everything is nice
+    file_cant_be_open,          // provided input file can't be open
+    yaml_syntax_error,          // there is syntax error in the yaml file
+    inv_top_level_struct,       // invalid structure of the yaml file
+    statements_attr_missing,    // id or sql is missing
     inv_statement_syntax,
     stmt_unique_id_is_missing,
     duplicated_stmt_id,
-    sql_statement_missing,
-    no_sql_stmt_found,
+//    sql_statement_missing,
+    no_sql_stmt_found,          // sql statement is missing in the statement definition in yaml file
     parse_error,
-    unhandled_exception,
-    connection_error
+    unhandled_exception,        // exception we are not prepared for
+    connection_error,           // cant connect to the databaase
+    sql_syntax_err,             // there is syntax in error in sql, so that prepare can not be done
+    // clang-format on
   };
   // parser_err_enum cvt(rtl::db_sts s) { return reinterpret_cast<parser_err_enum>(s); }
   /**
@@ -41,13 +44,16 @@ namespace dbgen4
     case parser_err_enum::inv_statement_syntax:      return "Document '{}' Invalid statement syntax '{}' line: {} column: {}";
     case parser_err_enum::stmt_unique_id_is_missing: return "Document '{}' Statement unique ID is missing '{}' line: {} column: {}";
     case parser_err_enum::duplicated_stmt_id:        return "Document '{}' Duplicate statement ID detected '{}' line: {} column: {}";
-    case parser_err_enum::sql_statement_missing:     return "Document '{}' SQL statement is missing '{}' line: {} column: {}";
+//    case parser_err_enum::sql_statement_missing:     return "Document '{}' SQL statement is missing '{}' line: {} column: {}";
     case parser_err_enum::no_sql_stmt_found:         return "Document '{}' No SQL statement found '{}' line: {} column: {}";
     case parser_err_enum::parse_error:               return "Document '{}' Unknown parser error '{}' line: {} column: {}";
     case parser_err_enum::unhandled_exception:       return "Document '{}' unhandled exception";
     case parser_err_enum::connection_error:          return "Can't connect to db host: {} db {} user {} err: {} error '{}";
-    default:                                         return "Document '{}' Unknown error '{}' line: {} column: {}";
+    case parser_err_enum::sql_syntax_err: return "SQL statement {} syntax error {}.";
+    default:
       // clang-format on
+      __builtin_unreachable();
+      // return "Document '{}' Unknown error '{}' line: {} column: {}";
     }
   }
 

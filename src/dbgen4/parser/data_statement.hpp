@@ -2,7 +2,7 @@
 
 #include "common.hpp"
 // #include "sql_col_def.hpp"
-#include <magic_enum.hpp>
+// #include <magic_enum.hpp>
 #include <map>
 
 namespace dbgen4
@@ -39,22 +39,15 @@ namespace dbgen4
      */
     [[nodiscard]] str_t sql() const; ///< fetch all sql statements for generic and
                                      ///< optionaly also for specific rdbms
-    // [[nodiscard]] sql_col_def_vec_t par_defs() const;
-    // [[nodiscard]] sql_col_def_vec_t res_defs() const;
-
     /*! setters */
     void set_id(const str_t& id);   ///< set unique id of the statement
     void set_sql(const str_t& sql); ///< set sql for specific database type
-    // void set_par_defs(const sql_col_def_vec_t& defs);
-    // void set_res_defs(const sql_col_def_vec_t& defs);
   protected:
   private:
-    [[nodiscard]] auto log() const { return log::get(); }
+    [[nodiscard]] spdlog::logger* log() const;
 
     str_t id_;  ///< unique id of the data statement
     str_t sql_; ///< sql statement (generic or specific for RDBMS)
-    // sql_col_def_vec_t par_defs_; ///< input parameter definitions for the statement
-    // sql_col_def_vec_t res_defs_; ///< output result definitions for the statement
   };
 
 } // namespace dbgen4

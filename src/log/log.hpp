@@ -1,8 +1,8 @@
 // log.h
 #pragma once
 
-// #include "build_type.hpp"
 #include "build_type.hpp"
+#include <filesystem>
 #include <fmt/format.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
@@ -20,9 +20,15 @@
 #include <array>
 #include <fstream>
 #include <nlohmann/json.hpp>
+#include <system_error>
 
+namespace fs                = std::filesystem;
 const int keep_days_default = 7; ///< how long we keep the logs by default
-
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members, cert-err58-cpp)
+constexpr const char* def_log_cfg_path =
+  is_debug_build() ? "config/log.debug.conf" : "config/log.release.conf";
+constexpr const char* def_log_path =
+  is_debug_build() ? "logs/fallback.debug.log" : "logs/fallback.release.log";
 class log
 {
 public:
@@ -41,6 +47,7 @@ public:
   static constexpr auto critical = spdlog::level::critical;
   static constexpr auto off      = spdlog::level::off;
 
+
   /* -------------------------------------------------------------
      Initialize from JSON config file
      ------------------------------------------------------------- */
@@ -57,7 +64,7 @@ public:
   }
   static void init_fallback()
   {
-    init_raw("dbgen4",
+    init_raw(std::string("fallback.") + build_type_name(),
              mode::sync,
              is_debug_build() ? spdlog::level::info : spdlog::level::warn,
              is_debug_build() ? spdlog::level::debug : spdlog::level::info,
@@ -68,22 +75,28 @@ public:
              "./logs",
              spdlog::level::warn // default flush_on
     );
+    get()->warn("Fallback log {} created to provide at least basic logging.",
+                fs::absolute(fs::path(def_log_path)).string());
   }
-  static void init_from_json(const std::string& config_path = "")
+  static void init_from_json(const std::string& config_path = def_log_cfg_path)
   {
     auto cfg_filename = config_path;
-    if (cfg_filename.empty())
-      cfg_filename = std::getenv("LOG_CONFIG"); // NOLINT(concurrency-mt-unsafe)
+    if (cfg_filename.empty()) cfg_filename = def_log_cfg_path;
+
+    /// make the path absolute
+    auto absolute = fs::absolute(fs::path(cfg_filename));
+    cfg_filename  = absolute.string();
+
+    /// open configuration file or fail
     std::ifstream file(cfg_filename);
     if (! file.is_open())
     {
-      // failed to open provided log config file. Opening default to accomodate
-      // at least basic logging
       init_fallback();
-      get()->warn("Failed to open '{}' log config file.", config_path);
+      get()->warn("Failed to open '{}' log config file.", cfg_filename);
+      return;
     }
 
-    // read the json log configuration file
+    /// read the json log configuration file
     nlohmann::json j;
     try
     {
@@ -92,7 +105,9 @@ public:
     catch (const std::exception& e)
     {
       init_fallback();
-      get()->warn("Syntax of '{}' log config file is broken.", config_path);
+      get()->warn(
+        "Syntax of '{}' log config file is broken or missing. {}", cfg_filename, e.what());
+      return;
     }
 
     try
@@ -105,7 +120,7 @@ public:
       auto rot_m       = j.value("rotation_minute", 0);
       auto keep_days   = j.value("keep_days", keep_days_default);
       auto pattern     = j.value("pattern", "[%Y-%m-%d %H:%M:%S.%e] [%n] [%l] [%t] %v");
-      auto log_folder  = j.value("log-folder", "/tmp");
+      auto log_folder  = j.value("log-folder", "./logs");
       auto flush_str   = j.value("flush_on", "warn");
       auto flush_lvl   = flush_level_from_string(flush_str);
 
@@ -131,24 +146,42 @@ public:
   /* -------------------------------------------------------------
      Raw init (used internally and for direct calls)
      ------------------------------------------------------------- */
+
+  /**
+   * @brief initialize logger when all parameters are know
+   *
+   * @param app_name    name of the application. should be short since it is written in every log
+   * line
+   * @param m           type of the logger (sync, async)
+   * @param console_lvl logging level on console log
+   * @param file_lvl    logging level on file log
+   * @param rotation_hour when rotate file log (0-23) hour
+   * @param rotation_minute when rotate file log minute
+   * @param keep_days       how many days the logs are kept
+   * @param pattern         the pattern of the log line
+   * @param log_folder      where the logs are kept
+   * @param flush_lvl       log message level that causes immediate flush
+   */
   static void init_raw(
     std::string_view          app_name        = "app",
     mode                      m               = mode::sync,
-    spdlog::level::level_enum console_lvl     = warn,
-    spdlog::level::level_enum file_lvl        = trace,
+    spdlog::level::level_enum console_lvl     = is_debug_build() ? info : warn,
+    spdlog::level::level_enum file_lvl        = is_debug_build() ? debug : trace,
     int                       rotation_hour   = 2,
     int                       rotation_minute = 0,
     int keep_days = 7, // NOLINT(cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers)
     std::string_view          pattern    = "[%Y-%m-%d %H:%M:%S.%e] [%n] [%l] [%t] %v",
-    std::string_view          log_folder = "/tmp",
+    std::string_view          log_folder = "logs",
     spdlog::level::level_enum flush_lvl  = spdlog::level::warn)
   {
-    std::filesystem::create_directories(log_folder);
+    auto            log_folder_abs = fs::absolute(fs::path(log_folder)).string();
+    std::error_code ec;
+    auto            log_folder_created = fs::create_directories(log_folder_abs, ec);
     ///< console sink
     auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
     console_sink->set_level(console_lvl);
     ///< filesink
-    auto log_filename = fmt::format("{}/{}.log", log_folder, app_name);
+    auto log_filename = fmt::format("{}/{}.log", log_folder_abs, app_name);
     auto file_sink    = std::make_shared<spdlog::sinks::daily_file_sink_mt>(
       log_filename, rotation_hour, rotation_minute, true, keep_days);
     file_sink->set_level(file_lvl);
@@ -181,13 +214,21 @@ public:
     const auto* debug = std::getenv("LOG_DEBUG"); // NOLINT(concurrency-mt-unsafe)
     if (debug != nullptr)
     {
-      get()->info("logger initialized");
-      get()->info("log level: {} console: {} file: {} param: {} {}",
+      get()->info(
+        "logger {} initialized. Log folders created {}", log_filename, log_folder_created);
+      get()->info("log level: {} console: {} file: {} param: {} {} log folders created",
                   level_to_string(get()->level()),
                   level_to_string(console_sink_->level()),
                   level_to_string(file_sink_->level()),
                   level_to_string(console_lvl),
                   level_to_string(file_lvl));
+    }
+    if (log_folder_created) get()->info("Log folder {} created.", log_folder_abs);
+    if (ec)
+    {
+      console_sink_->set_level(spdlog::level::level_enum::debug);
+      get()->warn("Program was unable to create folders {} for logs. Logging only to console only.",
+                  log_folder_abs);
     }
   }
 
@@ -207,7 +248,8 @@ public:
   /* -------------------------------------------------------------
      Access the logger – usage: log::get()->info("...")
      ------------------------------------------------------------- */
-  static spdlog::logger* get() { return spdlog::default_logger().get(); }
+  // NOLINTNEXTLINE(readability-redundant-inline-specifier)
+  inline static spdlog::logger* get() { return spdlog::default_logger().get(); }
 
   /* -------------------------------------------------------------
      Log exception with backtrace and nested cause chain

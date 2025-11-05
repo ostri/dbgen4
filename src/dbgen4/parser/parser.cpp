@@ -2,7 +2,10 @@
 #include <fmt/format.h>
 #include <fstream>
 #include <iostream>
+#define MAGIC_ENUM_RANGE_MIN -400
+#define MAGIC_ENUM_RANGE_MAX 100
 #include <magic_enum.hpp>
+#include <yaml-cpp/emitter.h>
 #include <yaml-cpp/exceptions.h>
 // NOLINTNEXTLINE(misc-include-cleaner)
 #include <yaml-cpp/node/detail/iterator.h>
@@ -15,10 +18,12 @@
 #include "common.hpp"
 #include "data_statement.hpp"
 #include "data_statements.hpp"
+#include "db2_rtl.hpp"
 #include "pars_result.hpp"
 #include "parser_errors.hpp"
 #include "parser.hpp"
 
+namespace fs = std::filesystem;
 namespace dbgen4
 {
   /**
@@ -66,12 +71,18 @@ namespace dbgen4
 
   pars_result parser::load_meta_data(const data_statements& s, rtl::db_db2& db) const
   {
+    rtl::qry_metadata res;
     for (const auto& stmt : s.map())
-    {
+    { /// walking through whole list of statements in one file
       auto sql_id = stmt.first;
       auto sql    = stmt.second.sql();
       auto res    = db.get_sql_metadata(sql);
-      log()->debug("statement: {} sql: {}", sql_id, sql);
+      res.set_sql(sql);
+      res.set_id(sql_id);
+      log()->debug(
+        "statement: {} sts: {} sql: {}", sql_id, ME::enum_name<rtl::db_sts>(res.status()), sql);
+      if (! res.is_success()) return pars_result{parser_err_enum::sql_syntax_err};
+      log()->debug("meta data: {}", res.dump());
     };
     log()->info("  {} sql statements processed", s.map().size());
     return {{}, parser_err_enum::ok};
@@ -106,7 +117,7 @@ namespace dbgen4
       return {{}, parser_err_enum::no_sql_stmt_found};
     }
     res.set_sql(sql);
-    log()->debug("sql: '{}'", sql);
+    log()->trace("sql: '{}'", sql);
     return {res, parser_err_enum::ok};
   }
   pars_result parser::process_statement(const YAML::Node& stmt,
@@ -117,34 +128,40 @@ namespace dbgen4
     if (stmt.IsMap())
     { /// valid statement - object
       data_statement s{};
-      auto           id = stmt["id"].as<str_t>();
-      if (! id.empty())
-      { /// id is provided
-        s.set_id(id);
-        /// check standard and rdbms specific sql statement. Specific version takes over.
-        auto res = extract_sql(stmt, s, db_type);
-        if (res.e() == parser_err_enum::ok)
-        {
-          if (! p.s_.add_statement(res.s()))
-          { /// duplicated statement id
-            // const char* fmt = get_parser_err_str(parser_err_enum::duplicated_stmt_id);
-            const auto msg = fmt::format("File: {} duplicate id {}", filename_, res.s().id());
-            log()->error(msg);
-            return pars_result{res.e()};
-          }
-          log()->debug(
-            "File {}: Added new sql definition : id {} sql '{}'", filename_, s.id(), res.s().sql());
+      if (! stmt["id"].IsDefined())
+      { // statement unique id is missing
+        std::stringstream s;
+        YAML::Emitter     e(s);
+        e << stmt;
+        auto pos = p.s_.map().size();
+        log()->error("File: {} id tag is missing. Position {} in statements. "
+                     "Definition:\n---\n{}\n---\n exiting",
+                     filename_,
+                     pos,
+                     s.str());
+        return pars_result{parser_err_enum::stmt_unique_id_is_missing};
+      }
+      // auto id = stmt["id"].as<str_t>();
+      /// id is provided
+      s.set_id(stmt["id"].as<str_t>());
+      /// check standard and rdbms specific sql statement. Specific version takes over.
+      auto res = extract_sql(stmt, s, db_type);
+      if (res.e() == parser_err_enum::ok)
+      {
+        if (! p.s_.add_statement(res.s()))
+        { /// duplicated statement id
+          // const char* fmt = get_parser_err_str(parser_err_enum::duplicated_stmt_id);
+          const auto msg = fmt::format("File: {} duplicate id {}", filename_, res.s().id());
+          log()->error(msg);
+          return pars_result{res.e()};
         }
-        else
-        {
-          log()->error("No sql statements found for statement id '{}'.", res.s().id());
-          return pars_result{parser_err_enum::no_sql_stmt_found};
-        }
+        log()->debug("file {}: new sql : id {} sql '{}'", filename_, s.id(), res.s().sql());
       }
       else
       {
-        log()->error("File: {} id tag is missing.", filename_);
-        return pars_result{parser_err_enum::stmt_unique_id_is_missing};
+        log()->error(
+          "file {}: No sql statements found for statement id '{}'.", filename_, res.s().id());
+        return pars_result{parser_err_enum::no_sql_stmt_found};
       }
     }
     else { return pars_result{parser_err_enum::inv_statement_syntax}; }
@@ -160,13 +177,16 @@ namespace dbgen4
     pars_result       r({}, parser_err_enum::ok); /// result: statemets + success/failure code
     YAML::Emitter     emiter(s);
     emiter << n;
-    // Preverjanje napak pri emitiranju (zelo priporočljivo!)
     if (! emiter.good())
     {
-      log()->error("NAPAKA pri serializaciji YAML: '{}'", emiter.GetLastError());
+      log()->error("Error in YAML file '{}' serialization.", emiter.GetLastError());
       return {{}, parser_err_enum::parse_error};
     }
-    log()->debug("yaml contents: \n{}\n", s.str());
+    log()->debug(R"(yaml file '{}' contents: 
+{}
+)",
+                 fs::relative(fs::absolute(fs::path(filename_))).string(),
+                 s.str());
     if (n.IsMap())
     {
       /// walk over whole document
@@ -182,11 +202,7 @@ namespace dbgen4
         for (const auto& stmt : stmts)
         {
           r = process_statement(stmt, r, db_type);
-          // if (r.e() == parser_err_enum::ok)
-          // {
-          //   auto stmts = r.s();
-          //   //            p.add_statement(r.s());
-          // }
+          if (r.e() != parser_err_enum::ok) return r;
         }
       }
       else

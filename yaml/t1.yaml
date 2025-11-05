@@ -4,6 +4,8 @@ description: |
   nekaj 
   vrstic
 statements:
+# - krneki: 
+#   sql: select * from test
 - id: sql_1
   sql: |
           kar en sql
@@ -13,10 +15,10 @@ statements:
           specific sql
           for mariadb
   db2: |
-    select * where col_smallint = 1
+    select * from test where col_smallint = ?
 
 - id: sql_2
-  sql: "2-single line sql statement : & # *"
+  sql: select col_smallint from test
 - id: sql_3
   sql:  |
       insert into test (col_smallint, col_integer) values (?, ?)

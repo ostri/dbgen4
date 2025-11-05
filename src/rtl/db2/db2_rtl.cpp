@@ -1,8 +1,14 @@
+#include "cli_constants.hpp"
+#include "common.hpp"
 #include "log.hpp"
 #include "db2_rtl.hpp"
 #include "rtl.hpp"
+#include <fmt/base.h>
 #include <fmt/format.h>
 #include <array>
+#define MAGIC_ENUM_RANGE_MIN -400
+#define MAGIC_ENUM_RANGE_MAX 100
+#include <magic_enum.hpp>
 #include <stdexcept>
 namespace
 {
@@ -58,7 +64,7 @@ namespace
       auto tmp = fmt::format(fmt::runtime(err), h);
       if (! is_success(static_cast<rtl::db_sts>(ret))) chk_error(ret, h_type, h, tmp);
     }
-    log::get()->debug(fmt::runtime(info), h);
+    log::get()->trace(fmt::runtime(info), h);
   }
 }; // namespace
 namespace rtl
@@ -71,6 +77,8 @@ namespace rtl
     if (env_handle != 0) log()->critical("environment handle is not deallocated.");
   }
 
+  spdlog::logger* db_data_db2::log() const { return log::get(); }
+
   db_db2::db_db2() { this->data_ = std::make_unique<db_data_db2>(); }
   db_db2::~db_db2() { disconnect(); }
 
@@ -79,8 +87,7 @@ namespace rtl
   {
     SQLCHAR     outConnStr[1024]; // NOLINT
     SQLSMALLINT outLen;
-    log()->debug("Connecting with: {}", connStr);
-    auto ret = SQLDriverConnect(data()->conn_handle,
+    auto        ret = SQLDriverConnect(data()->conn_handle,
                                 nullptr,
                                 (SQLCHAR*)connStr.c_str(), // NOLINT
                                 SQL_NTS,
@@ -89,13 +96,11 @@ namespace rtl
                                 &outLen,
                                 SQL_DRIVER_NOPROMPT);
 
-    if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO)
+    if (! is_success(static_cast<db_sts>(ret)))
     {
       chk_error(ret, SQL_HANDLE_DBC, data()->conn_handle, "SQLDriverConnect");
-      SQLFreeHandle(SQL_HANDLE_DBC, data()->conn_handle);
-      SQLFreeHandle(SQL_HANDLE_ENV, data()->env_handle);
-      data()->conn_handle = 0;
-      data()->env_handle  = 0;
+      free_conn_handle();
+      free_env_handle();
       return db_sts::connection_error;
     }
 
@@ -156,11 +161,13 @@ namespace rtl
       conn_str += port != 0     ? fmt::format("PORT={}; ",     port) : "";
       conn_str += !name.empty() ? fmt::format("DATABASE={}; ", name) : "";
       conn_str += !user.empty() ? fmt::format("UID={}; ",      user) : "";
+      /// must be here. we don't want to show the password in log
+      log()->debug("connection string: '{}'", conn_str);
       conn_str += !pass.empty() ? fmt::format("PWD={}; ",      pass) : "";
       // clang-format on
 
       ret = internal_connect(conn_str);
-      log()->info("Connected to database host:{}:{} db {} as user {}", host, port, name, user);
+      log()->info("Connected to db: host:'{}:{}' db:'{}' as user '{}'", host, port, name, user);
     }
     return ret;
   }
@@ -220,7 +227,7 @@ namespace rtl
     SQLRETURN ret = SQLEndTran(SQL_HANDLE_DBC, data()->conn_handle, SQL_ROLLBACK);
     chk_error(ret, SQL_HANDLE_DBC, data()->conn_handle, "rollback transaction");
 
-    if (is_success(static_cast<db_sts>(ret)))
+    if (is_success(static_cast<db_sts>(ret))) [[likely]]
     {
       log()->info("Transaction rolled back successfully.");
     }
@@ -229,192 +236,195 @@ namespace rtl
     return static_cast<db_sts>(ret);
   }
 
-  std::vector<std::vector<std::string>> db_db2::executeQuery(const std::string& query)
+  // std::vector<std::vector<std::string>> db_db2::executeQuery(const std::string& query)
+  // {
+  //   if (data()->conn_handle == 0) { throw std::runtime_error("No active database connection"); }
+
+  //   // Inicializacija statement ročaja
+  //   SQLRETURN ret = SQLAllocHandle(SQL_HANDLE_STMT, data()->conn_handle, &data()->stmt_handle);
+  //   chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, "allocating statement handle");
+
+  //   // Izvedba poizvedbe
+  //   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-cstyle-cast, google-readability-casting)
+  //   ret = SQLExecDirect(data()->stmt_handle, (SQLCHAR*)query.c_str(), SQL_NTS);
+  //   chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, "executing query");
+
+  //   // Pridobivanje števila stolpcev
+  //   SQLSMALLINT num_columns;
+  //   ret = SQLNumResultCols(data()->stmt_handle, &num_columns);
+  //   chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, "getting number of columns");
+
+  //   // Shranjevanje rezultatov
+  //   constexpr SQLSMALLINT                 buffer_size = 1024;
+  //   std::array<SQLCHAR, buffer_size>      buffer{};
+  //   SQLLEN                                indicator;
+  //   std::vector<std::vector<std::string>> results;
+  //   while ((ret = SQLFetch(data()->stmt_handle)) == SQL_SUCCESS)
+  //   {
+  //     std::vector<std::string> row;
+  //     for (SQLSMALLINT i = 1; i <= num_columns; ++i)
+  //     {
+  //       ret =
+  //         SQLGetData(data()->stmt_handle, i, SQL_C_CHAR, buffer.data(), buffer.size(),
+  //         &indicator);
+  //       chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, "getting column data");
+  //       row.push_back(indicator == SQL_NULL_DATA
+  //                       ? "NULL"
+  //                       : std::string(buffer.begin(), buffer.begin() + indicator));
+  //     }
+  //     results.push_back(row);
+  //   }
+
+  //   return results;
+  // }
+
+  // void db_db2::executeNonQuery(const std::string& sql)
+  // {
+  //   if (data()->conn_handle == 0) { throw std::runtime_error("No active database connection"); }
+
+  //   // Inicializacija statement ročaja
+
+  //   SQLRETURN ret = SQLAllocHandle(SQL_HANDLE_STMT, data()->conn_handle, &data()->stmt_handle);
+  //   chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, "allocating statement handle");
+
+  //   // clang-format off
+  //   // Izvedba ukaza
+  //   ret = SQLExecDirect(
+  //     data()->stmt_handle,
+  //     reinterpret_cast<SQLCHAR*>(const_cast<char*>(sql.c_str())), //
+  //     NOLINT(cppcoreguidelines-pro-type-reinterpret-cast, cppcoreguidelines-pro-type-const-cast)
+  //     SQL_NTS);
+  //   chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, "executing non-query");
+  //   // clang-format on
+  // }
+  db_data_db2* db_db2::data() const { return dynamic_cast<db_data_db2*>(data_.get()); };
+  /**
+   * @brief cleaning stuff before finishing the operation
+   *
+   * @param ret dli function error code
+   * @param msg additional message to be reported
+   * @param err_code error code to be reported back
+   * @return qry_metadata
+   */
+  qry_metadata db_db2::error_cleanup(SQLRETURN ret, const std::string& msg, db_sts err_code)
   {
-    if (data()->conn_handle == 0) { throw std::runtime_error("No active database connection"); }
-
-    // Inicializacija statement ročaja
-    SQLRETURN ret = SQLAllocHandle(SQL_HANDLE_STMT, data()->conn_handle, &data()->stmt_handle);
-    chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, "allocating statement handle");
-
-    // Izvedba poizvedbe
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-cstyle-cast, google-readability-casting)
-    ret = SQLExecDirect(data()->stmt_handle, (SQLCHAR*)query.c_str(), SQL_NTS);
-    chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, "executing query");
-
-    // Pridobivanje števila stolpcev
-    SQLSMALLINT num_columns;
-    ret = SQLNumResultCols(data()->stmt_handle, &num_columns);
-    chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, "getting number of columns");
-
-    // Shranjevanje rezultatov
-    constexpr SQLSMALLINT                 buffer_size = 1024;
-    std::array<SQLCHAR, buffer_size>      buffer{};
-    SQLLEN                                indicator;
-    std::vector<std::vector<std::string>> results;
-    while ((ret = SQLFetch(data()->stmt_handle)) == SQL_SUCCESS)
-    {
-      std::vector<std::string> row;
-      for (SQLSMALLINT i = 1; i <= num_columns; ++i)
-      {
-        ret =
-          SQLGetData(data()->stmt_handle, i, SQL_C_CHAR, buffer.data(), buffer.size(), &indicator);
-        chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, "getting column data");
-        row.push_back(indicator == SQL_NULL_DATA
-                        ? "NULL"
-                        : std::string(buffer.begin(), buffer.begin() + indicator));
-      }
-      results.push_back(row);
-    }
-
-    return results;
+    qry_metadata result{};
+    chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, msg);
+    rollback();
+    free_stmt_handle();
+    result.set_status(err_code);
+    return result;
   }
 
-  void db_db2::executeNonQuery(const std::string& sql)
-  {
-    if (data()->conn_handle == 0) { throw std::runtime_error("No active database connection"); }
-
-    // Inicializacija statement ročaja
-
-    SQLRETURN ret = SQLAllocHandle(SQL_HANDLE_STMT, data()->conn_handle, &data()->stmt_handle);
-    chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, "allocating statement handle");
-
-    // clang-format off
-    // Izvedba ukaza
-    ret = SQLExecDirect(
-      data()->stmt_handle, 
-      reinterpret_cast<SQLCHAR*>(const_cast<char*>(sql.c_str())), // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast, cppcoreguidelines-pro-type-const-cast)
-      SQL_NTS);
-    chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, "executing non-query");
-    // clang-format on
-  }
-  // db2_rtl.cpp – inside namespace rtl
-
+  /**
+   * @brief return provided sql statement meta data or error code
+   *
+   * The method collects the parameter and/or column data from the provided sql statement.
+   * Alter all dat ais collected the transaction is rolled back.
+   * @param sql sql statement to be analyzed to get the meta data
+   * @return qry_metadata metadata or error code
+   */
   qry_metadata db_db2::get_sql_metadata(const std::string& sql)
   {
-    qry_metadata result;
+    qry_metadata result{};
 
-    if (data()->conn_handle == 0)
+    if (data()->conn_handle == 0) [[unlikely]]
     {
       log()->error("get_sql_metadata: No active database connection");
-      result.status = db_sts::connection_error;
+      result.set_status(db_sts::connection_error);
       return result;
     }
 
     // --- Allocate statement handle ---
     SQLRETURN ret = SQLAllocHandle(SQL_HANDLE_STMT, data()->conn_handle, &data()->stmt_handle);
-    if (! is_success(static_cast<db_sts>(ret)))
-    {
-      chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, "allocating statement handle");
-      result.status = db_sts::resource_error;
-      return result;
-    }
-
+    if (! is_success(static_cast<db_sts>(ret))) [[unlikely]]
+      return error_cleanup(ret, "allocating statement handle", db_sts::resource_error);
     // --- Prepare the statement (no execution) ---
-    auto tmp = reinterpret_cast<SQLCHAR*>(const_cast<char*>(sql.c_str())); // NOLINT
-    // NOLINTNEXTLINE(cppcoreguidelines-narrowing-conversions, bugprone-narrowing-conversions)
-    SQLINTEGER len = sql.size();
-    ret            = SQLPrepare(data()->stmt_handle, tmp, len);
-    if (! is_success(static_cast<db_sts>(ret)))
+    ret = SQLPrepare(data()->stmt_handle,                                        //
+                     reinterpret_cast<SQLCHAR*>(const_cast<char*>(sql.c_str())), // NOLINT
+                     SQL_NTS);
+    if (! is_success(static_cast<db_sts>(ret))) [[unlikely]]
     {
       auto msg = fmt::format("{} sql {}", "SQLPrepare", sql);
-      chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, msg);
-      SQLFreeHandle(SQL_HANDLE_STMT, data()->stmt_handle);
-      data()->stmt_handle = 0;
-      result.status       = db_sts::invalid_sql;
-      return result;
+      return error_cleanup(ret, msg, db_sts::invalid_sql);
     }
-
     // --- Describe input parameters ---
     SQLSMALLINT num_params = 0;
     ret                    = SQLNumParams(data()->stmt_handle, &num_params);
-    auto msg               = fmt::format("{} sql {}", "SQLNumParams", sql);
-    chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, msg);
+    // auto msg               = fmt::format("{} sql {}", "SQLNumParams", sql);
+    if (! is_success(static_cast<db_sts>(ret))) [[unlikely]]
+    {
+      auto msg = fmt::format("{} sql {}", "SQLNumResultCols", sql);
+      return error_cleanup(ret, msg, db_sts::invalid_sql);
+    }
+    log()->debug("Parameter set has {} parameters", num_params);
 
     for (SQLSMALLINT i = 1; i <= num_params; ++i)
     {
-      meta_dscr param{};
-      param.index = i;
-
-      SQLSMALLINT data_type  = 0;
-      SQLSMALLINT dec_digits = 0;
-      SQLSMALLINT nullable   = 0;
-      SQLULEN     param_size = 0;
-
-      ret =
-        SQLDescribeParam(data()->stmt_handle, i, &data_type, &param_size, &dec_digits, &nullable);
+      meta_dscr par{};
+      ret = SQLDescribeParam(
+        data()->stmt_handle, i, &par.odbc_type, &par.size, &par.digits, &par.nullable);
 
       if (is_success(static_cast<db_sts>(ret)))
       {
-        param.sql_type = data_type;
-        param.type     = static_cast<sql_type>(data_type);
-        param.size     = param_size;
-        param.digits   = dec_digits;
-        param.nullable = nullable;
-        result.params.push_back(param);
+        par.index = i;
+        par.name  = fmt::format("par_{}", i);
+        par.type  = static_cast<sql_type>(par.odbc_type);
+        result.add_par_dscr(par);
       }
-      else
+      else [[unlikely]]
       {
-        chk_error(ret,
-                  SQL_HANDLE_STMT,
-                  data()->stmt_handle,
-                  fmt::format("SQLDescribeParam for parameter {}", i));
-        // Continue — partial metadata is acceptable
+        auto msg = fmt::format("SQLDescribeParam for parameter {}", i);
+        return error_cleanup(ret, msg, db_sts::invalid_sql);
       }
     }
 
-    // --- Describe result-set columns ---
+    // --- result-set columns ---
     SQLSMALLINT num_columns = 0;
     ret                     = SQLNumResultCols(data()->stmt_handle, &num_columns);
-    msg                     = fmt::format("{} sql {}", "SQLNumResultCols", sql);
-    chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, msg);
-
+    if (! is_success(static_cast<db_sts>(ret))) [[unlikely]]
+    {
+      auto msg = fmt::format("{} sql {}", "SQLNumResultCols", sql);
+      return error_cleanup(ret, msg, db_sts::invalid_sql);
+    }
+    log()->debug("Result set has {} columns", num_columns);
     for (SQLSMALLINT i = 1; i <= num_columns; ++i)
     {
-      meta_dscr                col{};
-      std::array<SQLCHAR, 256> col_name{}; // NOLINT
-      SQLSMALLINT              name_len       = 0;
-      SQLSMALLINT              data_type      = 0;
-      SQLSMALLINT              decimal_digits = 0;
-      SQLSMALLINT              nullable       = 0;
-      SQLULEN                  column_size    = 0;
+      meta_dscr                    col{};
+      std::array<SQLCHAR, 128 + 1> col_name{}; // NOLINT
+      SQLSMALLINT                  name_len = 0;
 
       ret = SQLDescribeCol(data()->stmt_handle,
                            i,
                            col_name.data(),
                            col_name.size(),
                            &name_len,
-                           &data_type,
-                           &column_size,
-                           &decimal_digits,
-                           &nullable);
+                           &col.odbc_type,
+                           &col.size,
+                           &col.digits,
+                           &col.nullable);
 
-      if (is_success(static_cast<db_sts>(ret)))
+      if (is_success(static_cast<db_sts>(ret))) [[likely]]
       {
-        col.name     = std::string(col_name.begin(), col_name.begin() + name_len);
-        col.sql_type = data_type;
-        col.type     = static_cast<sql_type>(data_type);
-        col.size     = column_size;
-        col.digits   = decimal_digits;
-        col.nullable = nullable;
-        result.columns.push_back(col);
+        col.index = i;
+        col.name  = std::string(col_name.begin(), col_name.begin() + name_len);
+        col.type  = static_cast<sql_type>(col.odbc_type);
+        result.add_col_dscr(col);
       }
-      else
+      else [[unlikely]]
       {
-        chk_error(ret,
-                  SQL_HANDLE_STMT,
-                  data()->stmt_handle,
-                  fmt::format("SQLDescribeCol for column {}", i));
+        auto msg = fmt::format("SQLDescribeCol for column {}", i);
+        return error_cleanup(ret, msg, db_sts::invalid_sql);
       }
     }
 
     // --- Cleanup ---
-    SQLFreeHandle(SQL_HANDLE_STMT, data()->stmt_handle);
-    data()->stmt_handle = 0;
-
-    result.status = db_sts::success;
+    rollback();
+    free_stmt_handle();
+    result.set_status(db_sts::success);
     return result;
   }
+
 
   void db_db2::free_stmt_handle() const
   {
@@ -449,5 +459,82 @@ namespace rtl
   }
 
 
-  bool qry_metadata::success() const noexcept { return is_success(status); }
+  db_sts qry_metadata::status() const { return status_; }
+
+  meta_vec qry_metadata::columns() const { return columns_; }
+
+  void qry_metadata::set_columns(const meta_vec& columns) { columns_ = columns; }
+
+  meta_vec qry_metadata::params() const { return params_; }
+
+  void qry_metadata::set_params(const meta_vec& params) { params_ = params; }
+
+  void qry_metadata::add_col_dscr(const meta_dscr& dscr) { columns_.push_back(dscr); }
+
+  void qry_metadata::add_par_dscr(const meta_dscr& dscr) { params_.push_back(dscr); }
+
+  std::string qry_metadata::sql() const { return sql_; }
+
+  std::string qry_metadata::id() const { return id_; }
+
+  void qry_metadata::set_id(const std::string& id) { id_ = id; }
+
+  db_sts qry_metadata::set_status(const db_sts& status) { return status_ = status; }
+
+  void qry_metadata::set_sql(const std::string& sql) { sql_ = sql; }
+
+  bool qry_metadata::is_success() const noexcept
+  {
+    return ((db_sts::success == status_) || (db_sts::success_with_info == status_));
+  }
+
+  std::string qry_metadata::dump_meta_vector(const char*     fmt,
+                                             const char*     header,
+                                             const meta_vec& v) const
+  {
+    if (! v.empty())
+    {
+      std::string msg = header;
+      for (auto col : v)
+      {
+        msg += fmt::format(fmt::runtime(fmt),
+                           col.index,
+                           col.name,
+                           ME::enum_name(col.type),
+                           get_sql_type_mnemonic(col.type),
+                           col.odbc_type,
+                           col.size,
+                           col.digits,
+                           col.nullable != 0 ? "yes" : "no");
+      }
+      return msg;
+    }
+    return {};
+  }
+  std::string qry_metadata::dump() const
+  {
+    constexpr const char* fmt     = "      {:>3} {:<20} {:<18} {:<20} {:>9} {:>4} {:>6} {:^8}\n";
+    auto                  msg_hdr = fmt::format(
+      fmt, "ndx", "column name", "col type", "cli id", "ODBC type", "size", "digits", "nullable");
+    auto col = dump_meta_vector(fmt, msg_hdr.c_str(), columns_);
+    auto par = dump_meta_vector(fmt, msg_hdr.c_str(), params_);
+    auto msg = fmt::format(R"(
+    id: {}
+    sql: {}
+    status {}
+    columns: {}
+{}
+    parameters: {}
+{}
+  )",
+                           id_,
+                           sql_,
+                           ME::enum_name<db_sts>(status_),
+                           columns_.size(),
+                           col,
+                           params_.size(),
+                           par);
+    return msg;
+  }
+
 }; // namespace rtl

@@ -6,6 +6,9 @@ namespace dbgen4
   pars_result::pars_result(parser_err_enum e)
   : pars_result({}, e) { };
 
+  pars_result::pars_result(const data_statements& s)
+  : pars_result(s, parser_err_enum::ok) { };
+
   pars_result::pars_result(data_statements s, parser_err_enum e)
   : s_(std::move(s))
   , e_(e) { };

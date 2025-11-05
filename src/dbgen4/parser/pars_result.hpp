@@ -9,8 +9,7 @@ namespace dbgen4
   {
   public:
     explicit pars_result(parser_err_enum e);
-    explicit pars_result(const data_statements& s)
-    : pars_result(s, parser_err_enum::ok) { };
+    explicit pars_result(const data_statements& s);
     pars_result(data_statements s, parser_err_enum e);
     virtual ~pars_result()                                          = default;
     pars_result(const pars_result&)                                 = default;

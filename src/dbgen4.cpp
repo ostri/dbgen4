@@ -20,12 +20,16 @@ int main(int argc, char** argv, char** env)
     dbgen4::appl app;
     /// start with parsing and generating
     auto sts = app.exec(argc, argv, env);
+    log::get()->info("Program is finished. return status {}", sts);
+    log::get()->flush();
     return sts;
   }
   catch (...)
   {
-    // const auto* msg = "Unexpected error during application execution";
+    const auto* msg = "Unexpected error during application execution";
     //  Uporabimo novo javno metodo razreda log
+    log::get()->critical(msg);
+    log::get()->flush();
     log::log_current_exception_with_chain();
 
     // return ME::enum_integer<dbgen4::parser_err_enum>(parser_err_enum::unhandled_exception);

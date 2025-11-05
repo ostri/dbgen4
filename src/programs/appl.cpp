@@ -1,5 +1,7 @@
 #include "appl.hpp"
 #include "parser.hpp"
+#define MAGIC_ENUM_RANGE_MIN -400
+#define MAGIC_ENUM_RANGE_MAX 100
 #include <magic_enum.hpp>
 #include <vector>
 #include <string>
@@ -36,7 +38,6 @@ namespace dbgen4
       rtl::db_db2 db;
       // auto r = db.connect(p_.db_host(), p_.db_name(), p_.db_user(), p_.db_password());
       auto r = db.connect(p_.host(), p_.port(), p_.db_name(), p_.user(), p_.pass());
-      // auto r = db.connect(p_.db_name());
       log()->info("Database connection status: {}", ME::enum_name<db_sts>(r));
       if (! rtl::is_success(r))
       {
@@ -49,7 +50,12 @@ namespace dbgen4
         auto r = p.parse_yaml_file(filename, p_.db_type());
         sts    = ME::enum_integer(r.e());
         log()->info("File '{}' parser status: {}", filename, magic_enum::enum_name(r.e()));
-        r = p.load_meta_data(r.s(), db);
+        if (r.e() == parser_err_enum::ok)
+        {
+          r = p.load_meta_data(r.s(), db);
+          // log()->debug(r.s().dump());
+          //  1 = 1;
+        }
       }
 
       log()->info("Application exit code '{}' '{}'",
@@ -71,6 +77,8 @@ namespace dbgen4
       return ME::enum_integer(parser_err_enum::unhandled_exception);
     };
   };
+
+  spdlog::logger* appl::log() { return log::get(); };
 
   void appl::raw_command_line(int argc, char** argv)
   {

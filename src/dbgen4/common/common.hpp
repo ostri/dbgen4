@@ -1,9 +1,11 @@
 #pragma once
 
 // #include <vector>
+
 #include <string>
 #include <string_view>
-
+#define MAGIC_ENUM_RANGE_MIN -400
+#define MAGIC_ENUM_RANGE_MAX 100
 #include <magic_enum.hpp>
 // #include <nlohmann/json.hpp>
 // #include <nlohmann/json-schema.hpp>
@@ -33,5 +35,6 @@ namespace dbgen4
     db2     = 3  /// ibm db2
   };
 
-  str_t join(const vec_str_t& o, const str_t& delim);
+  str_t            join(const vec_str_t& o, const str_t& delim);
+  std::string_view trim_whitespace_view(std::string_view s);
 }; // namespace dbgen4

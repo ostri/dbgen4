@@ -206,7 +206,8 @@ namespace rtl
     virtual db_sts                    commit();
     virtual db_sts                    rollback();
     [[nodiscard]] const db_data_root* data() const;
-  protected:
+    [[nodiscard]] spdlog::logger*     log() const;
+  private:
     /**
      * @brief Pointer to database-specific data implementation.
      *
@@ -219,7 +220,6 @@ namespace rtl
       /// NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)
       std::unique_ptr<db_data_root> data_; //NOLINT(cppcoreguidelines-non-private-member-variables-in-classes)
     // clang-format on
-    [[nodiscard]] spdlog::logger* log() const;
   };
 
 }; // namespace rtl

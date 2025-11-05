@@ -30,4 +30,10 @@
   ],
   "C_Cpp.intelliSenseEngine": "disabled",
   "clangd.fallbackFlags": [],
+  "C_mantic.caseStyle": "snake_case",
+  "C_mantic.cpp.accessor.boolGetterIsPrefix": true,
+  "C_mantic.cpp.accessor.getterDefinitionLocation": "Generate definition in matching source file",
+  "C_mantic.cpp.accessor.setterDefinitionLocation": "Generate definition in matching source file",
+  "C_mantic.cpp.resolveTypes": true,
+  "C_mantic.headerGuard.style": "Add #pragma once",
 }

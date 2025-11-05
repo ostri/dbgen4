@@ -5,6 +5,8 @@
 #include "cmd_line_params.hpp"
 #include "common.hpp"
 #include <fmt/format.h>
+#define MAGIC_ENUM_RANGE_MIN -400
+#define MAGIC_ENUM_RANGE_MAX 100
 #include <magic_enum.hpp>
 
 #include "CLI/App.hpp"

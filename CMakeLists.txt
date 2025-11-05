@@ -23,7 +23,7 @@ endif()
 
 # === Compiler Warnings ===
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    add_compile_options(-Wall -Wextra -Wpedantic -Werror -Wnarrowing)
+    add_compile_options(-Wall -Wextra -Wpedantic -Werror -Wnarrowing -Wswitch-enum -Werror=switch-enum -Wswitch-default)
     add_link_options(-fno-omit-frame-pointer)
 endif()
 
@@ -35,10 +35,10 @@ find_package(yaml-cpp REQUIRED)
 find_package(DB2 REQUIRED)
 
 # === Copy config files ===
-configure_file(${CMAKE_SOURCE_DIR}/config/log-debug.conf
-               ${CMAKE_BINARY_DIR}/config/log-debug.conf COPYONLY)
-configure_file(${CMAKE_SOURCE_DIR}/config/log-release.conf
-               ${CMAKE_BINARY_DIR}/config/log-release.conf COPYONLY)
+configure_file(${CMAKE_SOURCE_DIR}/config/log.debug.conf
+               ${CMAKE_BINARY_DIR}/config/log.debug.conf COPYONLY)
+configure_file(${CMAKE_SOURCE_DIR}/config/log.release.conf
+               ${CMAKE_BINARY_DIR}/config/log.release.conf COPYONLY)
 
 # === log library ===
 add_library(log STATIC src/log/log.cpp)
