@@ -52,7 +52,7 @@ namespace dbgen4
         log()->info("File '{}' parser status: {}", filename, magic_enum::enum_name(r.e()));
         if (r.e() == parser_err_enum::ok)
         {
-          r = p.load_meta_data(r.s(), db);
+          r = p.load_file_meta_data(r.s(), db);
           // log()->debug(r.s().dump());
           //  1 = 1;
         }

@@ -69,7 +69,7 @@ namespace dbgen4
     }
   }
 
-  pars_result parser::load_meta_data(const data_statements& s, rtl::db_db2& db) const
+  pars_result parser::load_file_meta_data(const data_statements& s, rtl::db_db2& db) const
   {
     rtl::qry_metadata res;
     for (const auto& stmt : s.map())

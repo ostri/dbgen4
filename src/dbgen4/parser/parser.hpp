@@ -59,7 +59,7 @@ namespace dbgen4
     /// @param filename path to the yaml file
     /// @return result of the operation, optional loaded data structure
     pars_result parse_yaml_file(const str_t& filename, db_type_enum db_type);
-    pars_result load_meta_data(const data_statements& s, rtl::db_db2& db) const;
+    pars_result load_file_meta_data(const data_statements& s, rtl::db_db2& db) const;
     /// getters
     [[nodiscard]] str_t filename() const; ///< filename where gsql definition is stored
     /// setters

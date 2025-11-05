@@ -1,6 +1,6 @@
 #include "cli_constants.hpp"
-#include "common.hpp"
-#include "log.hpp"
+// #include "common.hpp"
+// #include "log.hpp"
 #include "db2_rtl.hpp"
 #include "rtl.hpp"
 #include <fmt/base.h>
