@@ -68,15 +68,25 @@ namespace dbgen4
       return {data_statements{}, parser_err_enum::parse_error};
     }
   }
-
+  /**
+   * @brief walks through all sql statements of the yaml document and extract its metadata
+   *
+   * Processing stops upon first syntax error detected in sql statements
+   *
+   * @param s statements - vector of sql descriptions
+   * @param db database conneciton
+   * @return pars_result error code + updated statements structure
+   */
   pars_result parser::load_file_meta_data(const data_statements& s, rtl::db_db2& db) const
   {
-    rtl::qry_metadata res;
-    for (const auto& stmt : s.map())
+    rtl::qry_metadata res;          // temporary sql statement metadata as received from db2 rtl
+    data_statements   res_stmts{s}; // result statements with updated metadata
+    for (auto& stmt : s.map())
     { /// walking through whole list of statements in one file
       auto sql_id = stmt.first;
       auto sql    = stmt.second.sql();
-      auto res    = db.get_sql_metadata(sql);
+      /// extract metadata of one sql statement
+      auto res = db.get_sql_metadata(sql);
       res.set_sql(sql);
       res.set_id(sql_id);
       log()->debug(
@@ -86,11 +96,16 @@ sql: {})",
         sql_id,
         ME::enum_name<rtl::db_sts>(res.status()),
         sql);
-      if (! res.is_success()) return pars_result{parser_err_enum::sql_syntax_err};
+      if (! res.is_success()) return pars_result{parser_err_enum::sql_syntax_err}; // syntax error
+      /// all ok. Update the sql description with metadata
       log()->trace("meta data: {}", res.dump());
+      data_statement res_stmt(res); // convert type
+      res_stmts.add_statement_with_replace(
+        res_stmt); /// we are replacing existing statement values (meta data added, everything else
+                   /// the same)
     };
     log()->info("{} sql statements processed", s.map().size());
-    return {{}, parser_err_enum::ok};
+    return {res_stmts, parser_err_enum::ok};
   }
 
   str_t parser::filename() const { return filename_; }
@@ -172,6 +187,11 @@ sql: {})",
     else { return pars_result{parser_err_enum::inv_statement_syntax}; }
     return p;
   }
+  /**
+   * @brief fetch pointer to logger
+   *
+   * @return spdlog::logger*
+   */
   spdlog::logger* parser::log() const { return log::get(); }
   /// parse the provided YAML node and load its contents to the internal structure
   /// return parsed data_statements object and error code

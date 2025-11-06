@@ -35,41 +35,49 @@ namespace dbgen4
    * @param offs offset from the left in log file
    * @return str_t
    */
-  str_t cmd_line_params::dump(int /*offs*/) const
+  str_t cmd_line_params::dump(size_t offs) const
   {
     str_t s{};
-    // str_t r(offs, ' ');
+    str_t left_padding(offs, ' ');
 
     const auto* db_type = ME::enum_name(db_type_).data();
+    /// serualize files
     for (auto const& el : files_)
     {
       s += fmt::format(R"(    {}
 )",
                        el);
     }
-    // if (! s.empty()) s.pop_back(); // cut last space off
     auto msg = fmt::format(R"(
-  host:       {}
-  port:       {}
-  db_name:    {}
-  db_type:    {}
-  user:       {}
-  pass:       {}
-  out folder: {}
-  verbose:    {}
-  files:      
+{}host:       {}
+{}port:       {}
+{}db_name:    {}
+{}db_type:    {}
+{}user:       {}
+{}pass:       {}
+{}out folder: {}
+{}verbose:    {}
+{}files:      
 {}
 )",
+                           left_padding,
                            host_,
+                           left_padding,
                            port_,
+                           left_padding,
                            db_name_,
+                           left_padding,
                            db_type,
+                           left_padding,
                            user_,
+                           left_padding,
                            "****",
+                           left_padding,
                            out_folder_,
+                           left_padding,
                            verbose_,
+                           left_padding,
                            s);
-    // msg.pop_back();
     return msg;
   }
 
@@ -130,7 +138,7 @@ namespace dbgen4
     // clang-format on
     try
     {
-      set_log_level(false);
+      // set_log_level(false);
       if (argc == 1) throw CLI::CallForHelp();
       app.parse(argc, argv);
       set_log_level(verbose_);

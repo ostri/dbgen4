@@ -8,9 +8,7 @@
 namespace dbgen4
 {
   class data_statements;
-  // using data_statement_vec_t = std::vector<data_statement>;
   using data_statement_map_t = std::map<str_t, data_statement>;
-  // using krneki               = std::pair<data_statement_map_t::const_iterator, bool>;
 
   class data_statements
   {
@@ -21,6 +19,9 @@ namespace dbgen4
     data_statements(data_statements&&) noexcept            = default;
     data_statements& operator=(const data_statements&)     = default;
     data_statements& operator=(data_statements&&) noexcept = default;
+
+    [[nodiscard]] std::string dump(size_t offs = 0) const;
+
     /// getters
     [[nodiscard]] str_t           summary() const;
     [[nodiscard]] str_t           description() const;
@@ -45,6 +46,7 @@ namespace dbgen4
      *         - duplicate -> pointer to the existing statement and false.
      */
     bool add_statement(const data_statement& s);
+    bool add_statement_with_replace(const data_statement& s);
   protected:
     void set_map(const data_statement_map_t& map);
   private:
@@ -53,7 +55,7 @@ namespace dbgen4
     str_t                summary_;     ///< description about the purpose of this sql statements set
     str_t                description_; ///< description of the usage of this sql statement set
     data_statement_map_t map_;         ///< individual statements
-    cmd_line_params      params_;      ///< command line parameters
-    str_t                filename_;    ///< path to the file whic is processed
+    //    cmd_line_params      params_;      ///< command line parameters
+    str_t filename_; ///< path to the file whic is processed
   };
 } // namespace dbgen4

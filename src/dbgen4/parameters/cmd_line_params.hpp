@@ -33,7 +33,7 @@ namespace dbgen4
      *
      * @return str_t
      */
-    [[nodiscard]] str_t dump(int offs) const;
+    [[nodiscard]] str_t dump(size_t offs) const;
     [[nodiscard]] int   load_parameters(int argc, char** argv,
                                         char** env); //< load the parameters
     /// set log level based on verbose flag andtype of build

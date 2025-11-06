@@ -33,20 +33,6 @@ namespace rtl
   } __attribute__((aligned(DATA_ALIGNMENT_64)));
   using meta_vec = std::vector<meta_dscr>;
 
-  // /**
-  //  * @brief Description of a single parameter in a prepared statement
-  //  */
-  // struct param_dscr
-  // {
-  //   SQLSMALLINT   param_number; ///< 1-based index of the parameter
-  //   sql_data_type type;         ///< Mapped type from dbgen4::sql_data_type
-  //   SQLSMALLINT   sql_type;     ///< Raw ODBC SQL type code
-  //   SQLULEN       param_size;   ///< Maximum size of the parameter value
-  //   SQLSMALLINT   dec_digits;   ///< Decimal precision
-  //   SQLSMALLINT   nullable;     ///< SQL_NO_NULLS or SQL_NULLABLE
-  // } __attribute__((aligned(DATA_ALIGNMENT_16)));
-
-
   /**
    * @brief Result of parsing a SQL statement – contains only metadata
    */

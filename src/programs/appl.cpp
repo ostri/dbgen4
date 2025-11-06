@@ -53,7 +53,7 @@ namespace dbgen4
         if (r.e() == parser_err_enum::ok)
         {
           r = p.load_file_meta_data(r.s(), db);
-          // log()->debug(r.s().dump());
+          log()->debug(r.s().dump()); /// dump loaded sql statements(sql + meta data)
           //  1 = 1;
         }
       }

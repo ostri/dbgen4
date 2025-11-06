@@ -10,6 +10,7 @@
       "request": "launch",
       "program": "${workspaceFolder}/build/dbgen4-db2",
       "args": [
+        "-v",
         "-n",
         "test",
         "-t",

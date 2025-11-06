@@ -1,33 +1,83 @@
 #include "common.hpp"
 #include "data_statements.hpp"
 #include "data_statement.hpp"
+#include <cstddef>
 
 namespace dbgen4
 {
 
-  str_t data_statements::summary() const { return summary_; }
-
-  void  data_statements::set_summary(const str_t& summary) { summary_ = summary; }
-  str_t data_statements::description() const { return description_; }
-
-  cmd_line_params data_statements::params() const { return params_; }
-
-  str_t data_statements::filename() const { return filename_; }
-
+  std::string data_statements::dump(size_t offs) const
+  {
+    str_t      left_padding(offs, ' ');
+    const auto text_ident = 4 + offs;
+    /// walk over all statemnts and serialize them
+    std::string stmt_str;
+    for (const auto& [id, stmt] : map_)
+    { // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers)
+      stmt_str += stmt.dump(text_ident);
+    };
+    /// prepare summary and description
+    auto summary_str     = offset_text(summary_, text_ident + 2);
+    auto description_str = offset_text(description_, text_ident + 2);
+    auto msg = fmt::format(R"(
+  {}Document description
+  {}  summary: {}
+  {}  dscription: {}
+  {}  filename: {}
+  {}  statements:{}
+  )", /// this new line is on purpose to delimit sql statement from the metadata
+                           left_padding,    /// document description
+                           left_padding,    ///
+                           summary_str,     /// summary
+                           left_padding,    ///
+                           description_str, /// description
+                           left_padding,    ///
+                           filename_,       //// filename
+                           left_padding,    ///
+                           stmt_str         /// statements
+    );
+    return msg;
+  }
+  /// getters
+  str_t                data_statements::summary() const { return summary_; }
+  str_t                data_statements::description() const { return description_; }
+  str_t                data_statements::filename() const { return filename_; }
   data_statement_map_t data_statements::map() const { return map_; }
-
+  spdlog::logger*      data_statements::log() const { return log::get(); }
+  /// setters
+  void data_statements::set_summary(const str_t& summary) { summary_ = summary; }
+  void data_statements::set_description(const str_t& description) { description_ = description; }
   void data_statements::set_map(const data_statement_map_t& map) { map_ = map; }
 
-  spdlog::logger* data_statements::log() const { return log::get(); }
-
-  void data_statements::set_description(const str_t& description) { description_ = description; }
-
-  void data_statements::set_params(const cmd_line_params& params) { params_ = params; }
-
+  /**
+   * @brief add statement to the map (with replace if duplicate)
+   * The statement is added to the list, unless the statement with the same id already exists. If
+   * added true is returned, else false. Provided statement values are always written in the map.
+   * @param s statement to be added
+   * @return true the statement was added new
+   * @return false the statement replaced existing one
+   */
+  bool data_statements::add_statement_with_replace(const data_statement& s)
+  {
+    auto [it, success] = map_.emplace(s.id(), s);
+    if (! success)
+    {
+      it->second = s; // overwrite existing
+    }
+    return success;
+  }
+  /**
+   * @brief add statement to the map (no duplicate allowed)
+   * The statement is added to the list, unless the statement with the same id already exists. If
+   * added true is returned, else false. If duplicate exists, it is not replaced.
+   * @param s statement to be added
+   * @return true the statement was added new
+   * @return false the statement with the same id already exists
+   */
   bool data_statements::add_statement(const data_statement& s)
   {
-    auto r = map_.emplace(s.id(), s);
-    if (! r.second) log()->error("Statement id: {} is duplicated.", s.id());
-    return r.second;
+    auto [it, success] = map_.emplace(s.id(), s);
+    if (! success) { log()->error("Statement id: {} is duplicated.", s.id()); }
+    return success;
   }
 }; // namespace dbgen4

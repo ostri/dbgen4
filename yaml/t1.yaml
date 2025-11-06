@@ -1,24 +1,27 @@
-summary: summary
+summary: one line document summary
 description: | 
-  daljši opis čez 
-  nekaj 
-  vrstic
+  longer description
+  that spans multiple
+  lines
 statements:
 # - krneki: 
 #   sql: select * from test
 - id: sql_1
   sql: |
-          kar en sql
-          čez nekaj
-          vrst generičen
+       sql that should not be used in db2 testing
   mariadb: |
-          specific sql
-          for mariadb
+        sql specific for maria db n
+        ot used at this stage of the project
   db2: |
-    select * from test where col_smallint = ?
-
+    select * 
+      from test 
+      where 
+        col_smallint = ?
 - id: sql_2
-  sql: select col_smallint from test
+  sql: select col_smallint from test -- oneliner sql
 - id: sql_3
   sql:  |
-      insert into test (col_smallint, col_integer) values (?, ?)
+    insert into test 
+      (col_smallint, col_integer) 
+      values 
+      (?, ?)
