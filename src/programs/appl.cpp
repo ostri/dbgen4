@@ -1,14 +1,15 @@
 #include "appl.hpp"
 #include "build_type.hpp"
+#include "data_statements.hpp"
 #include "parser.hpp"
 #define MAGIC_ENUM_RANGE_MIN -400
 #define MAGIC_ENUM_RANGE_MAX 100
 #include <magic_enum.hpp>
-#include <vector>
-#include <string>
-// #include "build_type.hpp"
+// #include <vector>
+// #include <string>
+//  #include "build_type.hpp"
 #include "common.hpp"
-#include "pars_result.hpp"
+// #include "pars_result.hpp"
 #include "parser_errors.hpp"
 #include "db2_rtl.hpp"
 #include "rtl.hpp"
@@ -28,19 +29,27 @@ namespace dbgen4
    * @return true all went ok
    * @return false there were errors / check the logs
    */
-  pars_result appl::process_one_file(rtl::db_db2& db, const str_t& filename)
+  e_data_statements appl::process_one_file(rtl::db_db2& db, const str_t& filename)
   {
     auto r   = parser_.parse_yaml_file(filename, p_.db_type());
-    auto sts = ME::enum_integer(r.e());
+    auto sts = ME::enum_integer(r.error());
     log()->info(
-      "File '{}' parser status: {} db status {}", filename, magic_enum::enum_name(r.e()), sts);
-    if (r.e() != exit_status_enum::ok) return r;
+      "File '{}' parser status: {} db status {}", filename, magic_enum::enum_name(r.error()), sts);
+    if (! r) return std::unexpected(r.error());
 
-    r = parser_.load_file_meta_data(r.s(), db);
-    if (r.e() != exit_status_enum::ok) return r;
-    log()->debug(r.s().dump());          /// dump loaded sql statements(sql + meta data)
-    gen_.load_data_model("krneki-fajl"); /// FIXME(ostri) magic string
-    return r;
+    r = parser_.load_file_meta_data(r.value(), db);
+    if (! r) return std::unexpected(r.error());
+    log()->debug(r.value().dump()); /// dump loaded sql statements(sql + meta data)
+    auto res = gen_.internal_model_to_json(r.value(), p_, filename); /// generate json data model
+    if (! res)
+    {
+      log()->error("Error during data model generation from file '{}' error {}",
+                   filename,
+                   ME::enum_name(res.error()));
+      return std::unexpected(res.error());
+    }
+    log()->info("Data model generation from file '{}' successful", filename);
+    return r.value();
   }
   /**
    * @brief main execution method of the application
@@ -76,13 +85,14 @@ namespace dbgen4
       for (const auto& filename : p_.files())
       {
         auto res = process_one_file(db, filename);
-        if (res.e() != exit_status_enum::ok)
+        if (! res)
         {
-          sts = ME::enum_integer(res.e());
+          log()->error(
+            "Error during processing file '{}' error {}", filename, ME::enum_name(res.error()));
+          sts = ME::enum_integer(res.error());
           break;
-        };
+        }
       }
-
       log()->info("Application exit code '{}' '{}'",
                   sts,
                   magic_enum::enum_name(static_cast<exit_status_enum>(sts)));

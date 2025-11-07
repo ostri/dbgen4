@@ -30,7 +30,7 @@ namespace dbgen4
     /// setters
     void set_summary(const str_t& summary);
     void set_description(const str_t& description);
-    void set_params(const cmd_line_params& params);
+    // void set_params(const cmd_line_params& params);
     void set_filename(const str_t& filename) { filename_ = filename; }
 
     [[nodiscard]] data_statement_map_t map() const;

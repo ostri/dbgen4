@@ -1,11 +1,16 @@
 #pragma once
+#include "cmd_line_params.hpp"
 #include "common.hpp"
 #include "data_model.hpp"
+#include "data_statements.hpp"
+#include "parser_errors.hpp"
+#include <expected>
 #include <nlohmann/json.hpp>
 #include <spdlog/logger.h>
 #include <sstream>
 namespace dbgen4
 {
+  using json = nlohmann::json;
   class generator
   {
   public:
@@ -16,7 +21,10 @@ namespace dbgen4
     generator& operator=(const generator&) = default;
     generator& operator=(generator&&)      = delete;
     /// method loads data model from parsed statements
-    void load_data_model(const str_t& filename)
+    std::expected<json, exit_status_enum> internal_model_to_json(
+      const data_statements&                  s,
+      [[maybe_unused]] const cmd_line_params& cmd,
+      const str_t&                            filename)
     {
       filename_   = filename;
       output_dir_ = "output/";                ///< FIXME(ostri) magic string
@@ -24,22 +32,26 @@ namespace dbgen4
       hpp_file_   = output_dir_ + "gen.hpp";  ///< FIXME(ostri) magic string
       json_file_  = output_dir_ + "gen.json"; ///< FIXME(ostri) magic string
       gen::document doc;
-      doc = load_data_model(doc);
-      // log()->info("Loaded data model document: {}", doc.name);
-      // for (const auto& stmt : doc.statements)
-      // {
-      //   log()->info("Statement ID: {}, SQL: {}, Description: {}", stmt.id, stmt.sql, stmt.desc);
-      // }
+      doc = load_data_model(doc, s); /// load data model from statements
+
       // store data model as json
-      nlohmann::json j = cpp_to_json(doc);
-      // std::ofstream  o(json_file_);
-      std::stringstream o;
-      o << std::setw(4) << j << "\n";
+      json              j = cpp_to_json(doc); /// from cpp model to json
+      std::stringstream o;                    /// from json to string
+      o << std::setw(2) << j << "\n";         /// pretty print with 2 spaces
       log()->info("Generated JSON data model:\n{}", o.str());
+      return j;
     }
   private:
-    gen::document load_data_model(gen::document doc)
+    gen::document load_data_model(gen::document doc, const data_statements& s)
     {
+      for (const auto& stmt : s.map())
+      {
+        gen::statement gstmt;
+        gstmt.id   = stmt.second.id();
+        gstmt.sql  = stmt.second.sql();
+        gstmt.desc = stmt.second.desc();
+        doc.statements.push_back(gstmt);
+      }
       gen::statement stmt1;
       stmt1.id   = "stmt_1";
       stmt1.sql  = "SELECT * FROM SYSIBM.SYSDUMMY1";
@@ -58,14 +70,16 @@ namespace dbgen4
       stmt2.desc = "Sample SQL statement 3";
 
       doc.statements.push_back(stmt2);
-      doc.name = "krneki";
+      doc.summary     = s.summary();
+      doc.description = s.description();
       return doc;
     }
     nlohmann::json cpp_to_json(const gen::document& doc)
     {
       nlohmann::json j; // FIXME(ostri) implement me
-      j["document_name"] = doc.name;
-      j["statements"]    = nlohmann::json::array();
+      j["summary"]     = doc.summary;
+      j["description"] = doc.description;
+      j["statements"]  = nlohmann::json::array();
       for (const auto& stmt : doc.statements)
       {
         nlohmann::json jstmt;

@@ -44,12 +44,11 @@ namespace dbgen4
     case exit_status_enum::inv_statement_syntax:      return "Document '{}' Invalid statement syntax '{}' line: {} column: {}";
     case exit_status_enum::stmt_unique_id_is_missing: return "Document '{}' Statement unique ID is missing '{}' line: {} column: {}";
     case exit_status_enum::duplicated_stmt_id:        return "Document '{}' Duplicate statement ID detected '{}' line: {} column: {}";
-//    case parser_err_enum::sql_statement_missing:     return "Document '{}' SQL statement is missing '{}' line: {} column: {}";
     case exit_status_enum::no_sql_stmt_found:         return "Document '{}' No SQL statement found '{}' line: {} column: {}";
     case exit_status_enum::parse_error:               return "Document '{}' Unknown parser error '{}' line: {} column: {}";
     case exit_status_enum::unhandled_exception:       return "Document '{}' unhandled exception";
     case exit_status_enum::connection_error:          return "Can't connect to db host: {} db {} user {} err: {} error '{}";
-    case exit_status_enum::sql_syntax_err: return "SQL statement {} syntax error {}.";
+    case exit_status_enum::sql_syntax_err:            return "SQL statement {} syntax error {}.";
     default:
       // clang-format on
       __builtin_unreachable();

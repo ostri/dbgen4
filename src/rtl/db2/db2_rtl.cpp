@@ -469,11 +469,28 @@ namespace rtl
 
   void qry_metadata::set_params(const meta_vec& params) { params_ = params; }
 
+  std::string qry_metadata::dscr() const { return dscr_; }
+
+  void qry_metadata::set_dscr(const std::string& dscr) { dscr_ = dscr; }
+
   void qry_metadata::add_col_dscr(const meta_dscr& dscr) { columns_.push_back(dscr); }
 
   void qry_metadata::add_par_dscr(const meta_dscr& dscr) { params_.push_back(dscr); }
 
   std::string qry_metadata::sql() const { return sql_; }
+
+  qry_metadata::qry_metadata(std::string id,
+                             std::string sql,
+                             std::string dscr,
+                             meta_vec    columns,
+                             meta_vec    params)
+  : id_(std::move(id))
+  , sql_(std::move(sql))
+  , dscr_(std::move(dscr))
+  , columns_(std::move(columns))
+  , params_(std::move(params))
+  {
+  }
 
   std::string qry_metadata::id() const { return id_; }
 
@@ -521,6 +538,7 @@ namespace rtl
     auto msg = fmt::format(R"(
     id: {}
     sql: {}
+    dscr: {}
     status {}
     columns: {}
 {}
@@ -529,6 +547,7 @@ namespace rtl
   )",
                            id_,
                            sql_,
+                           dscr_,
                            ME::enum_name<db_sts>(status_),
                            columns_.size(),
                            col,

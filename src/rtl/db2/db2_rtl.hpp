@@ -39,9 +39,17 @@ namespace rtl
   class qry_metadata
   {
   public:
+    qry_metadata() = default; ///< default constructor
+
+    qry_metadata(std::string id,
+                 std::string sql,
+                 std::string dscr,
+                 meta_vec    columns,
+                 meta_vec    params);
     /// getters
     [[nodiscard]] std::string id() const;
     [[nodiscard]] std::string sql() const;
+    [[nodiscard]] std::string dscr() const;
     [[nodiscard]] db_sts      status() const;
     [[nodiscard]] meta_vec    columns() const;
     [[nodiscard]] meta_vec    params() const;
@@ -56,12 +64,14 @@ namespace rtl
     void set_params(const meta_vec& params_);
     void add_col_dscr(const meta_dscr& dscr);
     void add_par_dscr(const meta_dscr& dscr);
+    void set_dscr(const std::string& dscr);
   private:
-    std::string id_;
-    std::string sql_;
+    std::string id_;      ///< unique id of the sql statement
+    std::string sql_;     ///< sql statement (may contain ? placeholders for parameters)
+    std::string dscr_;    ///< description of the sql statement
+    meta_vec    columns_; ///< Result-set column metadata
+    meta_vec    params_;  ///< Input parameter metadata
     db_sts      status_{db_sts::error}; ///< Execution status
-    meta_vec    columns_;               ///< Result-set column metadata
-    meta_vec    params_;                ///< Input parameter metadata
   } __attribute__((aligned(DATA_ALIGNMENT_128)));
 
   class db_data_db2 : public db_data_root

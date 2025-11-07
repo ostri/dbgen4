@@ -17,6 +17,7 @@ namespace dbgen4
   {
     id_      = o.id();
     sql_     = o.sql();
+    desc_    = o.dscr();
     columns_ = o.columns();
     params_  = o.params();
   }
@@ -87,6 +88,7 @@ namespace dbgen4
 
     auto msg = fmt::format(R"(
   {}id: '{}'
+  {}  description: {}
   {}  sql:         {}
   
   {}  columns: cnt:{}
@@ -95,6 +97,8 @@ namespace dbgen4
   {})",
                            left_padding,    ///
                            id_,             /// unique id
+                           left_padding,    /// description
+                           desc_,           /// description
                            left_padding,    ///
                            sql_str,         /// sql statement
                            left_padding,    ///
@@ -107,9 +111,13 @@ namespace dbgen4
     return msg;
   }
 
+  str_t data_statement::desc() const { return desc_; }
+
   void data_statement::set_id(const str_t& id) { id_ = id; }
 
   void data_statement::set_sql(const str_t& sql) { sql_ = trim_whitespace_view(sql); }
+
+  void data_statement::set_desc(const str_t& desc) { desc_ = desc; }
 
   spdlog::logger* data_statement::log() const { return log::get(); }
 }; // namespace dbgen4
