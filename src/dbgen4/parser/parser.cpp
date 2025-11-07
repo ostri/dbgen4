@@ -42,7 +42,7 @@ namespace dbgen4
     {
       log()->error("Error: Could not open file '{}'.",
                    std::filesystem::absolute(filename_).c_str());
-      return pars_result{parser_err_enum::file_cant_be_open};
+      return pars_result{exit_status_enum::file_cant_be_open};
     }
 
     try
@@ -52,20 +52,20 @@ namespace dbgen4
     catch (const YAML::BadFile& e)
     {
       log()->error("File {} can not be read. '{}' '{}'", filename_, e.msg, e.what());
-      return pars_result(parser_err_enum::file_cant_be_open);
+      return pars_result(exit_status_enum::file_cant_be_open);
     }
     catch (const YAML::ParserException& e)
     {
       log()->error("File {} has syntactical error(s). '{}' '{}'", filename_, e.msg, e.what());
-      return {data_statements{}, parser_err_enum::yaml_syntax_error};
+      return {data_statements{}, exit_status_enum::yaml_syntax_error};
     }
     catch (...)
     {
       auto msg = fmt::format(
-        get_parser_err_str(parser_err_enum::parse_error), filename_, "unknown error", 0, 0);
+        get_parser_err_str(exit_status_enum::parse_error), filename_, "unknown error", 0, 0);
       log()->error(msg);
       std::cerr << msg << '\n';
-      return {data_statements{}, parser_err_enum::parse_error};
+      return {data_statements{}, exit_status_enum::parse_error};
     }
   }
   /**
@@ -96,7 +96,7 @@ sql: {})",
         sql_id,
         ME::enum_name<rtl::db_sts>(res.status()),
         sql);
-      if (! res.is_success()) return pars_result{parser_err_enum::sql_syntax_err}; // syntax error
+      if (! res.is_success()) return pars_result{exit_status_enum::sql_syntax_err}; // syntax error
       /// all ok. Update the sql description with metadata
       log()->trace("meta data: {}", res.dump());
       data_statement res_stmt(res); // convert type
@@ -105,7 +105,7 @@ sql: {})",
                    /// the same)
     };
     log()->info("{} sql statements processed", s.map().size());
-    return {res_stmts, parser_err_enum::ok};
+    return {res_stmts, exit_status_enum::ok};
   }
 
   str_t parser::filename() const { return filename_; }
@@ -134,11 +134,11 @@ sql: {})",
       std::stringstream ss;
       ss << n;
       log()->warn("No SQL statement provided. '{}'", ss.str());
-      return {{}, parser_err_enum::no_sql_stmt_found};
+      return {{}, exit_status_enum::no_sql_stmt_found};
     }
     res.set_sql(sql);
     log()->trace("sql: '{}'", sql);
-    return {res, parser_err_enum::ok};
+    return {res, exit_status_enum::ok};
   }
   pars_result parser::process_statement(const YAML::Node& stmt,
                                         pars_result&      p,
@@ -159,14 +159,14 @@ sql: {})",
                      filename_,
                      pos,
                      s.str());
-        return pars_result{parser_err_enum::stmt_unique_id_is_missing};
+        return pars_result{exit_status_enum::stmt_unique_id_is_missing};
       }
       // auto id = stmt["id"].as<str_t>();
       /// id is provided
       s.set_id(stmt["id"].as<str_t>());
       /// check standard and rdbms specific sql statement. Specific version takes over.
       auto res = extract_sql(stmt, s, db_type);
-      if (res.e() == parser_err_enum::ok)
+      if (res.e() == exit_status_enum::ok)
       {
         if (! p.s_.add_statement(res.s()))
         { /// duplicated statement id
@@ -181,10 +181,10 @@ sql: {})",
       {
         log()->error(
           "file {}: No sql statements found for statement id '{}'.", filename_, res.s().id());
-        return pars_result{parser_err_enum::no_sql_stmt_found};
+        return pars_result{exit_status_enum::no_sql_stmt_found};
       }
     }
-    else { return pars_result{parser_err_enum::inv_statement_syntax}; }
+    else { return pars_result{exit_status_enum::inv_statement_syntax}; }
     return p;
   }
   /**
@@ -199,13 +199,13 @@ sql: {})",
   {
     // data_statements   p{};
     std::stringstream s;
-    pars_result       r({}, parser_err_enum::ok); /// result: statemets + success/failure code
+    pars_result       r({}, exit_status_enum::ok); /// result: statemets + success/failure code
     YAML::Emitter     emiter(s);
     emiter << n;
     if (! emiter.good())
     {
       log()->error("Error in YAML file '{}' serialization.", emiter.GetLastError());
-      return {{}, parser_err_enum::parse_error};
+      return {{}, exit_status_enum::parse_error};
     }
     log()->debug(R"(yaml file '{}' contents: 
 {}
@@ -227,19 +227,19 @@ sql: {})",
         for (const auto& stmt : stmts)
         {
           r = process_statement(stmt, r, db_type);
-          if (r.e() != parser_err_enum::ok) return r;
+          if (r.e() != exit_status_enum::ok) return r;
         }
       }
       else
       {
         log()->error("statements tag is missing.");
-        return {{}, parser_err_enum::statements_attr_missing};
+        return {{}, exit_status_enum::statements_attr_missing};
       }
     }
     else
     {
       log()->error("Invalid yaml file structure. Top level element should be object");
-      return {{}, parser_err_enum::inv_top_level_struct};
+      return {{}, exit_status_enum::inv_top_level_struct};
     }
     return r; //{r, parser_err_enum::ok};
   }

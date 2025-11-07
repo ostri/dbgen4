@@ -36,6 +36,10 @@ database access layer generator
 
    sudo dnf install nlohmann-json-devel
 
+### valijson
+
+   sudo dnf install valijson-devel
+
 ## database installations
 
 ### mariadb

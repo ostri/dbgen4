@@ -20,7 +20,36 @@ namespace dbgen4
   appl::appl() = default;
 
   appl::~appl() { log()->flush(); };
+  /**
+   * @brief method process one yaml file from parsing to code generation
+   *
+   * @param db access to the database
+   * @param filename name of the yaml file to be processed
+   * @return true all went ok
+   * @return false there were errors / check the logs
+   */
+  pars_result appl::process_one_file(rtl::db_db2& db, const str_t& filename)
+  {
+    auto r   = parser_.parse_yaml_file(filename, p_.db_type());
+    auto sts = ME::enum_integer(r.e());
+    log()->info(
+      "File '{}' parser status: {} db status {}", filename, magic_enum::enum_name(r.e()), sts);
+    if (r.e() != exit_status_enum::ok) return r;
 
+    r = parser_.load_file_meta_data(r.s(), db);
+    if (r.e() != exit_status_enum::ok) return r;
+    log()->debug(r.s().dump());          /// dump loaded sql statements(sql + meta data)
+    gen_.load_data_model("krneki-fajl"); /// FIXME(ostri) magic string
+    return r;
+  }
+  /**
+   * @brief main execution method of the application
+   *
+   * @param argc number of command line arguments
+   * @param argv array of command line arguments
+   * @param env array of environment variables
+   * @return int exit status
+   */
   int appl::exec(int argc, char** argv, char** env)
   {
     log()->info("build type: {}", build_type_name());
@@ -35,32 +64,28 @@ namespace dbgen4
     raw_command_line(argc, argv);
     try
     {
-      rtl::db_db2 db;
-      // auto r = db.connect(p_.db_host(), p_.db_name(), p_.db_user(), p_.db_password());
-      auto r = db.connect(p_.host(), p_.port(), p_.db_name(), p_.user(), p_.pass());
+      rtl::db_db2 db; // access to the RDBMS
+      auto        r = db.connect(p_.host(), p_.port(), p_.db_name(), p_.user(), p_.pass());
       log()->info("Database connection status: {}", ME::enum_name<db_sts>(r));
       if (! rtl::is_success(r))
       {
         log()->error("Unable to connect to database '{}'", p_.db_name());
-        return ME::enum_integer(parser_err_enum::connection_error);
+        return ME::enum_integer(exit_status_enum::connection_error);
       }
       /// walk over all parameter files
       for (const auto& filename : p_.files())
       {
-        auto r = p.parse_yaml_file(filename, p_.db_type());
-        sts    = ME::enum_integer(r.e());
-        log()->info("File '{}' parser status: {}", filename, magic_enum::enum_name(r.e()));
-        if (r.e() == parser_err_enum::ok)
+        auto res = process_one_file(db, filename);
+        if (res.e() != exit_status_enum::ok)
         {
-          r = p.load_file_meta_data(r.s(), db);
-          log()->debug(r.s().dump()); /// dump loaded sql statements(sql + meta data)
-          //  1 = 1;
-        }
+          sts = ME::enum_integer(res.e());
+          break;
+        };
       }
 
       log()->info("Application exit code '{}' '{}'",
                   sts,
-                  magic_enum::enum_name(static_cast<parser_err_enum>(sts)));
+                  magic_enum::enum_name(static_cast<exit_status_enum>(sts)));
       db.rollback();
       db.disconnect();
       return sts;
@@ -74,7 +99,7 @@ namespace dbgen4
     {
       const auto* const msg = "Unexpected error during application execution";
       log()->error(msg);
-      return ME::enum_integer(parser_err_enum::unhandled_exception);
+      return ME::enum_integer(exit_status_enum::unhandled_exception);
     };
   };
 
@@ -83,8 +108,8 @@ namespace dbgen4
   void appl::raw_command_line(int argc, char** argv)
   {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    const std::vector<std::string> vec(argv, argv + argc);
-    auto                           cmd_line = join(vec, " ");
+    const vec_str_t vec(argv, argv + argc);
+    auto            cmd_line = join(vec, " ");
     log()->trace("command line: {}", cmd_line);
   }
 

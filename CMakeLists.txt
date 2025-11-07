@@ -33,7 +33,14 @@ find_package(spdlog REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(yaml-cpp REQUIRED)
 find_package(DB2 REQUIRED)
+find_package(valijson REQUIRED)
 
+# # === inja dependency ===
+# set_source_files_properties(
+#     ${CMAKE_SOURCE_DIR}/src/inja/inja.hpp  
+#     PROPERTIES
+#     COMPILE_FLAGS "-Wno-switch -Wno-switch-enum -Wno-error=switch-enum -Wno-switch-default"
+# )
 # === Copy config files ===
 configure_file(${CMAKE_SOURCE_DIR}/config/log.debug.conf
                ${CMAKE_BINARY_DIR}/config/log.debug.conf COPYONLY)
@@ -83,6 +90,7 @@ set(SRC_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common/parser_errors.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common/common.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common/cli_constants.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/gen/generator.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/programs/appl.cpp
 )
 add_executable(${PROJECT_NAME}-db2 ${SRC_FILES})
@@ -96,6 +104,8 @@ target_include_directories(${PROJECT_NAME}-db2 PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/db2
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/gen
+    ${CMAKE_SOURCE_DIR}/src/inja
 )
 
 target_link_libraries(${PROJECT_NAME}-db2 PRIVATE
@@ -104,6 +114,7 @@ target_link_libraries(${PROJECT_NAME}-db2 PRIVATE
     yaml-cpp::yaml-cpp
     spdlog::spdlog
     nlohmann_json::nlohmann_json
+    valijson
     log
     stdc++exp
 )

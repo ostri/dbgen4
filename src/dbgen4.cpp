@@ -1,6 +1,7 @@
 
 #include "appl.hpp"
 #include "log.hpp" // NOLINT(unused-includes)
+#include "inja.hpp"
 namespace fs = std::filesystem;
 
 int main(int argc, char** argv, char** env)

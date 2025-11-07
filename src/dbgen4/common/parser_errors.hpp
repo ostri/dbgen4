@@ -6,24 +6,24 @@
 
 namespace dbgen4
 {
-  enum class parser_err_enum : std::uint8_t
+  /**
+   * @brief Enumeration of possible program exit codes
+   */
+  enum class exit_status_enum : std::uint8_t
   {
-    // clang-format off
-    ok,                         // everything is nice
-    file_cant_be_open,          // provided input file can't be open
-    yaml_syntax_error,          // there is syntax error in the yaml file
-    inv_top_level_struct,       // invalid structure of the yaml file
-    statements_attr_missing,    // id or sql is missing
-    inv_statement_syntax,
-    stmt_unique_id_is_missing,
-    duplicated_stmt_id,
-//    sql_statement_missing,
-    no_sql_stmt_found,          // sql statement is missing in the statement definition in yaml file
-    parse_error,
-    unhandled_exception,        // exception we are not prepared for
-    connection_error,           // cant connect to the databaase
-    sql_syntax_err,             // there is syntax in error in sql, so that prepare can not be done
-    // clang-format on
+    ok                        = 0, // everything is nice
+    file_cant_be_open         = 2, // provided input file can't be open
+    yaml_syntax_error         = 3, // there is syntax error in the yaml file
+    inv_top_level_struct      = 4, // invalid structure of the yaml file
+    statements_attr_missing   = 5, // id or sql is missing
+    inv_statement_syntax      = 6, // invalid statement syntax
+    stmt_unique_id_is_missing = 7, // statement unique id is missing
+    duplicated_stmt_id        = 8, // duplicate statement id found
+    no_sql_stmt_found   = 9,  // sql statement is missing in the statement definition in yaml file
+    parse_error         = 10, // generic parse error
+    unhandled_exception = 11, // exception we are not prepared for
+    connection_error    = 12, // cant connect to the databaase
+    sql_syntax_err      = 13, // there is syntax in error in sql, so that prepare can not be done
   };
   // parser_err_enum cvt(rtl::db_sts s) { return reinterpret_cast<parser_err_enum>(s); }
   /**
@@ -31,25 +31,25 @@ namespace dbgen4
    * @param code error code
    * @return human readable string format compatible with fmt/spdlog
    */
-  constexpr const char* get_parser_err_str(parser_err_enum code) noexcept
+  constexpr const char* get_parser_err_str(exit_status_enum code) noexcept
   {
     switch (code)
     {
       // clang-format off
-    case parser_err_enum::ok:                        return "Document '{}' Operation successful '{}'";
-    case parser_err_enum::file_cant_be_open:         return "Document '{}' Unable to open file '{}'";
-    case parser_err_enum::yaml_syntax_error:         return "Document '{}' YAML syntax error '{}' line: {} column: {}";
-    case parser_err_enum::inv_top_level_struct:      return "Document '{}' Invalid top level structure '{}' line: {} column: {}";
-    case parser_err_enum::statements_attr_missing:   return "Document '{}' Statements attribute is missing '{}' line: {} column: {}";
-    case parser_err_enum::inv_statement_syntax:      return "Document '{}' Invalid statement syntax '{}' line: {} column: {}";
-    case parser_err_enum::stmt_unique_id_is_missing: return "Document '{}' Statement unique ID is missing '{}' line: {} column: {}";
-    case parser_err_enum::duplicated_stmt_id:        return "Document '{}' Duplicate statement ID detected '{}' line: {} column: {}";
+    case exit_status_enum::ok:                        return "Document '{}' Operation successful '{}'";
+    case exit_status_enum::file_cant_be_open:         return "Document '{}' Unable to open file '{}'";
+    case exit_status_enum::yaml_syntax_error:         return "Document '{}' YAML syntax error '{}' line: {} column: {}";
+    case exit_status_enum::inv_top_level_struct:      return "Document '{}' Invalid top level structure '{}' line: {} column: {}";
+    case exit_status_enum::statements_attr_missing:   return "Document '{}' Statements attribute is missing '{}' line: {} column: {}";
+    case exit_status_enum::inv_statement_syntax:      return "Document '{}' Invalid statement syntax '{}' line: {} column: {}";
+    case exit_status_enum::stmt_unique_id_is_missing: return "Document '{}' Statement unique ID is missing '{}' line: {} column: {}";
+    case exit_status_enum::duplicated_stmt_id:        return "Document '{}' Duplicate statement ID detected '{}' line: {} column: {}";
 //    case parser_err_enum::sql_statement_missing:     return "Document '{}' SQL statement is missing '{}' line: {} column: {}";
-    case parser_err_enum::no_sql_stmt_found:         return "Document '{}' No SQL statement found '{}' line: {} column: {}";
-    case parser_err_enum::parse_error:               return "Document '{}' Unknown parser error '{}' line: {} column: {}";
-    case parser_err_enum::unhandled_exception:       return "Document '{}' unhandled exception";
-    case parser_err_enum::connection_error:          return "Can't connect to db host: {} db {} user {} err: {} error '{}";
-    case parser_err_enum::sql_syntax_err: return "SQL statement {} syntax error {}.";
+    case exit_status_enum::no_sql_stmt_found:         return "Document '{}' No SQL statement found '{}' line: {} column: {}";
+    case exit_status_enum::parse_error:               return "Document '{}' Unknown parser error '{}' line: {} column: {}";
+    case exit_status_enum::unhandled_exception:       return "Document '{}' unhandled exception";
+    case exit_status_enum::connection_error:          return "Can't connect to db host: {} db {} user {} err: {} error '{}";
+    case exit_status_enum::sql_syntax_err: return "SQL statement {} syntax error {}.";
     default:
       // clang-format on
       __builtin_unreachable();

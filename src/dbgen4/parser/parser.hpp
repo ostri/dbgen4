@@ -12,34 +12,34 @@
 
 namespace dbgen4
 {
-  using pars_result_t = std::pair<data_statements, parser_err_enum>;
+  using pars_result_t = std::pair<data_statements, exit_status_enum>;
   // using stmt_result_t = std::pair<data_statement, parser_err_enum>;
   struct stmt_result
   {
   public:
     stmt_result()
-    : stmt_result({}, parser_err_enum::ok)
+    : stmt_result({}, exit_status_enum::ok)
     {
     }
     explicit stmt_result(data_statement an_s)
-    : stmt_result(std::move(an_s), parser_err_enum::ok)
+    : stmt_result(std::move(an_s), exit_status_enum::ok)
     {
     }
-    explicit stmt_result(parser_err_enum an_e)
+    explicit stmt_result(exit_status_enum an_e)
     : stmt_result({}, an_e)
     {
     }
-    stmt_result(data_statement an_s, parser_err_enum an_e)
+    stmt_result(data_statement an_s, exit_status_enum an_e)
     : s_(std::move(an_s))
     , e_(an_e)
     {
     }
-    data_statement  s_; ///< contents of the statement if everything is ok NOLINT
-    parser_err_enum e_; ///< error code NOLINT
+    data_statement   s_; ///< contents of the statement if everything is ok NOLINT
+    exit_status_enum e_; ///< error code NOLINT
 
     data_statement s() const { return s_; } // NOLINT
 
-    parser_err_enum e() const { return e_; } // NOLINT
+    exit_status_enum e() const { return e_; } // NOLINT
   } __attribute__((
     aligned(128))); // NOLINT(cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers)
   /**
