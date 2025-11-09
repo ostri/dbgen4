@@ -115,7 +115,11 @@ namespace dbgen4
 
   void data_statement::set_id(const str_t& id) { id_ = id; }
 
+  meta_vec data_statement::columns() const { return columns_; }
+
   void data_statement::set_sql(const str_t& sql) { sql_ = trim_whitespace_view(sql); }
+
+  meta_vec data_statement::params() const { return params_; }
 
   void data_statement::set_desc(const str_t& desc) { desc_ = desc; }
 
