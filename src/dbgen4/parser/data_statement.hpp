@@ -40,12 +40,14 @@ namespace dbgen4
      * @brief fetch sql statement
      * @return str_t sql statement
      */
-    [[nodiscard]] str_t sql() const;
-    [[nodiscard]] str_t desc() const;
-    std::string         dump_meta_vector(size_t          offs,
-                                         const char*     fmt,
-                                         const char*     header,
-                                         const meta_vec& v) const;
+    [[nodiscard]] str_t    sql() const;
+    [[nodiscard]] str_t    desc() const;
+    std::string            dump_meta_vector(size_t          offs,
+                                            const char*     fmt,
+                                            const char*     header,
+                                            const meta_vec& v) const;
+    [[nodiscard]] meta_vec columns() const;
+    [[nodiscard]] meta_vec params() const;
     /**
      * @brief dump data statement info
      *
