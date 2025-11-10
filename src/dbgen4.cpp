@@ -1,7 +1,8 @@
 
 #include "appl.hpp"
-#include "log.hpp" // NOLINT(unused-includes)
-#include "inja.hpp"
+// #include "log.hpp" // NOLINT(unused-includes)
+// #include "inja.hpp"
+#include "parser_errors.hpp"
 namespace fs = std::filesystem;
 
 int main(int argc, char** argv, char** env)
@@ -21,7 +22,9 @@ int main(int argc, char** argv, char** env)
     dbgen4::appl app;
     /// start with parsing and generating
     auto sts = app.exec(argc, argv, env);
-    log::get()->info("Program is finished. return status {}", sts);
+    log::get()->info("Program is finished. return code '{}' return status '{}'",
+                     sts,
+                     ME::enum_name(static_cast<dbgen4::exit_status_enum>(sts)));
     log::get()->flush();
     // spdlog::shutdown();
     return sts;

@@ -55,4 +55,6 @@ namespace dbgen4
   vec_str_t prefix_split(std::string_view input_sv, char delimiter, const std::string& prefix);
 
   str_t offset_text(const str_t& text, size_t offs);
+
+  str_t prefix_text(const str_t& text, size_t offs);
 }; // namespace dbgen4

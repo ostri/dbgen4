@@ -107,7 +107,7 @@ sql: {})",
                    /// the same)
     };
     log()->info("{} sql statements processed", s.map().size());
-    return std::unexpected(exit_status_enum::ok);
+    return res_stmts;
   }
 
   str_t parser::filename() const { return filename_; }
@@ -210,7 +210,7 @@ sql: {})",
 )",
                  fs::relative(fs::absolute(fs::path(filename_))).string(),
                  s.str());
-    return exit_status_enum::yaml_syntax_error;
+    return exit_status_enum::ok;
   }
   /// parse the provided YAML node and load its contents to the internal structure
   /// return parsed data_statements object and error code

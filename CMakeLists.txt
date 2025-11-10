@@ -62,8 +62,8 @@ target_compile_definitions(log
 
 # === db2_rtl ===
 set(SRC_RTL_FILES
-    src/rtl/rtl.cpp
-    src/rtl/db2/db2_rtl.cpp
+     src/rtl/rtl.cpp
+     src/rtl/db2/db2_rtl.cpp
 )
 add_library(db2_rtl STATIC ${SRC_RTL_FILES})
 target_include_directories(db2_rtl
@@ -79,19 +79,18 @@ target_link_libraries(db2_rtl PUBLIC DB2::DB2 PRIVATE log)
 
 # === Main executable ===
 set(SRC_FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/parser/parser.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/parser/data_statement.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/parser/data_statements.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/parser/pars_result.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/parser/sql_col_def.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/parameters/cmd_line_params.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common/build_type.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common/parser_errors.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common/common.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common/cli_constants.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/gen/generator.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/programs/appl.cpp
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4.cpp
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/parser/parser.cpp
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/parser/data_statement.cpp
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/parser/data_statements.cpp
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/parser/sql_col_def.cpp
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/parameters/cmd_line_params.cpp
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common/build_type.cpp
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common/parser_errors.cpp
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common/common.cpp
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common/cli_constants.cpp
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/gen/generator.cpp
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/programs/appl.cpp
 )
 add_executable(${PROJECT_NAME}-db2 ${SRC_FILES})
 target_compile_definitions(${PROJECT_NAME}-db2 PRIVATE SPDLOG_COMPILED_LIB)

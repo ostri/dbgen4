@@ -3,7 +3,7 @@
 #include "common.hpp"
 #include <map>
 #include "data_statement.hpp"
-#include "cmd_line_params.hpp"
+// #include "cmd_line_params.hpp"
 
 namespace dbgen4
 {
@@ -23,10 +23,10 @@ namespace dbgen4
     [[nodiscard]] std::string dump(size_t offs = 0) const;
 
     /// getters
-    [[nodiscard]] str_t           summary() const;
-    [[nodiscard]] str_t           description() const;
-    [[nodiscard]] cmd_line_params params() const;
-    [[nodiscard]] str_t           filename() const;
+    [[nodiscard]] str_t summary() const;
+    [[nodiscard]] str_t description() const;
+    //[[nodiscard]] cmd_line_params params() const;
+    [[nodiscard]] str_t filename() const;
     /// setters
     void set_summary(const str_t& summary);
     void set_description(const str_t& description);

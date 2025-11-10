@@ -11,19 +11,24 @@ namespace dbgen4
    */
   enum class exit_status_enum : std::uint8_t
   {
-    ok                        = 0, // everything is nice
-    file_cant_be_open         = 2, // provided input file can't be open
-    yaml_syntax_error         = 3, // there is syntax error in the yaml file
-    inv_top_level_struct      = 4, // invalid structure of the yaml file
-    statements_attr_missing   = 5, // id or sql is missing
-    inv_statement_syntax      = 6, // invalid statement syntax
-    stmt_unique_id_is_missing = 7, // statement unique id is missing
-    duplicated_stmt_id        = 8, // duplicate statement id found
+    not_implemented           = 255, // feature not implemented
+    ok                        = 0,   // everything is nice
+    file_cant_be_open         = 2,   // provided input file can't be open
+    yaml_syntax_error         = 3,   // there is syntax error in the yaml file
+    inv_top_level_struct      = 4,   // invalid structure of the yaml file
+    statements_attr_missing   = 5,   // id or sql is missing
+    inv_statement_syntax      = 6,   // invalid statement syntax
+    stmt_unique_id_is_missing = 7,   // statement unique id is missing
+    duplicated_stmt_id        = 8,   // duplicate statement id found
     no_sql_stmt_found   = 9,  // sql statement is missing in the statement definition in yaml file
     parse_error         = 10, // generic parse error
     unhandled_exception = 11, // exception we are not prepared for
     connection_error    = 12, // cant connect to the databaase
     sql_syntax_err      = 13, // there is syntax in error in sql, so that prepare can not be done
+    inja_parser_error   = 14, // inja parser error
+    inja_render_error   = 15, // inja template rendering error
+    inja_data_error     = 16, // inja data error
+    inja_file_error     = 17  // inja file error
   };
   // parser_err_enum cvt(rtl::db_sts s) { return reinterpret_cast<parser_err_enum>(s); }
   /**
@@ -49,6 +54,11 @@ namespace dbgen4
     case exit_status_enum::unhandled_exception:       return "Document '{}' unhandled exception";
     case exit_status_enum::connection_error:          return "Can't connect to db host: {} db {} user {} err: {} error '{}";
     case exit_status_enum::sql_syntax_err:            return "SQL statement {} syntax error {}.";
+    case exit_status_enum::not_implemented:           return "Not implemented feature.";
+    case exit_status_enum::inja_parser_error:         return "Document '{}' Inja parser error: '{}'";
+    case exit_status_enum::inja_render_error:         return "Document '{}' Inja template rendering error: '{}'";
+    case exit_status_enum::inja_file_error:           return "Document '{}' Inja file error: '{}'";
+    case exit_status_enum::inja_data_error:           return "Document '{}' Inja data error: '{}'";
     default:
       // clang-format on
       __builtin_unreachable();

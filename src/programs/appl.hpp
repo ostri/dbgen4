@@ -9,7 +9,7 @@
 #include <expected>
 namespace dbgen4
 {
-  using e_data_statements = std::expected<data_statements, exit_status_enum>;
+  using e_data_statements = ::std::expected<data_statements, exit_status_enum>;
   class appl
   {
   public:

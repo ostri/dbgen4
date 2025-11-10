@@ -10,14 +10,16 @@ namespace dbgen4
     const auto block_align_64  = 64;  ///< 64 bytes alignment for code generation blocks
     struct meta_dscr
     {
-      str_t name;              ///< Column name as returned by the db
+      uint16_t index;          ///< Column index starting from 1
+      str_t    name;           ///< Column name as returned by the db
                                ///<  or the parameter name provided to the database
       rtl::sql_type type;      ///< Mapped type from dbgen4::sql_type
+      str_t         type_name; ///< Type name as string
       int16_t       odbc_type; ///< Raw ODBC SQL type code (e.g., SQL_INTEGER)
       uint32_t      size;      ///< Maximum column size in characters/bytes
       int16_t       digits;    ///< Number of digits after decimal point (for numeric)
-      int16_t       nullable;  ///< SQL_NO_NULLS, SQL_NULLABLE, or SQL_NULLABLE_UNKNOWN
-    } __attribute__((aligned(block_align_64)));
+      bool          nullable;  ///< SQL_NO_NULLS, SQL_NULLABLE, or SQL_NULLABLE_UNKNOWN
+    } __attribute__((aligned(block_align_128)));
     using vec_meta_t = std::vector<meta_dscr>;
     struct statement
     {

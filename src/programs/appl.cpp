@@ -31,14 +31,23 @@ namespace dbgen4
    */
   e_data_statements appl::process_one_file(rtl::db_db2& db, const str_t& filename)
   {
-    auto r   = parser_.parse_yaml_file(filename, p_.db_type());
-    auto sts = ME::enum_integer(r.error());
-    log()->info(
-      "File '{}' parser status: {} db status {}", filename, magic_enum::enum_name(r.error()), sts);
-    if (! r) return std::unexpected(r.error());
-
+    auto r = parser_.parse_yaml_file(filename, p_.db_type());
+    if (! r)
+    {
+      auto sts = ME::enum_integer(r.error());
+      log()->info("File '{}' parser status: {} db status {}",
+                  filename,
+                  magic_enum::enum_name(r.error()),
+                  sts);
+      return std::unexpected(r.error());
+    }
     r = parser_.load_file_meta_data(r.value(), db);
-    if (! r) return std::unexpected(r.error());
+    if (! r)
+    {
+      log()->info(
+        "File '{}' metadata load failed. status: {}", filename, magic_enum::enum_name(r.error()));
+      return std::unexpected(r.error());
+    }
     log()->debug(r.value().dump()); /// dump loaded sql statements(sql + meta data)
     auto res = gen_.internal_model_to_json(r.value(), p_, filename); /// generate json data model
     if (! res)
@@ -48,6 +57,15 @@ namespace dbgen4
                    ME::enum_name(res.error()));
       return std::unexpected(res.error());
     }
+    auto res1 = gen_.generate_hpp_file("krneki", res.value()); /// generate code files
+    if (! res1)
+    {
+      log()->error("Error during code generation from file '{}' error {}",
+                   filename,
+                   ME::enum_name(res.error()));
+      return std::unexpected(res.error());
+    };
+    log()->info("Generated hpp file:\n{}", res1.value());
     log()->info("Data model generation from file '{}' successful", filename);
     return r.value();
   }

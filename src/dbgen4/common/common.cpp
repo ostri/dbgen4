@@ -111,4 +111,9 @@ namespace dbgen4
       return str_t("\n") + join(prefix_split(sql_view, '\n', str_t(offs, ' ')), "\n");
     return str_t(sql_view); /// single liner
   }
+  str_t prefix_text(const str_t& text, size_t offs)
+  {
+    auto sql_view = trim_whitespace_view(text); /// trim leading and trailing whitespaces
+    return join(prefix_split(sql_view, '\n', str_t(offs, ' ')), "\n");
+  }
 }; // namespace dbgen4
