@@ -1,6 +1,7 @@
 #include "appl.hpp"
 #include "build_type.hpp"
-#include "data_statements.hpp"
+#include "context.hpp"
+// #include "data_statements.hpp"
 #include "parser.hpp"
 #define MAGIC_ENUM_RANGE_MIN -400
 #define MAGIC_ENUM_RANGE_MAX 100
@@ -29,9 +30,10 @@ namespace dbgen4
    * @return true all went ok
    * @return false there were errors / check the logs
    */
-  e_data_statements appl::process_one_file(rtl::db_db2& db, const str_t& filename)
+  e_data_statements appl::process_one_file(rtl::db_db2& db, generator& gen)
   {
-    auto r = parser_.parse_yaml_file(filename, p_.db_type());
+    auto filename = gen.yaml_fn();
+    auto r        = parser_.parse_yaml_file(filename, gen.db_type());
     if (! r)
     {
       auto sts = ME::enum_integer(r.error());
@@ -41,31 +43,21 @@ namespace dbgen4
                   sts);
       return std::unexpected(r.error());
     }
-    r = parser_.load_file_meta_data(r.value(), db);
+    r = parser_.load_file_meta_data(r.value(), db); /// statements enriched with metadata
     if (! r)
     {
-      log()->info(
-        "File '{}' metadata load failed. status: {}", filename, magic_enum::enum_name(r.error()));
+      log()->info("File '{}' metadata load failed. status: {}", filename, ME::enum_name(r.error()));
       return std::unexpected(r.error());
     }
-    log()->debug(r.value().dump()); /// dump loaded sql statements(sql + meta data)
-    auto res = gen_.internal_model_to_json(r.value(), p_, filename); /// generate json data model
+    auto res = gen.generate(r.value());
     if (! res)
     {
-      log()->error("Error during data model generation from file '{}' error {}",
-                   filename,
-                   ME::enum_name(res.error()));
+      log()->info("File '{}' source code generation failed. status: {}",
+                  filename,
+                  ME::enum_name(res.error()));
       return std::unexpected(res.error());
     }
-    auto res1 = gen_.generate_hpp_file("krneki", res.value()); /// generate code files
-    if (! res1)
-    {
-      log()->error("Error during code generation from file '{}' error {}",
-                   filename,
-                   ME::enum_name(res.error()));
-      return std::unexpected(res.error());
-    };
-    log()->info("Generated hpp file:\n{}", res1.value());
+    //    log()->info("Generated hpp file:\n{}", res.value());
     log()->info("Data model generation from file '{}' successful", filename);
     return r.value();
   }
@@ -77,7 +69,7 @@ namespace dbgen4
    * @param env array of environment variables
    * @return int exit status
    */
-  int appl::exec(int argc, char** argv, char** env)
+  exit_status_enum appl::exec(int argc, char** argv, char** env)
   {
     log()->info("build type: {}", build_type_name());
 
@@ -85,7 +77,7 @@ namespace dbgen4
     log()->info("=========== Application initialized ===========");
     auto sts = p_.load_parameters(argc, argv, env);
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers)
-    if (sts != 55) return 0; // exit on help or error in parsing
+    if (sts != exit_status_enum::ok) return sts; // exit on help or error in parsing
     // FIXME(ostri) magic number
 
     raw_command_line(argc, argv);
@@ -97,23 +89,26 @@ namespace dbgen4
       if (! rtl::is_success(r))
       {
         log()->error("Unable to connect to database '{}'", p_.db_name());
-        return ME::enum_integer(exit_status_enum::connection_error);
+        return exit_status_enum::connection_error;
       }
+      context ctx(p_);                       /// package cmd line parameters
+      auto    res = ctx.prepare_templates(); /// prepare templates
+      if (! res) return res.error();         /// errors in template generation
+      generator gen(ctx);                    /// barebone generator
       /// walk over all parameter files
       for (const auto& filename : p_.files())
       {
-        auto res = process_one_file(db, filename);
+        gen.set_yaml_fn_and_barename(filename);
+        auto res = process_one_file(db, gen);
         if (! res)
         {
           log()->error(
             "Error during processing file '{}' error {}", filename, ME::enum_name(res.error()));
-          sts = ME::enum_integer(res.error());
+          sts = res.error();
           break;
         }
       }
-      log()->info("Application exit code '{}' '{}'",
-                  sts,
-                  magic_enum::enum_name(static_cast<exit_status_enum>(sts)));
+      log()->info("Application exit code '{}' '{}'", ME::enum_integer(sts), ME::enum_name(sts));
       db.rollback();
       db.disconnect();
       return sts;
@@ -121,13 +116,13 @@ namespace dbgen4
     catch (const CLI::CallForHelp& e)
     {
       log()->debug("Help exit");
-      return 0;
+      return exit_status_enum::ok;
     }
     catch (...)
     {
       const auto* const msg = "Unexpected error during application execution";
       log()->error(msg);
-      return ME::enum_integer(exit_status_enum::unhandled_exception);
+      return exit_status_enum::unhandled_exception;
     };
   };
 

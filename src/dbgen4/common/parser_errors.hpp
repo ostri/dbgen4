@@ -28,7 +28,9 @@ namespace dbgen4
     inja_parser_error   = 14, // inja parser error
     inja_render_error   = 15, // inja template rendering error
     inja_data_error     = 16, // inja data error
-    inja_file_error     = 17  // inja file error
+    inja_file_error     = 17, // inja file error
+    error_writing_file  = 18, // error writing file
+    error_reading_file  = 19, // error reading file
   };
   // parser_err_enum cvt(rtl::db_sts s) { return reinterpret_cast<parser_err_enum>(s); }
   /**
@@ -36,7 +38,7 @@ namespace dbgen4
    * @param code error code
    * @return human readable string format compatible with fmt/spdlog
    */
-  constexpr const char* get_parser_err_str(exit_status_enum code) noexcept
+  constexpr const char* get_exit_code_str(exit_status_enum code) noexcept
   {
     switch (code)
     {
@@ -59,6 +61,8 @@ namespace dbgen4
     case exit_status_enum::inja_render_error:         return "Document '{}' Inja template rendering error: '{}'";
     case exit_status_enum::inja_file_error:           return "Document '{}' Inja file error: '{}'";
     case exit_status_enum::inja_data_error:           return "Document '{}' Inja data error: '{}'";
+    case exit_status_enum::error_writing_file:        return "Document '{}' error writing file: '{}'";
+    case exit_status_enum::error_reading_file:        return "Document '{}' error reading file: '{}'";
     default:
       // clang-format on
       __builtin_unreachable();

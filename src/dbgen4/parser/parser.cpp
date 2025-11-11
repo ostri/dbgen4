@@ -63,7 +63,7 @@ namespace dbgen4
     catch (...)
     {
       auto msg = fmt::format(
-        get_parser_err_str(exit_status_enum::parse_error), filename_, "unknown error", 0, 0);
+        get_exit_code_str(exit_status_enum::parse_error), filename_, "unknown error", 0, 0);
       log()->error(msg);
       std::cerr << msg << '\n';
       return std::unexpected(exit_status_enum::parse_error);

@@ -1,5 +1,7 @@
 #include "common.hpp"
+// #include "parser_errors.hpp"
 #include <algorithm>
+#include <fstream>
 // #include <ranges>
 namespace dbgen4
 {
@@ -115,5 +117,20 @@ namespace dbgen4
   {
     auto sql_view = trim_whitespace_view(text); /// trim leading and trailing whitespaces
     return join(prefix_split(sql_view, '\n', str_t(offs, ' ')), "\n");
+  }
+  e_string_ read_file(const str_t& filename)
+  {
+    std::ifstream file(filename, std::ios::in);
+    if (! file.is_open()) return std::unexpected(fmt::format("Cant read file: '{}'.", filename));
+    std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    return content;
+  }
+
+  e_string_ write_file(const str_t& filename, const str_t& contents)
+  {
+    std::ofstream file(filename.data());
+    if (! file.good()) { std::unexpected(fmt::format("Cant write file:{}.", filename)); }
+    file.write(contents.data(), 8 * 1024); // NOLINT
+    return "";
   }
 }; // namespace dbgen4

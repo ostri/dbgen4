@@ -2,6 +2,8 @@
 
 // #include <vector>
 
+
+#include <expected>
 #include <string>
 #include <string_view>
 #define MAGIC_ENUM_RANGE_MIN -400
@@ -57,4 +59,8 @@ namespace dbgen4
   str_t offset_text(const str_t& text, size_t offs);
 
   str_t prefix_text(const str_t& text, size_t offs);
+
+  using e_string_ = std::expected<str_t, str_t>;
+  e_string_                  read_file(const str_t& filename);
+  [[maybe_unused]] e_string_ write_file(const str_t& filename, const str_t& contents);
 }; // namespace dbgen4

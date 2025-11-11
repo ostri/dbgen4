@@ -5,6 +5,7 @@
 #define PARAMETERS_HPP
 
 #include "common.hpp"
+#include "parser_errors.hpp"
 #include <CLI/Error.hpp>
 #include <cstddef>
 
@@ -33,9 +34,10 @@ namespace dbgen4
      *
      * @return str_t
      */
-    [[nodiscard]] str_t dump(size_t offs) const;
-    [[nodiscard]] int   load_parameters(int argc, char** argv,
-                                        char** env); //< load the parameters
+    [[nodiscard]] str_t            dump(size_t offs) const;
+    [[nodiscard]] exit_status_enum load_parameters(int    argc,
+                                                   char** argv,
+                                                   char** env); //< load the parameters
     /// set log level based on verbose flag andtype of build
     void set_log_level(bool verbose) const;
   private:

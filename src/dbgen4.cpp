@@ -2,7 +2,9 @@
 #include "appl.hpp"
 // #include "log.hpp" // NOLINT(unused-includes)
 // #include "inja.hpp"
-#include "parser_errors.hpp"
+#define MAGIC_ENUM_RANGE_MIN -400
+#define MAGIC_ENUM_RANGE_MAX 100
+#include <magic_enum.hpp>
 namespace fs = std::filesystem;
 
 int main(int argc, char** argv, char** env)
@@ -23,11 +25,11 @@ int main(int argc, char** argv, char** env)
     /// start with parsing and generating
     auto sts = app.exec(argc, argv, env);
     log::get()->info("Program is finished. return code '{}' return status '{}'",
-                     sts,
-                     ME::enum_name(static_cast<dbgen4::exit_status_enum>(sts)));
+                     ME::enum_integer(sts),
+                     ME::enum_name(sts));
     log::get()->flush();
     // spdlog::shutdown();
-    return sts;
+    return ME::enum_integer(sts);
   }
   catch (...)
   {

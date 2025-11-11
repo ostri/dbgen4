@@ -46,6 +46,11 @@ configure_file(${CMAKE_SOURCE_DIR}/config/log.debug.conf
                ${CMAKE_BINARY_DIR}/config/log.debug.conf COPYONLY)
 configure_file(${CMAKE_SOURCE_DIR}/config/log.release.conf
                ${CMAKE_BINARY_DIR}/config/log.release.conf COPYONLY)
+configure_file(${CMAKE_SOURCE_DIR}/config/hpp_template.inja
+               ${CMAKE_BINARY_DIR}/template/hpp_template.inja COPYONLY)
+configure_file(${CMAKE_SOURCE_DIR}/config/cpp_template.inja
+               ${CMAKE_BINARY_DIR}/template/cpp_template.inja COPYONLY)
+
 
 # === log library ===
 add_library(log STATIC src/log/log.cpp)
@@ -85,6 +90,7 @@ set(SRC_FILES
      ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/parser/data_statements.cpp
      ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/parser/sql_col_def.cpp
      ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/parameters/cmd_line_params.cpp
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/parameters/context.cpp
      ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common/build_type.cpp
      ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common/parser_errors.cpp
      ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common/common.cpp

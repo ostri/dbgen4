@@ -5,6 +5,7 @@
 #include "log.hpp"
 #include "cmd_line_params.hpp"
 #include "common.hpp"
+#include "parser_errors.hpp"
 #include <fmt/format.h>
 #define MAGIC_ENUM_RANGE_MIN -400
 #define MAGIC_ENUM_RANGE_MAX 100
@@ -81,7 +82,7 @@ namespace dbgen4
     return msg;
   }
 
-  int cmd_line_params::load_parameters(int argc, char** argv, char** /*env*/)
+  exit_status_enum cmd_line_params::load_parameters(int argc, char** argv, char** /*env*/)
   {
     CLI::App app{"Generator of db layer for c++ programs."};
 
@@ -149,8 +150,9 @@ namespace dbgen4
     }
     catch (const CLI::CallForHelp& e)
     {
-      log()->debug("Help command.");
-      return app.exit(e);
+      log()->debug("Help command.{}", e.what());
+      app.exit(e);
+      return exit_status_enum::ok;
     }
     catch (const CLI::ParseError& e)
     {
@@ -158,7 +160,8 @@ namespace dbgen4
         fmt::format("name: '{}' code: {} msg: '{}'", e.get_name(), e.get_exit_code(), e.what());
       log()->warn(msg);
       log()->warn("Parameters with error(s) \n{}", dump(2));
-      return app.exit(e);
+      app.exit(e);
+      throw;
     }
     catch (...)
     {
@@ -166,8 +169,7 @@ namespace dbgen4
       log()->critical(msg);
       throw;
     }
-    return 55; // NOLINT
-    // FIXME(ostri) popravi to magično številko
+    return exit_status_enum::ok;
   }
 
   void cmd_line_params::set_log_level(bool verbose) const
