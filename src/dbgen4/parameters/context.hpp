@@ -37,7 +37,7 @@ namespace dbgen4
         for (const auto& tpl_type : {tpl_types::hpp, tpl_types::cpp})
         {
           auto tpl_type_name = ME::enum_name(tpl_type);
-          filename_tpl       = fmt::format("template/{}_template.inja", tpl_type_name);
+          filename_tpl       = fmt::format("template/{}_template.jinja", tpl_type_name);
           log()->trace("preparing template '{}'", filename_tpl);
           auto res = read_file(filename_tpl);
           if (! res)

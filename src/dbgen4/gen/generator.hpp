@@ -40,40 +40,30 @@ namespace dbgen4
     [[nodiscard]] str_t                  hpp_fn() const { return filename(tpl_types::hpp); }
     [[nodiscard]] str_t                  cpp_fn() const { return filename(tpl_types::cpp); }
     [[nodiscard]] str_t                  json_fn() const { return filename(tpl_types::json); }
-    [[nodiscard]] str_t                  filename(tpl_types tpl_type) const
-    {
-      auto fmt = fn_tpl_.at(tpl_type);
-      return fmt::format(fmt::runtime_format_string<char>(fmt), cmd().out_folder(), barename_);
-    }
+    [[nodiscard]] str_t                  filename(tpl_types tpl_type) const;
+    [[nodiscard]] map_fn                 get_fn_tpl() const;
     /// setters
     void set_s(data_statements* s);
     void set_yaml_fn_and_barename(cstr_t yaml_fn);
-    // void set_cmd(cmd_line_params* cmd);
-
+    void set_filename(const str_t& filename);
     /// utility methods
     e_template prepare_templates();
     e_string   generate(const data_statements& s);
-
-    void set_filename(const str_t& filename);
-
-    e_json               internal_model_to_json(const data_statements& s);
-    e_string             generate_file_through_template(const json& data, tpl_types tpl_type);
-    [[nodiscard]] map_fn get_fn_tpl() const;
+    e_json     internal_model_to_json(const data_statements& s);
+    e_string   generate_file_through_template(const json& data, tpl_types tpl_type);
   private:
     spdlog::logger* log() { return log::get(); }; /// Member variables
 
-    //    inja::Environment env_; ///< inja environment
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
-    const context&   ctx_;     ///< command line parameters stucture (readonly, not owner)
-    data_statements* s_{};     ///< data statements structure (readonly, not owner)
-    str_t            yaml_fn_; ///< yaml file name
-    // str_t            cpp_fn_;   ///< generated cpp file name
-    // str_t            hpp_fn_;   ///< generated hpp file name
-    str_t json_fn_;  ///< generated json file name
-    json  j_data_;   ///< json data model
-    str_t barename_; ///< barename of yaml file which is core for hpp, cpp and json
+    const context&   ctx_;      ///< command line parameters stucture (readonly, not owner)
+    data_statements* s_{};      ///< data statements structure (readonly, not owner)
+    str_t            yaml_fn_;  ///< yaml file name
+    str_t            json_fn_;  ///< generated json file name
+    json             j_data_;   ///< json data model
+    str_t            barename_; ///< barename of yaml file which is core for hpp, cpp and json
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
-    const map_fn fn_tpl_ ///< names of the generated files (hpp, cpp, etc) path/basename
+    const map_fn fn_tpl_ ///< names of the generated files (hpp, cpp, etc)
+                         ///< path/basename
       {
         {tpl_types::hpp, "{}/{}.hpp"},  // template for hpp filename
         {tpl_types::cpp, "{}/{}.cpp"},  // template for cpp filename

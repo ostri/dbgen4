@@ -41,7 +41,7 @@ namespace dbgen4
      * @return str_t sql statement
      */
     [[nodiscard]] str_t    sql() const;
-    [[nodiscard]] str_t    desc() const;
+    [[nodiscard]] str_t    dscr() const;
     std::string            dump_meta_vector(size_t          offs,
                                             const char*     fmt,
                                             const char*     header,
@@ -58,14 +58,14 @@ namespace dbgen4
     /*! setters */
     void set_id(const str_t& id);     ///< set unique id of the statement
     void set_sql(const str_t& sql);   ///< set sql for specific database type
-    void set_desc(const str_t& desc); ///< set description of the statement
+    void set_dscr(const str_t& dscr); ///< set description of the statement
   protected:
   private:
     [[nodiscard]] spdlog::logger* log() const;
 
     str_t    id_;      ///< unique id of the data statement
     str_t    sql_;     ///< sql statement (generic or specific for RDBMS)
-    str_t    desc_;    ///< statement description
+    str_t    dscr_;    ///< statement description
     meta_vec columns_; ///< Result-set column metadata
     meta_vec params_;  ///< Input parameter metadata
   };

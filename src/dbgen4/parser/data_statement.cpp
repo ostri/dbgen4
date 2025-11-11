@@ -17,7 +17,7 @@ namespace dbgen4
   {
     id_      = o.id();
     sql_     = o.sql();
-    desc_    = o.dscr();
+    dscr_    = o.dscr();
     columns_ = o.columns();
     params_  = o.params();
   }
@@ -98,7 +98,7 @@ namespace dbgen4
                            left_padding,    ///
                            id_,             /// unique id
                            left_padding,    /// description
-                           desc_,           /// description
+                           dscr_,           /// description
                            left_padding,    ///
                            sql_str,         /// sql statement
                            left_padding,    ///
@@ -111,7 +111,7 @@ namespace dbgen4
     return msg;
   }
 
-  str_t data_statement::desc() const { return desc_; }
+  str_t data_statement::dscr() const { return dscr_; }
 
   void data_statement::set_id(const str_t& id) { id_ = id; }
 
@@ -121,7 +121,7 @@ namespace dbgen4
 
   meta_vec data_statement::params() const { return params_; }
 
-  void data_statement::set_desc(const str_t& desc) { desc_ = desc; }
+  void data_statement::set_dscr(const str_t& dscr) { dscr_ = dscr; }
 
   spdlog::logger* data_statement::log() const { return log::get(); }
 }; // namespace dbgen4

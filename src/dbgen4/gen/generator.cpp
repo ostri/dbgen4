@@ -71,6 +71,12 @@ namespace dbgen4
 
   db_type_enum generator::db_type() const { return cmd().db_type(); }
 
+  str_t generator::filename(tpl_types tpl_type) const
+  {
+    auto fmt = fn_tpl_.at(tpl_type);
+    return fmt::format(fmt::runtime_format_string<char>(fmt), cmd().out_folder(), barename_);
+  }
+
   void generator::set_s(data_statements* s) { s_ = s; }
 
   void generator::set_yaml_fn_and_barename(cstr_t yaml_fn)
@@ -84,30 +90,27 @@ namespace dbgen4
   {
     try
     {
-      // inja::Environment env;
       auto res = ctx().env().render(ctx_[tpl_type], data);
-
-      // auto res = write_file(filename(tpl_type), res);
       return res;
     }
     catch (const inja::RenderError& e)
     {
-      log()->error("RENDER ERROR: {}", e.what());
+      log()->error("RENDER ERROR: {} file: {}", e.what(), filename(tpl_type));
       return std::unexpected(exit_status_enum::inja_render_error);
     }
     catch (const inja::ParserError& e)
     {
-      log()->error("PARSER ERROR: {}", e.what());
+      log()->error("PARSER ERROR: {} file: {}", e.what(), filename(tpl_type));
       return std::unexpected(exit_status_enum::inja_parser_error);
     }
     catch (const inja::FileError& e)
     {
-      log()->error("FILE ERROR: {}", e.what());
+      log()->error("FILE ERROR: {} file: {}", e.what(), filename(tpl_type));
       return std::unexpected(exit_status_enum::inja_file_error);
     }
     catch (const inja::DataError& e)
     {
-      log()->error("Data error: {}", e.what());
+      log()->error("Data error: {} file: {}", e.what(), filename(tpl_type));
       return std::unexpected(exit_status_enum::inja_data_error);
     }
     // catch (const inja::inja_exception& e)
@@ -117,7 +120,7 @@ namespace dbgen4
     // }
     catch (const std::exception& e)
     {
-      log()->error("STD EXCEPTION: {}", e.what());
+      log()->error("STD EXCEPTION: {} file: ", e.what(), filename(tpl_type));
       return std::unexpected(exit_status_enum::unhandled_exception);
     }
   }
@@ -140,8 +143,8 @@ namespace dbgen4
     {
       json jstmt;
       jstmt["id"]     = stmt.id();
-      jstmt["sql"]    = prefix_text(stmt.sql(), 0); // no offset
-      jstmt["desc"]   = stmt.desc().empty() ? "" : stmt.desc();
+      jstmt["sql"]    = prefix_text(stmt.sql(), 10); // no offset
+      jstmt["dscr"]   = stmt.dscr().empty() ? "" : prefix_text(stmt.dscr(), 10);
       jstmt["column"] = json::array();
       jstmt["param"]  = json::array();
       // jstmt["column"] = stmt.columns;

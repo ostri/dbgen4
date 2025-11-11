@@ -46,10 +46,10 @@ configure_file(${CMAKE_SOURCE_DIR}/config/log.debug.conf
                ${CMAKE_BINARY_DIR}/config/log.debug.conf COPYONLY)
 configure_file(${CMAKE_SOURCE_DIR}/config/log.release.conf
                ${CMAKE_BINARY_DIR}/config/log.release.conf COPYONLY)
-configure_file(${CMAKE_SOURCE_DIR}/config/hpp_template.inja
-               ${CMAKE_BINARY_DIR}/template/hpp_template.inja COPYONLY)
-configure_file(${CMAKE_SOURCE_DIR}/config/cpp_template.inja
-               ${CMAKE_BINARY_DIR}/template/cpp_template.inja COPYONLY)
+configure_file(${CMAKE_SOURCE_DIR}/config/hpp_template.jinja
+               ${CMAKE_BINARY_DIR}/template/hpp_template.jinja COPYONLY)
+configure_file(${CMAKE_SOURCE_DIR}/config/cpp_template.jinja
+               ${CMAKE_BINARY_DIR}/template/cpp_template.jinja COPYONLY)
 
 
 # === log library ===

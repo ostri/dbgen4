@@ -130,7 +130,7 @@ namespace dbgen4
   {
     std::ofstream file(filename.data());
     if (! file.good()) { std::unexpected(fmt::format("Cant write file:{}.", filename)); }
-    file.write(contents.data(), 8 * 1024); // NOLINT
+    file.write(contents.data(), contents.size()); // NOLINT
     return "";
   }
 }; // namespace dbgen4

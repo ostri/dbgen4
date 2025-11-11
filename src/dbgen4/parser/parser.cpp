@@ -86,13 +86,15 @@ namespace dbgen4
     { /// walking through whole list of statements in one file
       auto sql_id = stmt.first;
       auto sql    = stmt.second.sql();
+      auto dscr   = stmt.second.dscr();
       /// extract metadata of one sql statement
       auto res = db.get_sql_metadata(sql);
       res.set_sql(sql);
       res.set_id(sql_id);
+      res.set_dscr(dscr);
       log()->debug(
         R"(
-id: {} sts: {} 
+id: {} sts: {}
 sql: {})",
         sql_id,
         ME::enum_name<rtl::db_sts>(res.status()),
@@ -174,6 +176,11 @@ sql: {})",
         return std::unexpected(log_id_is_missing(yaml_stmt, stmts.map().size()));
       /// id is provided
       s.set_id(yaml_stmt["id"].as<str_t>());
+      if (yaml_stmt["dscr"].IsDefined())
+      {
+        s.set_dscr(yaml_stmt["dscr"].as<str_t>());
+        log()->debug("file {}: 'dscr' is optional, but it is provided '{}'", filename_, s.dscr());
+      }
       /// check standard and rdbms specific sql statement. Specific version takes over.
       auto res = extract_sql_to_statement(yaml_stmt, s, db_type);
       if (! res) return std::unexpected(no_sql_found(s.id()));
@@ -205,7 +212,7 @@ sql: {})",
       log()->error("Error in YAML file '{}' serialization.", emiter.GetLastError());
       return exit_status_enum::parse_error;
     }
-    log()->debug(R"(yaml file '{}' contents: 
+    log()->debug(R"(yaml file '{}' contents:
 {}
 )",
                  fs::relative(fs::absolute(fs::path(filename_))).string(),
