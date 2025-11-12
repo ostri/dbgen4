@@ -1,6 +1,6 @@
 #include "cli_constants.hpp"
-// #include "common.hpp"
-// #include "log.hpp"
+//  #include "common.hpp"
+//  #include "log.hpp"
 #include "db2_rtl.hpp"
 #include "rtl.hpp"
 #include <fmt/base.h>
@@ -44,8 +44,8 @@ namespace
                             &messageLength);
 
         err_msg = fmt::format(R"(
-  Error in {} 
-  db error {} 
+  Error in {}
+  db error {}
   native err {}
 )",
                               operation,
@@ -257,7 +257,7 @@ namespace rtl
   //   // Shranjevanje rezultatov
   //   constexpr SQLSMALLINT                 buffer_size = 1024;
   //   std::array<SQLCHAR, buffer_size>      buffer{};
-  //   SQLLEN                                indicator;
+  //   int32_t                                indicator;
   //   std::vector<std::vector<std::string>> results;
   //   while ((ret = SQLFetch(data()->stmt_handle)) == SQL_SUCCESS)
   //   {
@@ -518,7 +518,7 @@ namespace rtl
                            col.index,
                            col.name,
                            ME::enum_name(col.type),
-                           get_sql_type_mnemonic(col.type),
+                           get_sql_mapping(col.type)->c_mnemonic,
                            col.odbc_type,
                            col.size,
                            col.digits,
@@ -556,4 +556,67 @@ namespace rtl
     return msg;
   }
 
+
+  db_sts db_db2::bind_col(uint16_t   column_number,
+                          int16_t    target_type,
+                          SQLPOINTER target_value,
+                          int32_t    buffer_length,
+                          int32_t*   str_len_or_ind)
+  {
+    if (! is_connected() || data()->stmt_handle == 0)
+    {
+      log()->error("bind_col: No active connection or statement handle");
+      return db_sts::invalid_handle;
+    }
+
+    SQLRETURN ret = SQLBindCol(
+      data()->stmt_handle, column_number, target_type, target_value, buffer_length, str_len_or_ind);
+
+    if (! is_success(static_cast<db_sts>(ret)))
+    {
+      chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, "SQLBindCol");
+      return static_cast<db_sts>(ret);
+    }
+
+    log()->debug("Column {} bound successfully", column_number);
+    return db_sts::success;
+  }
+
+
+  db_sts db_db2::bind_param(uint16_t parameter_number,
+                            int16_t  input_output_type,
+                            int16_t  value_type,
+                            sql_type parameter_type,
+                            uint32_t column_size,
+                            int16_t  decimal_digits,
+                            void*    parameter_value_ptr,
+                            int32_t  buffer_length,
+                            int32_t* str_len_or_ind_ptr)
+  {
+    if (! is_connected() || data()->stmt_handle == 0)
+    {
+      log()->error("bind_param: No active connection or statement handle");
+      return db_sts::invalid_handle;
+    }
+
+    SQLRETURN ret = SQLBindParameter(data()->stmt_handle,
+                                     parameter_number,
+                                     input_output_type,
+                                     value_type,
+                                     static_cast<SQLSMALLINT>(parameter_type), // Cast from sql_type
+                                     column_size,
+                                     decimal_digits,
+                                     parameter_value_ptr,
+                                     buffer_length,
+                                     str_len_or_ind_ptr);
+
+    if (! is_success(static_cast<db_sts>(ret)))
+    {
+      chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, "SQLBindParameter");
+      return static_cast<db_sts>(ret);
+    }
+
+    log()->debug("Parameter {} bound successfully", parameter_number);
+    return db_sts::success;
+  }
 }; // namespace rtl

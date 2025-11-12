@@ -53,7 +53,7 @@ namespace dbgen4
                            col.index,
                            col.name,
                            ME::enum_name(col.type),
-                           get_sql_type_mnemonic(col.type),
+                           get_sql_mapping(col.type)->c_mnemonic,
                            col.odbc_type,
                            col.size,
                            col.digits,
@@ -90,7 +90,7 @@ namespace dbgen4
   {}id: '{}'
   {}  description: {}
   {}  sql:         {}
-  
+
   {}  columns: cnt:{}
   {}
   {}  params:  cnt:{}

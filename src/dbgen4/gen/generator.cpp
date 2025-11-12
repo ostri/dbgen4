@@ -143,8 +143,8 @@ namespace dbgen4
     {
       json jstmt;
       jstmt["id"]     = stmt.id();
-      jstmt["sql"]    = prefix_text(stmt.sql(), 10); // no offset
-      jstmt["dscr"]   = stmt.dscr().empty() ? "" : prefix_text(stmt.dscr(), 10);
+      jstmt["sql"]    = prefix_text(stmt.sql(), 10);                             // no offset NOLINT
+      jstmt["dscr"]   = stmt.dscr().empty() ? "" : prefix_text(stmt.dscr(), 10); // NOLINT
       jstmt["column"] = json::array();
       jstmt["param"]  = json::array();
       // jstmt["column"] = stmt.columns;
@@ -154,11 +154,13 @@ namespace dbgen4
         jcol["index"]          = col.index;
         jcol["name"]           = col.name;
         jcol["type"]           = ME::enum_name(col.type);
-        jcol["type_name"]      = get_sql_type_mnemonic(col.type);
+        jcol["type_name"]      = get_sql_mapping(col.type)->c_mnemonic;
         jcol["odbc_name_type"] = col.odbc_type;
         jcol["size"]           = col.size;
         jcol["digits"]         = col.digits;
         jcol["nullable"]       = col.nullable;
+        jcol["result"]         = get_sql_mapping(col.type)->ret_type_name;
+        jcol["storage"]        = get_sql_mapping(col.type)->cpp_type_name;
         jstmt["column"].push_back(jcol);
       }
       for (const auto& par : stmt.params())
@@ -167,11 +169,13 @@ namespace dbgen4
         jpar["index"]          = par.index;
         jpar["name"]           = par.name;
         jpar["type"]           = ME::enum_name(par.type);
-        jpar["type_name"]      = get_sql_type_mnemonic(par.type);
+        jpar["type_name"]      = get_sql_mapping(par.type)->c_mnemonic;
         jpar["odbc_name_type"] = par.odbc_type;
         jpar["size"]           = par.size;
         jpar["digits"]         = par.digits;
         jpar["nullable"]       = par.nullable;
+        jpar["parameter"]      = get_sql_mapping(par.type)->par_type_name;
+        jpar["storage"]        = get_sql_mapping(par.type)->cpp_type_name;
         jstmt["param"].push_back(jpar);
       }
 

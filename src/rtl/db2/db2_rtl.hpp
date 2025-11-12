@@ -1,6 +1,6 @@
 #pragma once
 
-#include <sqlcli1.h>
+// #include <sqlcli1.h>
 #include <string>
 #include <vector>
 #include "rtl.hpp"
@@ -149,6 +149,52 @@ namespace rtl
      * @return query_metadata with status, column and parameter descriptions
      */
     qry_metadata get_sql_metadata(const std::string& sql);
+
+    /**
+     * @brief Binds a column in the result set to a variable.
+     *
+     * This method wraps SQLBindCol and binds a result set column to a buffer.
+     * It uses the current statement handle from db_data_db2.
+     *
+     * @param column_number 1-based index of the column.
+     * @param target_type C data type (SQL_C_* constant).
+     * @param target_value Pointer to the buffer where data will be stored.
+     * @param buffer_length Length of the buffer in bytes.
+     * @param str_len_or_ind Pointer to length/indicator buffer.
+     * @return db_sts Status of the operation.
+     */
+    db_sts bind_col(uint16_t   column_number,
+                    int16_t    target_type,
+                    SQLPOINTER target_value,
+                    int32_t    buffer_length,
+                    int32_t*   str_len_or_ind);
+    /**
+     * @brief Binds a parameter in the SQL statement to a variable.
+     *
+     * This method wraps SQLBindParameter and binds an input/output parameter.
+     * It uses the current statement handle from db_data_db2.
+     *
+     * @param parameter_number 1-based index of the parameter.
+     * @param input_output_type SQL_PARAM_INPUT, SQL_PARAM_OUTPUT, etc.
+     * @param value_type C data type (SQL_C_* constant).
+     * @param parameter_type SQL data type (use sql_type enum).
+     * @param column_size Precision/column size.
+     * @param decimal_digits Scale/decimal digits.
+     * @param parameter_value_ptr Pointer to the parameter value buffer.
+     * @param buffer_length Length of the buffer in bytes.
+     * @param str_len_or_ind_ptr Pointer to length/indicator buffer.
+     * @return db_sts Status of the operation.
+     */
+    db_sts bind_param(uint16_t parameter_number,
+                      int16_t  input_output_type,
+                      int16_t  value_type,
+                      sql_type parameter_type,
+                      uint32_t column_size,
+                      int16_t  decimal_digits,
+                      void*    parameter_value_ptr,
+                      int32_t  buffer_length,
+                      int32_t* str_len_or_ind_ptr);
+
 
     void free_stmt_handle() const; ///< release current statement handle NOLINT
     void free_conn_handle() const; ///< free connection handle NOLINT
