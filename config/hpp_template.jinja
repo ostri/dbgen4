@@ -36,6 +36,8 @@ namespace dbx
         column(column&& o) = default;
         column& operator=(const column& o) = default;
         column& operator=(column&& o) = default;
+        /// --- buffer dimension ----------------------------------------------
+        static constexpr const size_t buf_dim = {{statement.res-set-size}}; //# of rows
         /// --- column/parameter widths ---------------------------------------
         /// ------ char values length without trailing 0 ----------------------
         /// ------ atomic and structures size in bytes ------------------------
@@ -44,35 +46,35 @@ namespace dbx
 ##    endfor
         /// --- getters -------------------------------------------------------
 ##    for col in statement.column
-         [[nodiscard]]{{col.as-result}} {{col.name}}(size_t row=0) const {{col.getter-code}}
+        [[nodiscard]]{{col.as-result}} {{col.name}}(size_t row=0) const;
 ##    endfor
         /// --- null getters --------------------------------------------------
 ##    for col in statement.column
-         [[nodiscard]]bool is_{{col.name}}_null(size_t row=0) const {return SQL_NULL_DATA == len_{{col.name}}_.at(row);}
+        [[nodiscard]]bool is_{{col.name}}_null(size_t row=0) const;
 ##    endfor
         /// --- length getters ------------------------------------------------
 ##    for col in statement.column
-         [[nodiscard]]size_t {{col.name}}_length(size_t row=0) const {auto l = len_{{col.name}}_.at(row); return (SQL_NULL_DATA != l)?l:0;}
+        [[nodiscard]]size_t {{col.name}}_length(size_t row=0) const;
 ##    endfor
         /// --- setters -------------------------------------------------------
 ##    for col in statement.column
-         void set_{{col.name}}(const {{col.as-param}}& v, size_t row=0) {{col.setter-code}}
+        void set_{{col.name}}(const {{col.as-param}}& v, size_t row=0);
 ##    endfor
         /// --- null setters --------------------------------------------------
 ##    for col in statement.column
-         void set_{{col.name}}_null(size_t row=0) { len_{{col.name}}_.at(row) = SQL_NULL_DATA;}
+        void set_{{col.name}}_null(size_t row=0);
 ##    endfor
       private:
         /// --- members -------------------------------------------------------
 ##    for col in statement.column
-        std::array<{{col.storage}}, {{statement.res-set-size}}> {{col.name}}_{};
+        std::array<{{col.storage}}, buf_dim> {{col.name}}_{};
 ##    endfor
         /// --- length or NULL indicators -------------------------------------
         /// ------ positive values actual length ------------------------------
         /// ------ SQL_NULL_DATA - sql null value -----------------------------
         /// ------ SQL_NTS - null terminated string ---------------------------
 ##    for col in statement.column
-        std::array<int32_t, {{statement.res-set-size}}> len_{{col.name}}_{};
+        std::array<int32_t, buf_dim> len_{{col.name}}_{};
 ##    endfor
     }; // class column
 ##  endif
@@ -91,6 +93,8 @@ namespace dbx
         param(param&& o) = default;
         param& operator=(const param& o) = default;
         param& operator=(param&& o) = default;
+        /// --- buffer dimension ----------------------------------------------
+        static constexpr const size_t buf_dim = {{statement.par-set-size}}; //# of rows
         /// --- column/parameter widths ---------------------------------------
         /// ------ char values length without trailing 0 ----------------------
         /// ------ atomic and structures size in bytes ------------------------
@@ -99,35 +103,35 @@ namespace dbx
 ##    endfor
         /// --- getters -------------------------------------------------------
 ##    for par in statement.param
-         [[nodiscard]]{{par.as-result}} {{par.name}}(size_t row=0) const {{par.getter-code}}
+        [[nodiscard]]{{par.as-result}} {{par.name}}(size_t row=0) const;
 ##    endfor
         /// --- null getters --------------------------------------------------
 ##    for par in statement.param
-         [[nodiscard]]bool is_{{par.name}}_null(size_t row=0) const {return SQL_NULL_DATA == len_{{par.name}}_.at(row);}
+        [[nodiscard]]bool is_{{par.name}}_null(size_t row=0) const;
 ##    endfor
         /// --- length getters ------------------------------------------------
 ##    for par in statement.param
-         [[nodiscard]]size_t {{par.name}}_length(size_t row=0) const {auto l = len_{{par.name}}_.at(row); return (SQL_NULL_DATA != l)?l:0;}
+        [[nodiscard]]size_t {{par.name}}_length(size_t row=0) const;
 ##    endfor
         /// --- setters -------------------------------------------------------
 ##    for par in statement.param
-         void set_{{par.name}}(const {{par.as-param}}& v, size_t row=0) {{par.setter-code}}
+        void set_{{par.name}}(const {{par.as-param}}& v, size_t row=0);
 ##    endfor
         /// --- null setters --------------------------------------------------
 ##    for par in statement.param
-         void set_{{par.name}}_null(size_t row=0) { len_{{par.name}}_.at(row) = SQL_NULL_DATA;}
+        void set_{{par.name}}_null(size_t row=0);
 ##    endfor
       private:
         /// --- members -------------------------------------------------------
 ##    for par in statement.param
-        std::array<{{par.storage}}, {{statement.par-set-size}}> {{par.name}}_{};
+        std::array<{{par.storage}}, buf_dim> {{par.name}}_{};
 ##    endfor
         /// --- length or NULL indicators -------------------------------------
         /// ------ positive values actual length ------------------------------
         /// ------ SQL_NULL_DATA - sql null value -----------------------------
         /// ------ SQL_NTS - null terminated string ---------------------------
 ##    for par in statement.param
-        std::array<int32_t, {{statement.par-set-size}}> len_{{par.name}}_{};
+        std::array<int32_t, buf_dim> len_{{par.name}}_{};
 ##    endfor
     }; // class param
 ##  endif

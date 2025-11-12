@@ -37,7 +37,7 @@ find_package(valijson REQUIRED)
 
 # # === inja dependency ===
 # set_source_files_properties(
-#     ${CMAKE_SOURCE_DIR}/src/inja/inja.hpp  
+#     ${CMAKE_SOURCE_DIR}/src/inja/inja.hpp
 #     PROPERTIES
 #     COMPILE_FLAGS "-Wno-switch -Wno-switch-enum -Wno-error=switch-enum -Wno-switch-default"
 # )
@@ -59,9 +59,9 @@ target_include_directories(log
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common
 )
 target_link_libraries(log PRIVATE spdlog::spdlog nlohmann_json::nlohmann_json)
-target_compile_definitions(log 
-  PRIVATE 
-    SPDLOG_FMT_EXTERNAL 
+target_compile_definitions(log
+  PRIVATE
+    SPDLOG_FMT_EXTERNAL
     SPDLOG_COMPILED_LIB
 )
 
@@ -111,6 +111,7 @@ target_include_directories(${PROJECT_NAME}-db2 PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/db2
     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/gen
     ${CMAKE_SOURCE_DIR}/src/inja
+    ${CMAKE_BINARY_DIR}/
 )
 
 target_link_libraries(${PROJECT_NAME}-db2 PRIVATE

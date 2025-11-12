@@ -228,6 +228,9 @@ namespace dbgen4
   e_json generator::internal_model_to_json(const data_statements& s)
   {
     json j;
+    j["cpp-file"] = this->filename(tpl_types::cpp);
+    j["hpp-file"] = this->filename(tpl_types::hpp);
+
     j["summary"]     = s.summary();
     j["description"] = join(prefix_split(s.description(), '\n', " *  "), "\n");
     j["version"]     = "0.1.0"; // FIXME(ostri) magic string
