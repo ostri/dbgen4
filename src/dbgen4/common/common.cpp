@@ -133,4 +133,22 @@ namespace dbgen4
     file.write(contents.data(), contents.size()); // NOLINT
     return "";
   }
+
+  std::string lowercse(std::string_view vhodni_pogled)
+  {
+    // 1. Ustvarimo nov std::string iz pogleda.
+    // To alocira pomnilnik in kopira podatke iz pogleda.
+    std::string izhodni_niz(vhodni_pogled);
+
+    // 2. Uporabimo std::transform za pretvorbo vsakega znaka v kopiji.
+    /// NOLINTNEXTLINE(modernize-use-ranges, boost-use-ranges)
+    std::transform(izhodni_niz.begin(),
+                   izhodni_niz.end(),
+                   izhodni_niz.begin(),
+                   // Lambda funkcija za varno uporabo std::tolower
+                   [](unsigned char c) { return std::tolower(c); });
+
+    // 3. Vrnemo pretvorjeno kopijo niza.
+    return izhodni_niz;
+  }
 }; // namespace dbgen4

@@ -20,13 +20,12 @@ namespace dbgen4
   class data_statement
   {
   public:
-    data_statement()                        = default;
-    virtual ~data_statement()               = default;
-    data_statement(const data_statement& o) = default;
-    explicit data_statement(const rtl::qry_metadata& o);
+    data_statement()                                 = default;
+    virtual ~data_statement()                        = default;
+    data_statement(const data_statement& o)          = default;
     data_statement(data_statement&&) noexcept        = default;
     data_statement& operator=(const data_statement&) = default;
-    data_statement& operator=(const rtl::qry_metadata& o);
+    // data_statement& operator=(const rtl::qry_metadata& o);
     /**
      * @brief assign from rtl::qry_metadata
      *
@@ -48,6 +47,8 @@ namespace dbgen4
                                             const meta_vec& v) const;
     [[nodiscard]] meta_vec columns() const;
     [[nodiscard]] meta_vec params() const;
+    [[nodiscard]] size_t   par_set_size() const;
+    [[nodiscard]] size_t   res_set_size() const;
     /**
      * @brief dump data statement info
      *
@@ -59,15 +60,21 @@ namespace dbgen4
     void set_id(const str_t& id);     ///< set unique id of the statement
     void set_sql(const str_t& sql);   ///< set sql for specific database type
     void set_dscr(const str_t& dscr); ///< set description of the statement
+    void set_par_set_size(size_t par_set_size);
+    void set_res_set_size(size_t res_set_size);
+    void set_columns(meta_vec v) { columns_ = std::move(v); }
+    void set_params(meta_vec v) { params_ = std::move(v); }
   protected:
   private:
     [[nodiscard]] spdlog::logger* log() const;
 
-    str_t    id_;      ///< unique id of the data statement
-    str_t    sql_;     ///< sql statement (generic or specific for RDBMS)
-    str_t    dscr_;    ///< statement description
-    meta_vec columns_; ///< Result-set column metadata
-    meta_vec params_;  ///< Input parameter metadata
+    str_t    id_;              ///< unique id of the data statement
+    str_t    sql_;             ///< sql statement (generic or specific for RDBMS)
+    str_t    dscr_;            ///< statement description
+    size_t   par_set_size_{1}; ///< how many parameter records we have in parameter buffer
+    size_t   res_set_size_{1}; ///< how many result records we have in result buffer
+    meta_vec columns_;         ///< Result-set column metadata
+    meta_vec params_;          ///< Input parameter metadata
   };
 
 } // namespace dbgen4

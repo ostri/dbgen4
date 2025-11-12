@@ -11,6 +11,8 @@
 */
 namespace dbx
 {
+  // NOLINTBEGIN(hicpp-avoid-c-arrays, cppcoreguidelines-avoid-c-arrays, modernize-avoid-c-arrays)
+  using namespace rtl; // NOLINT(google-build-using-namespace)
 ## for statement in statements
 ## if (statement.dscr |length) > 0
  /**
@@ -27,21 +29,106 @@ namespace dbx
     class column
     {
       public:
-      private:
+        /// --- constructors and destructor -----------------------------------
+        column() = default;
+        ~column() = default;
+        column(const column& o) = default;
+        column(column&& o) = default;
+        column& operator=(const column& o) = default;
+        column& operator=(column&& o) = default;
+        /// --- column/parameter widths ---------------------------------------
+        /// ------ char values length without trailing 0 ----------------------
+        /// ------ atomic and structures size in bytes ------------------------
 ##    for col in statement.column
-        std::array<{{col.storage}}, 1> {{col.name}}_{};
+        static constexpr const size_t l_{{col.name}} = {{col.size}};
+##    endfor
+        /// --- getters -------------------------------------------------------
+##    for col in statement.column
+         [[nodiscard]]{{col.as-result}} {{col.name}}(size_t row=0) const {{col.getter-code}}
+##    endfor
+        /// --- null getters --------------------------------------------------
+##    for col in statement.column
+         [[nodiscard]]bool is_{{col.name}}_null(size_t row=0) const {return SQL_NULL_DATA == len_{{col.name}}_.at(row);}
+##    endfor
+        /// --- length getters ------------------------------------------------
+##    for col in statement.column
+         [[nodiscard]]size_t {{col.name}}_length(size_t row=0) const {auto l = len_{{col.name}}_.at(row); return (SQL_NULL_DATA != l)?l:0;}
+##    endfor
+        /// --- setters -------------------------------------------------------
+##    for col in statement.column
+         void set_{{col.name}}(const {{col.as-param}}& v, size_t row=0) {{col.setter-code}}
+##    endfor
+        /// --- null setters --------------------------------------------------
+##    for col in statement.column
+         void set_{{col.name}}_null(size_t row=0) { len_{{col.name}}_.at(row) = SQL_NULL_DATA;}
+##    endfor
+      private:
+        /// --- members -------------------------------------------------------
+##    for col in statement.column
+        std::array<{{col.storage}}, {{statement.res-set-size}}> {{col.name}}_{};
+##    endfor
+        /// --- length or NULL indicators -------------------------------------
+        /// ------ positive values actual length ------------------------------
+        /// ------ SQL_NULL_DATA - sql null value -----------------------------
+        /// ------ SQL_NTS - null terminated string ---------------------------
+##    for col in statement.column
+        std::array<int32_t, {{statement.res-set-size}}> len_{{col.name}}_{};
 ##    endfor
     }; // class column
 ##  endif
 ##  if (statement.param|length) > 0
     ///////////////////////////////////////////////////////////////////////////
     /**
-     * buffer for sqk statement parameters
+     * buffer for sql statement parameters
      */
     class param
     {
       public:
+        /// --- constructors and destructor -----------------------------------
+        param() = default;
+        ~param() = default;
+        param(const param& o) = default;
+        param(param&& o) = default;
+        param& operator=(const param& o) = default;
+        param& operator=(param&& o) = default;
+        /// --- column/parameter widths ---------------------------------------
+        /// ------ char values length without trailing 0 ----------------------
+        /// ------ atomic and structures size in bytes ------------------------
+##    for par in statement.param
+        static constexpr const size_t l_{{par.name}} = {{par.size}};
+##    endfor
+        /// --- getters -------------------------------------------------------
+##    for par in statement.param
+         [[nodiscard]]{{par.as-result}} {{par.name}}(size_t row=0) const {{par.getter-code}}
+##    endfor
+        /// --- null getters --------------------------------------------------
+##    for par in statement.param
+         [[nodiscard]]bool is_{{par.name}}_null(size_t row=0) const {return SQL_NULL_DATA == len_{{par.name}}_.at(row);}
+##    endfor
+        /// --- length getters ------------------------------------------------
+##    for par in statement.param
+         [[nodiscard]]size_t {{par.name}}_length(size_t row=0) const {auto l = len_{{par.name}}_.at(row); return (SQL_NULL_DATA != l)?l:0;}
+##    endfor
+        /// --- setters -------------------------------------------------------
+##    for par in statement.param
+         void set_{{par.name}}(const {{par.as-param}}& v, size_t row=0) {{par.setter-code}}
+##    endfor
+        /// --- null setters --------------------------------------------------
+##    for par in statement.param
+         void set_{{par.name}}_null(size_t row=0) { len_{{par.name}}_.at(row) = SQL_NULL_DATA;}
+##    endfor
       private:
+        /// --- members -------------------------------------------------------
+##    for par in statement.param
+        std::array<{{par.storage}}, {{statement.par-set-size}}> {{par.name}}_{};
+##    endfor
+        /// --- length or NULL indicators -------------------------------------
+        /// ------ positive values actual length ------------------------------
+        /// ------ SQL_NULL_DATA - sql null value -----------------------------
+        /// ------ SQL_NTS - null terminated string ---------------------------
+##    for par in statement.param
+        std::array<int32_t, {{statement.par-set-size}}> len_{{par.name}}_{};
+##    endfor
     }; // class param
 ##  endif
     ///////////////////////////////////////////////////////////////////////////
@@ -58,7 +145,7 @@ namespace dbx
       )";
     }; // class qry
 
-    enum class columns
+    {# enum class columns
     {
 ## for column in statement.column
       {{column.name}} = {{column.index}}{%if column != last(statement.column)%},{%endif%}
@@ -69,8 +156,8 @@ namespace dbx
 ## for param in statement.param
       {{param.name}} = {{param.index}}{%if param != last(statement.param)%},{%endif%}
 ## endfor
-
-    };
+    }; #}
   }; // namespace s_{{statement.id}}
 ## endfor
+  // NOLINTEND(hicpp-avoid-c-arrays, cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
 }; // namespace dbx

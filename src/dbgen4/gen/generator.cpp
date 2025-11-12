@@ -1,8 +1,10 @@
 #include "generator.hpp"
+#include "cli_constants.hpp"
 #include "common.hpp"
 #include "context.hpp"
 #include "inja.hpp"
 #include "parser_errors.hpp"
+// #include <climits>
 #include <expected>
 #include <filesystem>
 #include <stdexcept>
@@ -124,10 +126,104 @@ namespace dbgen4
       return std::unexpected(exit_status_enum::unhandled_exception);
     }
   }
-
+  /**
+   * @brief fetch reference to command line instance
+   *
+   * @return const cmd_line_params&
+   */
   const cmd_line_params& generator::cmd() const { return ctx().cmd(); }
-
-  // void generator::set_cmd(cmd_line_params* cmd) { cmd_ = cmd; }
+  /**
+   * @brief generates member storage type <atomic type> | <string type>
+   *
+   * - atomic or structure type : just atomic type (e.g. real)
+   * - string type (char, wchar, binary) : <basic-type>[<len>+1] (e.g. char[l_col+1])
+   * - binary string type (binary) : <basic-type>[<len>] (e.g. char[l_col])
+   * @param sql_type
+   * @param name
+   * @return str_t
+   */
+  str_t generator::attr_storage_type(rtl::sql_type sql_type, const str_t& name)
+  {
+    const auto* dscr    = rtl::get_sql_mapping(sql_type);
+    auto        col_cat = dscr->category;
+    switch (col_cat)
+    {
+    case rtl::sql_cat::atomic:
+    case rtl::sql_cat::structure: return fmt::format("{}", dscr->cpp_type_name);
+    case rtl::sql_cat::c_string:
+    case rtl::sql_cat::w_string: return fmt::format("{0}[l_{1}+1]", dscr->cpp_type_name, name);
+    case rtl::sql_cat::b_string: return fmt::format("{0}[l_{1}]", dscr->cpp_type_name, name);
+    default: __builtin_unreachable();
+    }
+  }
+  /**
+   * @brief getter implementation code
+   * atomic, structure : return <name>.at(row);
+   * strings (char, wchar, binary): return { &<name>_.at(row)[0], l_<name>};
+   *
+   * @param sql_type type of the column/param
+   * @param name  name of column/param
+   * @return str_t implementation code
+   */
+  str_t generator::attr_getter_code(rtl::sql_type sql_type, const str_t& name)
+  {
+    const auto* dscr    = rtl::get_sql_mapping(sql_type);
+    auto        col_cat = dscr->category;
+    switch (col_cat)
+    {
+    case rtl::sql_cat::atomic:
+    case rtl::sql_cat::structure: return fmt::format("{{ return {0}_.at(row);}}", name);
+    case rtl::sql_cat::c_string:
+    case rtl::sql_cat::w_string:
+    case rtl::sql_cat::b_string:
+      return fmt::format("{{ return {{&{0}_.at(row)[0], l_{0} }};}}",
+                         name); // FIXME actual length not max length
+    default: __builtin_unreachable();
+    }
+  }
+  str_t generator::attr_setter_code(rtl::sql_type sql_type, const str_t& name)
+  {
+    const auto* dscr    = rtl::get_sql_mapping(sql_type);
+    auto        col_cat = dscr->category;
+    switch (col_cat)
+    {
+    case rtl::sql_cat::atomic:
+    case rtl::sql_cat::structure: return fmt::format("{{ {0}_.at(row) = v;}}", name);
+    case rtl::sql_cat::c_string:
+      return fmt::format( //
+        "{{"
+        "auto l = std::min(v.size(), l_{0}); "
+        "if (l > std::numeric_limits<std::int32_t>::max()) throw std::out_of_range(\"Value size is "
+        "too big.\");"
+        "len_{0}_.at(row) = static_cast<int32_t>(l);"
+        "auto pos = v.copy(&{0}_.at(row)[0], l,0);"
+        "{0}_.at(row)[pos] = '\\0'; /*safety*/"
+        "}}",
+        name);
+    case rtl::sql_cat::w_string:
+      return fmt::format( //
+        "{{"
+        "auto l = std::min(v.size(), l_{0}); "
+        "if (l > std::numeric_limits<std::int32_t>::max()) throw std::out_of_range(\"Value size is "
+        "too big.\");"
+        "len_{0}_.at(row) = static_cast<int32_t>(l);"
+        "auto pos = v.copy(&{0}_.at(row)[0], l,0);"
+        "{0}_.at(row)[pos] = L'\\0'; /*safety*/"
+        "}}",
+        name);
+    case rtl::sql_cat::b_string:
+      return fmt::format( // (no final 0 on purpose)
+        "{{"
+        "auto l = std::min(v.size(), l_{0}); "
+        "if (l > std::numeric_limits<std::int32_t>::max()) throw std::out_of_range(\"Value size is "
+        "too big.\");"
+        "len_{0}_.at(row) = static_cast<int32_t>(l);"
+        "v.copy(&{0}_.at(row)[0], l,0);"
+        "}}",
+        name);
+    default: __builtin_unreachable();
+    }
+  }
 
   e_json generator::internal_model_to_json(const data_statements& s)
   {
@@ -142,41 +238,49 @@ namespace dbgen4
     for (const auto& stmt : s.map() | std::views::values)
     {
       json jstmt;
-      jstmt["id"]     = stmt.id();
-      jstmt["sql"]    = prefix_text(stmt.sql(), 10);                             // no offset NOLINT
-      jstmt["dscr"]   = stmt.dscr().empty() ? "" : prefix_text(stmt.dscr(), 10); // NOLINT
+      jstmt["id"]           = stmt.id();
+      jstmt["sql"]          = prefix_text(stmt.sql(), 10); // no offset NOLINT
+      jstmt["dscr"]         = stmt.dscr().empty() ? "" : prefix_text(stmt.dscr(), 10); // NOLINT
+      jstmt["res-set-size"] = stmt.res_set_size();
+      jstmt["par-set-size"] = stmt.par_set_size();
+
       jstmt["column"] = json::array();
       jstmt["param"]  = json::array();
-      // jstmt["column"] = stmt.columns;
       for (const auto& col : stmt.columns())
       {
-        json jcol;
-        jcol["index"]          = col.index;
-        jcol["name"]           = col.name;
-        jcol["type"]           = ME::enum_name(col.type);
-        jcol["type_name"]      = get_sql_mapping(col.type)->c_mnemonic;
-        jcol["odbc_name_type"] = col.odbc_type;
-        jcol["size"]           = col.size;
-        jcol["digits"]         = col.digits;
-        jcol["nullable"]       = col.nullable;
-        jcol["result"]         = get_sql_mapping(col.type)->ret_type_name;
-        jcol["storage"]        = get_sql_mapping(col.type)->cpp_type_name;
-        jstmt["column"].push_back(jcol);
+        json tmp_col;
+        tmp_col["index"]          = col.index;
+        tmp_col["name"]           = col.name;
+        tmp_col["type"]           = ME::enum_name(col.type);
+        tmp_col["type_name"]      = get_sql_mapping(col.type)->c_mnemonic;
+        tmp_col["odbc_name_type"] = col.odbc_type;
+        tmp_col["size"]           = col.size;
+        tmp_col["digits"]         = col.digits;
+        tmp_col["nullable"]       = col.nullable;
+        tmp_col["as-param"]       = get_sql_mapping(col.type)->par_type_name;
+        tmp_col["as-result"]      = get_sql_mapping(col.type)->ret_type_name;
+        tmp_col["storage"]        = attr_storage_type(col.type, col.name);
+        tmp_col["getter-code"]    = attr_getter_code(col.type, col.name);
+        tmp_col["setter-code"]    = attr_setter_code(col.type, col.name);
+        jstmt["column"].push_back(tmp_col);
       }
       for (const auto& par : stmt.params())
       {
-        json jpar;
-        jpar["index"]          = par.index;
-        jpar["name"]           = par.name;
-        jpar["type"]           = ME::enum_name(par.type);
-        jpar["type_name"]      = get_sql_mapping(par.type)->c_mnemonic;
-        jpar["odbc_name_type"] = par.odbc_type;
-        jpar["size"]           = par.size;
-        jpar["digits"]         = par.digits;
-        jpar["nullable"]       = par.nullable;
-        jpar["parameter"]      = get_sql_mapping(par.type)->par_type_name;
-        jpar["storage"]        = get_sql_mapping(par.type)->cpp_type_name;
-        jstmt["param"].push_back(jpar);
+        json tmp_col;
+        tmp_col["index"]          = par.index;
+        tmp_col["name"]           = par.name;
+        tmp_col["type"]           = ME::enum_name(par.type);
+        tmp_col["type_name"]      = get_sql_mapping(par.type)->c_mnemonic;
+        tmp_col["odbc_name_type"] = par.odbc_type;
+        tmp_col["size"]           = par.size;
+        tmp_col["digits"]         = par.digits;
+        tmp_col["nullable"]       = par.nullable;
+        tmp_col["as-param"]       = get_sql_mapping(par.type)->par_type_name;
+        tmp_col["as-result"]      = get_sql_mapping(par.type)->ret_type_name;
+        tmp_col["storage"]        = attr_storage_type(par.type, par.name);
+        tmp_col["getter-code"]    = attr_getter_code(par.type, par.name);
+        tmp_col["setter-code"]    = attr_setter_code(par.type, par.name);
+        jstmt["param"].push_back(tmp_col);
       }
 
       j["statements"].push_back(jstmt);

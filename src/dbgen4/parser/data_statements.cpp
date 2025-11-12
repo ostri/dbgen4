@@ -20,20 +20,16 @@ namespace dbgen4
     auto summary_str     = offset_text(summary_, text_ident + 2);
     auto description_str = offset_text(description_, text_ident + 2);
     auto msg = fmt::format(R"(
-  {}Document description
-  {}  summary: {}
-  {}  dscription: {}
-  {}  filename: {}
-  {}  statements:{}
+  {0}Document description
+  {0}  summary: {1}
+  {0}  dscription: {2}
+  {0}  filename: {4}
+  {0}  statements:{4}
   )", /// this new line is on purpose to delimit sql statement from the metadata
                            left_padding,    /// document description
-                           left_padding,    ///
                            summary_str,     /// summary
-                           left_padding,    ///
                            description_str, /// description
-                           left_padding,    ///
                            filename_,       //// filename
-                           left_padding,    ///
                            stmt_str         /// statements
     );
     return msg;

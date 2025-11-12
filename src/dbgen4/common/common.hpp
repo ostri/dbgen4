@@ -63,4 +63,6 @@ namespace dbgen4
   using e_string_ = std::expected<str_t, str_t>;
   e_string_                  read_file(const str_t& filename);
   [[maybe_unused]] e_string_ write_file(const str_t& filename, const str_t& contents);
+
+  std::string lowercse(std::string_view vhodni_pogled);
 }; // namespace dbgen4

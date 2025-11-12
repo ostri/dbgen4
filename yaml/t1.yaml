@@ -7,6 +7,8 @@ statements:
 # - krneki:
 #   sql: select * from test
 - id: sql_1
+  result-size: 5
+  parameter-size: 2
   dscr: |
     long
     long

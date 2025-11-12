@@ -53,6 +53,7 @@ namespace dbgen4
     e_string   generate_file_through_template(const json& data, tpl_types tpl_type);
   private:
     spdlog::logger* log() { return log::get(); }; /// Member variables
+    str_t           attr_storage_type(rtl::sql_type sql_type, const str_t& name);
 
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     const context&   ctx_;      ///< command line parameters stucture (readonly, not owner)
@@ -69,5 +70,9 @@ namespace dbgen4
         {tpl_types::cpp, "{}/{}.cpp"},  // template for cpp filename
         {tpl_types::json, "{}/{}.json"} // template for json filename
       };
+
+    str_t attr_getter_code(rtl::sql_type sql_type, const str_t& name);
+
+    str_t attr_setter_code(rtl::sql_type sql_type, const str_t& name);
   };
 }; // namespace dbgen4

@@ -80,33 +80,33 @@ namespace dbgen4
    */
   e_data_statements parser::load_file_meta_data(const data_statements& s, rtl::db_db2& db) const
   {
-    rtl::qry_metadata res;          // temporary sql statement metadata as received from db2 rtl
-    data_statements   res_stmts{s}; // result statements with updated metadata
-    for (auto& stmt : s.map())
+    //    rtl::qry_metadata res;          // temporary sql statement metadata as received from db2
+    //    rtl
+    data_statements res_stmts{s}; // result statements with updated metadata
+    for (const auto& map_stmt_pair : s.map())
     { /// walking through whole list of statements in one file
-      auto sql_id = stmt.first;
-      auto sql    = stmt.second.sql();
-      auto dscr   = stmt.second.dscr();
-      /// extract metadata of one sql statement
+      // auto sql_id = stmt.first;
+      auto sql = map_stmt_pair.second.sql();
       auto res = db.get_sql_metadata(sql);
-      res.set_sql(sql);
-      res.set_id(sql_id);
-      res.set_dscr(dscr);
-      log()->debug(
-        R"(
-id: {} sts: {}
-sql: {})",
-        sql_id,
-        ME::enum_name<rtl::db_sts>(res.status()),
-        sql);
-      if (! res.is_success())
-        return std::unexpected(exit_status_enum::sql_syntax_err); // syntax error
+      if (! res)
+      {
+        log()->error("Invalid sql '{}' status: {} mnemonic {}",
+                     sql,
+                     ME::enum_integer(res.error()),
+                     ME::enum_name<rtl::db_sts>(res.error()));
+        return std::unexpected(exit_status_enum::sql_syntax_err);
+      }
+
       /// all ok. Update the sql description with metadata
-      log()->trace("meta data: {}", res.dump());
-      data_statement res_stmt(res); // convert type
+      log()->trace("meta data: {}", res.value().dump());
+      data_statement res_stmt(map_stmt_pair.second);
+      // res_stmt.set_par_set_size(map_stmt_pair.second.par_set_size());
+      // res_stmt.set_res_set_size(map_stmt_pair.second.res_set_size());
+      res_stmt.set_columns(res.value().columns());
+      res_stmt.set_params(res.value().params());
       res_stmts.add_statement_with_replace(
-        res_stmt); /// we are replacing existing statement values (meta data added, everything else
-                   /// the same)
+        res_stmt); /// we are replacing existing statement values (meta data added,
+                   /// everything else the same)
     };
     log()->info("{} sql statements processed", s.map().size());
     return res_stmts;
@@ -176,11 +176,18 @@ sql: {})",
         return std::unexpected(log_id_is_missing(yaml_stmt, stmts.map().size()));
       /// id is provided
       s.set_id(yaml_stmt["id"].as<str_t>());
-      if (yaml_stmt["dscr"].IsDefined())
-      {
-        s.set_dscr(yaml_stmt["dscr"].as<str_t>());
-        log()->debug("file {}: 'dscr' is optional, but it is provided '{}'", filename_, s.dscr());
-      }
+      /// dscr
+      if (yaml_stmt["dscr"].IsDefined()) s.set_dscr(yaml_stmt["dscr"].as<str_t>());
+      log()->debug("file {}: 'dscr' '{}'", filename_, s.dscr());
+      /// result-size
+      if (yaml_stmt["result-size"].IsDefined())
+        s.set_res_set_size(yaml_stmt["result-size"].as<size_t>());
+      log()->debug("file {}: 'result-size' is '{}'", filename_, s.res_set_size());
+      /// parameter-size
+      if (yaml_stmt["parameter-size"].IsDefined())
+        s.set_par_set_size(yaml_stmt["parameter-size"].as<size_t>());
+      log()->debug("file {}: 'parameter-size' is '{}'", filename_, s.par_set_size());
+
       /// check standard and rdbms specific sql statement. Specific version takes over.
       auto res = extract_sql_to_statement(yaml_stmt, s, db_type);
       if (! res) return std::unexpected(no_sql_found(s.id()));

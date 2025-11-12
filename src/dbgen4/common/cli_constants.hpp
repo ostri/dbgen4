@@ -110,20 +110,20 @@ namespace rtl
   };
 
   // === ODBC strukture ===
-  struct SQL_DATE_STRUCT
-  {
-    SQLSMALLINT  year;
-    SQLUSMALLINT month, day;
-  } __attribute__((aligned(8))); // NOLINT
-  struct SQL_TIME_STRUCT
-  {
-    SQLUSMALLINT hour, minute, second;
-  } __attribute__((aligned(8))); // NOLINT
-  struct SQL_TIMESTAMP_STRUCT
-  {
-    SQLSMALLINT year, month, day, hour, minute, second;
-    SQLUINTEGER fraction;
-  } __attribute__((aligned(16))); // NOLINT
+  // struct SQL_DATE_STRUCT
+  // {
+  //   SQLSMALLINT  year;
+  //   SQLUSMALLINT month, day;
+  // } __attribute__((aligned(8))); // NOLINT
+  // struct SQL_TIME_STRUCT
+  // {
+  //   SQLUSMALLINT hour, minute, second;
+  // } __attribute__((aligned(8))); // NOLINT
+  // struct SQL_TIMESTAMP_STRUCT
+  // {
+  //   SQLSMALLINT year, month, day, hour, minute, second;
+  //   SQLUINTEGER fraction;
+  // } __attribute__((aligned(16))); // NOLINT
   struct SQL_GUID_
   {
     SQLUINTEGER Data1;
@@ -182,28 +182,28 @@ namespace rtl
         add(sql_type::bit,        c_sql_type::c_bit,       "SQL_C_BIT",       sql_cat::atomic, "bool",    "bool",    "bool");
 
         // === 2. 8-bit stringi (SQL_C_CHAR) ===
-        add(sql_type::char_,           c_sql_type::c_char, "SQL_C_CHAR", sql_cat::c_string, "str_t", "str_t", "str_t");
-        add(sql_type::numeric,         c_sql_type::c_char, "SQL_C_CHAR", sql_cat::c_string, "str_t", "str_t", "str_t");
-        add(sql_type::decimal,         c_sql_type::c_char, "SQL_C_CHAR", sql_cat::c_string, "str_t", "str_t", "str_t");
-        add(sql_type::var_char,        c_sql_type::c_char, "SQL_C_CHAR", sql_cat::c_string, "str_t", "str_t", "str_t");
-        add(sql_type::decfloat,        c_sql_type::c_char, "SQL_C_CHAR", sql_cat::c_string, "str_t", "str_t", "str_t");
-        add(sql_type::long_var_char,   c_sql_type::c_char, "SQL_C_CHAR", sql_cat::c_string, "str_t", "str_t", "str_t");
-        add(sql_type::clob,            c_sql_type::c_char, "SQL_C_CHAR", sql_cat::c_string, "str_t", "str_t", "str_t");
-        add(sql_type::xml,             c_sql_type::c_char, "SQL_C_CHAR", sql_cat::c_string, "str_t", "str_t", "str_t");
+        add(sql_type::char_,           c_sql_type::c_char, "SQL_C_CHAR", sql_cat::c_string, "char", "cstr_t", "cstr_t");
+        add(sql_type::numeric,         c_sql_type::c_char, "SQL_C_CHAR", sql_cat::c_string, "char", "cstr_t", "cstr_t");
+        add(sql_type::decimal,         c_sql_type::c_char, "SQL_C_CHAR", sql_cat::c_string, "char", "cstr_t", "cstr_t");
+        add(sql_type::var_char,        c_sql_type::c_char, "SQL_C_CHAR", sql_cat::c_string, "char", "cstr_t", "cstr_t");
+        add(sql_type::decfloat,        c_sql_type::c_char, "SQL_C_CHAR", sql_cat::c_string, "char", "cstr_t", "cstr_t");
+        add(sql_type::long_var_char,   c_sql_type::c_char, "SQL_C_CHAR", sql_cat::c_string, "char", "cstr_t", "cstr_t");
+        add(sql_type::clob,            c_sql_type::c_char, "SQL_C_CHAR", sql_cat::c_string, "char", "cstr_t", "cstr_t");
+        add(sql_type::xml,             c_sql_type::c_char, "SQL_C_CHAR", sql_cat::c_string, "char", "cstr_t", "cstr_t");
 
         // === 3. 16-bit stringi (SQL_C_WCHAR) ===
-        add(sql_type::wchar,           c_sql_type::c_wchar, "SQL_C_WCHAR", sql_cat::w_string, "wstr_t", "wstr_t", "wstr_t");
-        add(sql_type::wvar_char,       c_sql_type::c_wchar, "SQL_C_WCHAR", sql_cat::w_string, "wstr_t", "wstr_t", "wstr_t");
-        add(sql_type::wlong_var_char,  c_sql_type::c_wchar, "SQL_C_WCHAR", sql_cat::w_string, "wstr_t", "wstr_t", "wstr_t");
-        add(sql_type::graphic,         c_sql_type::c_wchar, "SQL_C_WCHAR", sql_cat::w_string, "wstr_t", "wstr_t", "wstr_t");
-        add(sql_type::var_graphic,     c_sql_type::c_wchar, "SQL_C_WCHAR", sql_cat::w_string, "wstr_t", "wstr_t", "wstr_t");
-        add(sql_type::dbclob,          c_sql_type::c_wchar, "SQL_C_WCHAR", sql_cat::w_string, "wstr_t", "wstr_t", "wstr_t");
+        add(sql_type::wchar,           c_sql_type::c_wchar, "SQL_C_WCHAR", sql_cat::w_string, "wchar_t", "wcstr_t", "wcstr_t");
+        add(sql_type::wvar_char,       c_sql_type::c_wchar, "SQL_C_WCHAR", sql_cat::w_string, "wchar_t", "wcstr_t", "wcstr_t");
+        add(sql_type::wlong_var_char,  c_sql_type::c_wchar, "SQL_C_WCHAR", sql_cat::w_string, "wchar_t", "wcstr_t", "wcstr_t");
+        add(sql_type::graphic,         c_sql_type::c_wchar, "SQL_C_WCHAR", sql_cat::w_string, "wchar_t", "wcstr_t", "wcstr_t");
+        add(sql_type::var_graphic,     c_sql_type::c_wchar, "SQL_C_WCHAR", sql_cat::w_string, "wchar_t", "wcstr_t", "wcstr_t");
+        add(sql_type::dbclob,          c_sql_type::c_wchar, "SQL_C_WCHAR", sql_cat::w_string, "wchar_t", "wcstr_t", "wcstr_t");
 
         // === 4. Binarno (SQL_C_BINARY) ===
-        add(sql_type::binary,          c_sql_type::c_binary, "SQL_C_BINARY", sql_cat::b_string, "bstr_t", "bstr_t", "bstr_t");
-        add(sql_type::var_binary,      c_sql_type::c_binary, "SQL_C_BINARY", sql_cat::b_string, "bstr_t", "bstr_t", "bstr_t");
-        add(sql_type::long_var_binary, c_sql_type::c_binary, "SQL_C_BINARY", sql_cat::b_string, "bstr_t", "bstr_t", "bstr_t");
-        add(sql_type::blob,            c_sql_type::c_binary, "SQL_C_BINARY", sql_cat::b_string, "bstr_t", "bstr_t", "bstr_t");
+        add(sql_type::binary,          c_sql_type::c_binary, "SQL_C_BINARY", sql_cat::b_string, "uint8_t", "bcstr_t", "bcstr_t");
+        add(sql_type::var_binary,      c_sql_type::c_binary, "SQL_C_BINARY", sql_cat::b_string, "uint8_t", "bcstr_t", "bcstr_t");
+        add(sql_type::long_var_binary, c_sql_type::c_binary, "SQL_C_BINARY", sql_cat::b_string, "uint8_t", "bcstr_t", "bcstr_t");
+        add(sql_type::blob,            c_sql_type::c_binary, "SQL_C_BINARY", sql_cat::b_string, "uint8_t", "bcstr_t", "bcstr_t");
 
         // === 5. Strukture ===
         // Date/Time

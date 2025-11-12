@@ -215,7 +215,11 @@ namespace rtl
     return static_cast<db_sts>(ret);
   }
 
-  // Implementacija metode rollback()
+  /**
+   * @brief db rolback transaction
+   *
+   * @return db_sts
+   */
   db_sts db_db2::rollback()
   {
     if (data()->conn_handle == 0)
@@ -236,67 +240,6 @@ namespace rtl
     return static_cast<db_sts>(ret);
   }
 
-  // std::vector<std::vector<std::string>> db_db2::executeQuery(const std::string& query)
-  // {
-  //   if (data()->conn_handle == 0) { throw std::runtime_error("No active database connection"); }
-
-  //   // Inicializacija statement ročaja
-  //   SQLRETURN ret = SQLAllocHandle(SQL_HANDLE_STMT, data()->conn_handle, &data()->stmt_handle);
-  //   chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, "allocating statement handle");
-
-  //   // Izvedba poizvedbe
-  //   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-cstyle-cast, google-readability-casting)
-  //   ret = SQLExecDirect(data()->stmt_handle, (SQLCHAR*)query.c_str(), SQL_NTS);
-  //   chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, "executing query");
-
-  //   // Pridobivanje števila stolpcev
-  //   SQLSMALLINT num_columns;
-  //   ret = SQLNumResultCols(data()->stmt_handle, &num_columns);
-  //   chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, "getting number of columns");
-
-  //   // Shranjevanje rezultatov
-  //   constexpr SQLSMALLINT                 buffer_size = 1024;
-  //   std::array<SQLCHAR, buffer_size>      buffer{};
-  //   int32_t                                indicator;
-  //   std::vector<std::vector<std::string>> results;
-  //   while ((ret = SQLFetch(data()->stmt_handle)) == SQL_SUCCESS)
-  //   {
-  //     std::vector<std::string> row;
-  //     for (SQLSMALLINT i = 1; i <= num_columns; ++i)
-  //     {
-  //       ret =
-  //         SQLGetData(data()->stmt_handle, i, SQL_C_CHAR, buffer.data(), buffer.size(),
-  //         &indicator);
-  //       chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, "getting column data");
-  //       row.push_back(indicator == SQL_NULL_DATA
-  //                       ? "NULL"
-  //                       : std::string(buffer.begin(), buffer.begin() + indicator));
-  //     }
-  //     results.push_back(row);
-  //   }
-
-  //   return results;
-  // }
-
-  // void db_db2::executeNonQuery(const std::string& sql)
-  // {
-  //   if (data()->conn_handle == 0) { throw std::runtime_error("No active database connection"); }
-
-  //   // Inicializacija statement ročaja
-
-  //   SQLRETURN ret = SQLAllocHandle(SQL_HANDLE_STMT, data()->conn_handle, &data()->stmt_handle);
-  //   chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, "allocating statement handle");
-
-  //   // clang-format off
-  //   // Izvedba ukaza
-  //   ret = SQLExecDirect(
-  //     data()->stmt_handle,
-  //     reinterpret_cast<SQLCHAR*>(const_cast<char*>(sql.c_str())), //
-  //     NOLINT(cppcoreguidelines-pro-type-reinterpret-cast, cppcoreguidelines-pro-type-const-cast)
-  //     SQL_NTS);
-  //   chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, "executing non-query");
-  //   // clang-format on
-  // }
   db_data_db2* db_db2::data() const { return dynamic_cast<db_data_db2*>(data_.get()); };
   /**
    * @brief cleaning stuff before finishing the operation
@@ -306,14 +249,13 @@ namespace rtl
    * @param err_code error code to be reported back
    * @return qry_metadata
    */
-  qry_metadata db_db2::error_cleanup(SQLRETURN ret, const std::string& msg, db_sts err_code)
+  e_qry_metadata db_db2::error_cleanup(SQLRETURN ret, const std::string& msg, db_sts err_code)
   {
-    qry_metadata result{};
+    // qry_metadata result{};
     chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, msg);
     rollback();
     free_stmt_handle();
-    result.set_status(err_code);
-    return result;
+    return std::unexpected(err_code);
   }
 
   /**
@@ -324,15 +266,14 @@ namespace rtl
    * @param sql sql statement to be analyzed to get the meta data
    * @return qry_metadata metadata or error code
    */
-  qry_metadata db_db2::get_sql_metadata(const std::string& sql)
+  e_qry_metadata db_db2::get_sql_metadata(const std::string& sql)
   {
     qry_metadata result{};
 
     if (data()->conn_handle == 0) [[unlikely]]
     {
       log()->error("get_sql_metadata: No active database connection");
-      result.set_status(db_sts::connection_error);
-      return result;
+      return std::unexpected(db_sts::connection_error);
     }
 
     // --- Allocate statement handle ---
@@ -407,7 +348,7 @@ namespace rtl
       if (is_success(static_cast<db_sts>(ret))) [[likely]]
       {
         col.index = i;
-        col.name  = std::string(col_name.begin(), col_name.begin() + name_len);
+        col.name  = dbgen4::lowercse(std::string(col_name.begin(), col_name.begin() + name_len));
         col.type  = static_cast<sql_type>(col.odbc_type);
         result.add_col_dscr(col);
       }
@@ -421,7 +362,7 @@ namespace rtl
     // --- Cleanup ---
     rollback();
     free_stmt_handle();
-    result.set_status(db_sts::success);
+
     return result;
   }
 
@@ -459,51 +400,49 @@ namespace rtl
   }
 
 
-  db_sts qry_metadata::status() const { return status_; }
+  // db_sts qry_metadata::status() const { return status_; }
 
   meta_vec qry_metadata::columns() const { return columns_; }
 
-  void qry_metadata::set_columns(const meta_vec& columns) { columns_ = columns; }
+  // void qry_metadata::set_columns(const meta_vec& columns) { columns_ = columns; }
 
   meta_vec qry_metadata::params() const { return params_; }
 
-  void qry_metadata::set_params(const meta_vec& params) { params_ = params; }
+  // void qry_metadata::set_params(const meta_vec& params) { params_ = params; }
 
-  std::string qry_metadata::dscr() const { return dscr_; }
+  // std::string qry_metadata::dscr() const { return dscr_; }
 
-  void qry_metadata::set_dscr(const std::string& dscr) { dscr_ = dscr; }
+  // void qry_metadata::set_dscr(const std::string& dscr) { dscr_ = dscr; }
 
   void qry_metadata::add_col_dscr(const meta_dscr& dscr) { columns_.push_back(dscr); }
 
   void qry_metadata::add_par_dscr(const meta_dscr& dscr) { params_.push_back(dscr); }
 
-  std::string qry_metadata::sql() const { return sql_; }
+  // std::string qry_metadata::sql() const { return sql_; }
 
-  qry_metadata::qry_metadata(std::string id,
-                             std::string sql,
-                             std::string dscr,
-                             meta_vec    columns,
-                             meta_vec    params)
-  : id_(std::move(id))
-  , sql_(std::move(sql))
-  , dscr_(std::move(dscr))
-  , columns_(std::move(columns))
-  , params_(std::move(params))
-  {
-  }
+  // qry_metadata::qry_metadata(std::string sql,
 
-  std::string qry_metadata::id() const { return id_; }
+  //                            meta_vec columns,
+  //                            meta_vec params)
+  // : sql_(std::move(sql))
 
-  void qry_metadata::set_id(const std::string& id) { id_ = id; }
+  // , columns_(std::move(columns))
+  // , params_(std::move(params))
+  // {
+  // }
 
-  void qry_metadata::set_status(const db_sts& status) { status_ = status; }
+  // std::string qry_metadata::id() const { return id_; }
 
-  void qry_metadata::set_sql(const std::string& sql) { sql_ = sql; }
+  //  void qry_metadata::set_id(const std::string& id) { id_ = id; }
 
-  bool qry_metadata::is_success() const noexcept
-  {
-    return ((db_sts::success == status_) || (db_sts::success_with_info == status_));
-  }
+  // void qry_metadata::set_status(const db_sts& status) { status_ = status; }
+
+  // void qry_metadata::set_sql(const std::string& sql) { sql_ = sql; }
+
+  // bool qry_metadata::is_success() const noexcept
+  // {
+  //   return ((db_sts::success == status_) || (db_sts::success_with_info == status_));
+  // }
 
   std::string qry_metadata::dump_meta_vector(const char*     fmt,
                                              const char*     header,
@@ -536,19 +475,13 @@ namespace rtl
     auto col = dump_meta_vector(fmt, msg_hdr.c_str(), columns_);
     auto par = dump_meta_vector(fmt, msg_hdr.c_str(), params_);
     auto msg = fmt::format(R"(
-    id: {}
-    sql: {}
-    dscr: {}
-    status {}
-    columns: {}
+     columns: {}
 {}
     parameters: {}
 {}
   )",
-                           id_,
-                           sql_,
-                           dscr_,
-                           ME::enum_name<db_sts>(status_),
+                           //                           sql_,
+                           //                           ME::enum_name<db_sts>(status_),
                            columns_.size(),
                            col,
                            params_.size(),

@@ -4,23 +4,22 @@
 #include <fmt/format.h>
 namespace dbgen4
 {
-  data_statement::data_statement(const rtl::qry_metadata& o) { assign(o); }
+  /// data_statement::data_statement(const rtl::qry_metadata& o) { assign(o); }
 
-  data_statement& data_statement::operator=(const rtl::qry_metadata& o)
-  {
-    if ((id_ != o.id()) && ! id_.empty()) log()->warn("The keys are not the same. Possible bug");
-    assign(o);
-    return *this;
-  }
+  // data_statement& data_statement::operator=(const rtl::qry_metadata& o)
+  // {
+  //   assign(o);
+  //   return *this;
+  // }
 
-  void data_statement::assign(const rtl::qry_metadata& o)
-  {
-    id_      = o.id();
-    sql_     = o.sql();
-    dscr_    = o.dscr();
-    columns_ = o.columns();
-    params_  = o.params();
-  }
+  // void data_statement::assign(const rtl::qry_metadata& o)
+  // {
+  //   // id_      = o.id();
+  //   // sql_ = o.sql();
+  //   // dscr_    = o.dscr();
+  //   columns_ = o.columns();
+  //   params_  = o.params();
+  // }
 
   str_t data_statement::id() const { return id_; }
   str_t data_statement::sql() const { return sql_; }
@@ -87,24 +86,24 @@ namespace dbgen4
     str_t sql_str = offset_text(sql_, offs + 6);
 
     auto msg = fmt::format(R"(
-  {}id: '{}'
-  {}  description: {}
-  {}  sql:         {}
+  {0}id: '{1}'
+  {0}  description:    {2}
+  {0}  parameter-size: {3}
+  {0}  result-size     {4}
+  {0}  sql:         {5}
 
-  {}  columns: cnt:{}
-  {}
-  {}  params:  cnt:{}
-  {})",
+  {0}  columns: cnt:{6}
+  {0}
+  {0}  params:  cnt:{7}
+  {0})",
                            left_padding,    ///
                            id_,             /// unique id
-                           left_padding,    /// description
                            dscr_,           /// description
-                           left_padding,    ///
+                           par_set_size_,   /// parameter set size
+                           res_set_size_,   /// result set size
                            sql_str,         /// sql statement
-                           left_padding,    ///
                            columns_.size(), /// column count
                            col,             /// columns
-                           left_padding,    ///
                            params_.size(),  /// param count
                            par              /// params
     );
@@ -115,6 +114,10 @@ namespace dbgen4
 
   void data_statement::set_id(const str_t& id) { id_ = id; }
 
+  size_t data_statement::par_set_size() const { return par_set_size_; }
+
+  void data_statement::set_par_set_size(size_t par_set_size) { par_set_size_ = par_set_size; }
+
   meta_vec data_statement::columns() const { return columns_; }
 
   void data_statement::set_sql(const str_t& sql) { sql_ = trim_whitespace_view(sql); }
@@ -122,6 +125,10 @@ namespace dbgen4
   meta_vec data_statement::params() const { return params_; }
 
   void data_statement::set_dscr(const str_t& dscr) { dscr_ = dscr; }
+
+  size_t data_statement::res_set_size() const { return res_set_size_; }
+
+  void data_statement::set_res_set_size(size_t res_set_size) { res_set_size_ = res_set_size; }
 
   spdlog::logger* data_statement::log() const { return log::get(); }
 }; // namespace dbgen4
