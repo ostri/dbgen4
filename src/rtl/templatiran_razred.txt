@@ -1,0 +1,613 @@
+// BufferDesc.h
+#pragma once
+#include <sql.h>
+#include <sqlext.h>
+#include <span>
+
+struct BufferDescConst
+{
+  SQLSMALLINT value_type;
+  SQLSMALLINT param_type;
+  SQLULEN     column_size;
+  SQLSMALLINT decimal_digits;
+
+  constexpr BufferDescConst(SQLSMALLINT vt, SQLSMALLINT pt, SQLULEN cs, SQLSMALLINT dd)
+  : value_type(vt)
+  , param_type(pt)
+  , column_size(cs)
+  , decimal_digits(dd)
+  {
+  }
+};
+
+struct BufferDescInit
+{
+  void*   value_ptr;
+  SQLLEN* indicator_ptr;
+
+  BufferDescInit(void* vp, SQLLEN* ip)
+  : value_ptr(vp)
+  , indicator_ptr(ip)
+  {
+  }
+};
+
+-- -- -- -- -- -- -- -- -- -- -- -- -- --
+// types.h
+#pragma once
+#include <cstdint>
+#include <string>
+#include <string_view>
+
+                                       struct Date
+{
+  int16_t year;
+  int8_t  month;
+  int8_t  day;
+
+  std::string to_string() const
+  {
+    char buf[12];
+    std::snprintf(buf, sizeof(buf), "%04d-%02d-%02d", year, (int)month, (int)day);
+    return buf;
+  }
+};
+
+struct Timestamp
+{
+  int16_t  year;
+  int8_t   month;
+  int8_t   day;
+  int8_t   hour;
+  int8_t   minute;
+  int8_t   second;
+  uint32_t fraction;
+
+  std::string to_string() const
+  {
+    char buf[32];
+    std::snprintf(buf,
+                  sizeof(buf),
+                  "%04d-%02d-%02d %02d:%02d:%02d.%09u",
+                  year,
+                  (int)month,
+                  (int)day,
+                  (int)hour,
+                  (int)minute,
+                  (int)second,
+                  fraction);
+    return buf;
+  }
+};
+
+-- -- -- -- -- -- -- -- -- -- -- -
+// parameter_root.h
+#pragma once
+#include "BufferDesc.h"
+#include <span>
+
+                                 class parameter_root
+{
+public:
+  virtual ~parameter_root() = default;
+
+  static constexpr std::span<const BufferDescConst> buffer_description_const() noexcept
+  {
+    return {};
+  }
+
+  virtual std::span<const BufferDescInit> buffer_description_init() const = 0;
+  virtual void                            reset_all_null()                = 0;
+
+  static constexpr bool has_parameters() noexcept { return buffer_description_const().size() > 0; }
+};
+-- -- -- -- -- -- -- -
+// result_root.h
+#pragma once
+#include "BufferDesc.h"
+#include <span>
+
+                     class result_root
+{
+public:
+  virtual ~result_root() = default;
+
+  static constexpr std::span<const BufferDescConst> buffer_description_const() noexcept
+  {
+    return {};
+  }
+
+  virtual std::span<const BufferDescInit> buffer_description_init() const = 0;
+
+  static constexpr bool has_results() noexcept { return buffer_description_const().size() > 0; }
+};
+-- -- -- -- -- -- -- -- -- -- -
+// query.h
+#pragma once
+#include "BufferDesc.h"
+#include "parameter_root.h"
+#include "result_root.h"
+#include <sql.h>
+#include <sqlext.h>
+#include <span>
+#include <string>
+#include <stdexcept>
+#include <memory>
+#include <spdlog/spdlog.h>
+#include <type_traits>
+#include <format>
+
+                              namespace db
+{
+  struct Database
+  {
+    virtual ~Database()                                        = default;
+    virtual SQLHDBC                         get_conn() const   = 0;
+    virtual std::shared_ptr<spdlog::logger> get_logger() const = 0;
+  };
+
+  struct OdbcError
+  {
+    SQLRETURN   ret;
+    std::string message;
+    SQLSMALLINT rec_number                   = 0;
+    SQLCHAR     sql_state[6]                 = {};
+    SQLINTEGER  native_error                 = 0;
+    SQLCHAR     text[SQL_MAX_MESSAGE_LENGTH] = {};
+
+    OdbcError(SQLRETURN r, SQLHANDLE h, SQLSMALLINT t, SQLSMALLINT rec = 1)
+    : ret(r)
+    , rec_number(rec)
+    {
+      SQLGetDiagRec(t, h, rec_number, sql_state, &native_error, text, sizeof(text), nullptr);
+      message = std::string(reinterpret_cast<char*>(text));
+    }
+  };
+
+  // ====================================================================
+  // TEMPLATIRANI query – ZERO-COST, MINIMALEN, SEMANTIČNO ČIST
+  // ====================================================================
+  template <typename Params = parameter_root, typename Results = result_root>
+  class query
+  {
+    static_assert(std::is_base_of_v<parameter_root, Params>,
+                  "Params must inherit from parameter_root");
+    static_assert(std::is_base_of_v<result_root, Results>, "Results must inherit from result_root");
+
+    static constexpr bool HasParams  = Params::has_parameters();
+    static constexpr bool HasResults = Results::has_results();
+
+    const Database* db_   = nullptr;
+    SQLHSTMT        stmt_ = SQL_NULL_HSTMT;
+    std::string     sql_;
+
+    [[no_unique_address]] std::conditional_t<HasParams, std::shared_ptr<Params>, std::monostate>
+      par_;
+    [[no_unique_address]] std::conditional_t<HasResults, std::shared_ptr<Results>, std::monostate>
+      res_;
+
+    [[no_unique_address]] std::conditional_t<HasParams, SQLULEN, std::monostate> params_processed_ =
+      {};
+    [[no_unique_address]] std::conditional_t<HasResults, SQLULEN, std::monostate> rows_fetched_ =
+      {};
+  public:
+    explicit query(const Database* db, const std::string& sql)
+    : db_(db)
+    , sql_(sql)
+    {
+      if (! db_) throw std::invalid_argument("db pointer cannot be null");
+      if constexpr (HasParams) par_ = std::make_shared<Params>();
+      if constexpr (HasResults) res_ = std::make_shared<Results>();
+    }
+
+    ~query()
+    {
+      if (stmt_ != SQL_NULL_HSTMT) SQLFreeHandle(SQL_HANDLE_STMT, stmt_);
+    }
+
+    query(const query&)                = delete;
+    query& operator=(const query&)     = delete;
+    query(query&&) noexcept            = default;
+    query& operator=(query&&) noexcept = default;
+
+    // =================================================================
+    // prepare() – VSE: SQLPrepare, bind, SQLSetStmtAttr (samo če potrebno)
+    // =================================================================
+    void prepare()
+    {
+      auto    logger = db_->get_logger();
+      SQLHDBC conn   = db_->get_conn();
+
+      if (stmt_ != SQL_NULL_HSTMT) SQLFreeHandle(SQL_HANDLE_STMT, stmt_);
+      SQLHSTMT  new_stmt = SQL_NULL_HSTMT;
+      SQLRETURN ret      = SQLAllocHandle(SQL_HANDLE_STMT, conn, &new_stmt);
+      if (! SQL_SUCCEEDED(ret)) throw OdbcError(ret, conn, SQL_HANDLE_DBC);
+      stmt_ = new_stmt;
+
+      logger->debug("Preparing SQL: {}", sql_);
+      ret = SQLPrepare(stmt_, (SQLCHAR*)sql_.c_str(), SQL_NTS);
+      if (! SQL_SUCCEEDED(ret)) throw OdbcError(ret, stmt_, SQL_HANDLE_STMT);
+
+      // BIND PARAMETROV
+      if constexpr (HasParams)
+      {
+        constexpr auto param_const = Params::buffer_description_const();
+        auto           param_init  = par_->buffer_description_init();
+        for (constexpr size_t i = 0; i < param_const.size(); ++i)
+        {
+          const auto& c = param_const[i];
+          const auto& r = param_init[i];
+          ret           = SQLBindParameter(stmt_,
+                                 (SQLUSMALLINT)i + 1,
+                                 SQL_PARAM_INPUT,
+                                 c.value_type,
+                                 c.param_type,
+                                 c.column_size,
+                                 c.decimal_digits,
+                                 r.value_ptr,
+                                 0,
+                                 r.indicator_ptr);
+          if (! SQL_SUCCEEDED(ret)) throw OdbcError(ret, stmt_, SQL_HANDLE_STMT, i + 1);
+        }
+        SQLSetStmtAttr(stmt_, SQL_ATTR_PARAMSET_SIZE, (SQLPOINTER)Params::batch_size, 0);
+        SQLSetStmtAttr(stmt_, SQL_ATTR_PARAMS_PROCESSED_PTR, &params_processed_, 0);
+      }
+
+      // BIND STOLPCEV
+      if constexpr (HasResults)
+      {
+        constexpr auto result_const = Results::buffer_description_const();
+        auto           result_init  = res_->buffer_description_init();
+        for (constexpr size_t i = 0; i < result_const.size(); ++i)
+        {
+          const auto& c = result_const[i];
+          const auto& r = result_init[i];
+          ret =
+            SQLBindCol(stmt_, (SQLUSMALLINT)i + 1, c.value_type, r.value_ptr, 0, r.indicator_ptr);
+          if (! SQL_SUCCEEDED(ret)) throw OdbcError(ret, stmt_, SQL_HANDLE_STMT, i + 1);
+        }
+        SQLSetStmtAttr(stmt_, SQL_ATTR_ROW_ARRAY_SIZE, (SQLPOINTER)Results::batch_size, 0);
+        SQLSetStmtAttr(stmt_, SQL_ATTR_ROWS_FETCHED_PTR, &rows_fetched_, 0);
+      }
+
+      logger->info("Query prepared: params={}, results={}",
+                   HasParams ? "yes" : "no",
+                   HasResults ? "yes" : "no");
+    }
+
+    // =================================================================
+    // execute() – SAMO SQLExecute()
+    // =================================================================
+    void execute()
+    {
+      if (stmt_ == SQL_NULL_HSTMT) throw std::runtime_error("query not prepared");
+      auto logger = db_->get_logger();
+
+      SQLRETURN ret = SQLExecute(stmt_);
+      if (! SQL_SUCCEEDED(ret)) throw OdbcError(ret, stmt_, SQL_HANDLE_STMT);
+
+      logger->info("SQLExecute succeeded.{}",
+                   HasParams ? std::format(" {} params processed.", params_processed_) : "");
+    }
+
+    // =================================================================
+    // fetch()
+    // =================================================================
+    [[nodiscard]] size_t fetch()
+    {
+      if (stmt_ == SQL_NULL_HSTMT) throw std::runtime_error("query not prepared");
+      if constexpr (! HasResults) return 0;
+
+      auto logger   = db_->get_logger();
+      rows_fetched_ = 0;
+
+      SQLRETURN ret = SQLFetchScroll(stmt_, SQL_FETCH_NEXT, 0);
+      if (ret == SQL_NO_DATA) return 0;
+      if (! SQL_SUCCEEDED(ret)) throw OdbcError(ret, stmt_, SQL_HANDLE_STMT);
+
+      size_t count = static_cast<size_t>(rows_fetched_);
+      if (count > Results::batch_size) count = Results::batch_size;
+      logger->debug("Fetched {} rows", count);
+      return count;
+    }
+
+    // =================================================================
+    // DOSTOP
+    // =================================================================
+    [[nodiscard]] std::conditional_t<HasParams, std::shared_ptr<Params>, std::monostate>
+    get_param() noexcept
+    {
+      return HasParams ? par_ : std::monostate{};
+    }
+
+    [[nodiscard]] std::conditional_t<HasResults, std::shared_ptr<const Results>, std::monostate>
+    get_result() const noexcept
+    {
+      return HasResults ? res_ : std::monostate{};
+    }
+
+    [[nodiscard]] std::conditional_t<HasParams, SQLULEN, std::monostate> params_processed()
+      const noexcept
+    {
+      return HasParams ? params_processed_ : std::monostate{};
+    }
+
+    [[nodiscard]] std::conditional_t<HasResults, SQLULEN, std::monostate> rows_fetched()
+      const noexcept
+    {
+      return HasResults ? rows_fetched_ : std::monostate{};
+    }
+
+    // =================================================================
+    // reset()
+    // =================================================================
+    void reset()
+    {
+      if (stmt_ != SQL_NULL_HSTMT)
+      {
+        SQLFreeStmt(stmt_, SQL_RESET_PARAMS);
+        SQLFreeStmt(stmt_, SQL_UNBIND);
+        if constexpr (HasParams) params_processed_ = 0;
+        if constexpr (HasResults) rows_fetched_ = 0;
+      }
+      if constexpr (HasParams) par_->reset_all_null();
+    }
+
+    [[nodiscard]] bool is_prepared() const noexcept { return stmt_ != SQL_NULL_HSTMT; }
+  };
+
+} // namespace db
+-- -- -- -- -- -- -- -- -- -- -- -- -- -- -
+// Params_001.h
+#pragma once
+#include "parameter_root.h"
+#include "types.h"
+#include <array>
+#include <string_view>
+
+                                          class Params_001 : public parameter_root
+{
+public:
+  static constexpr size_t batch_size = 100;
+
+  static constexpr std::span<const BufferDescConst> buffer_description_const() noexcept
+  {
+    return std::span(const_desc_data);
+  }
+
+  std::span<const BufferDescInit> buffer_description_init() const override
+  {
+    static BufferDescInit init_data[] = {{id_.data(), id_ind_.data()},
+                                         {priimek_[0].data(), priimek_ind_.data()},
+                                         {datum_rojstva_.data(), datum_rojstva_ind_.data()},
+                                         {last_TS_.data(), last_TS_ind_.data()}};
+    return std::span(init_data, 4);
+  }
+
+  void reset_all_null() override
+  {
+    std::fill(id_ind_.begin(), id_ind_.end(), SQL_NULL_DATA);
+    std::fill(priimek_ind_.begin(), priimek_ind_.end(), SQL_NULL_DATA);
+    std::fill(datum_rojstva_ind_.begin(), datum_rojstva_ind_.end(), SQL_NULL_DATA);
+    std::fill(last_TS_ind_.begin(), last_TS_ind_.end(), SQL_NULL_DATA);
+  }
+
+  void set_id(int32_t val, size_t row = 0)
+  {
+    id_.at(row)     = val;
+    id_ind_.at(row) = sizeof(int32_t);
+  }
+
+  void set_priimek(const std::string_view& val, size_t row = 0)
+  {
+    auto&  buf = priimek_.at(row);
+    size_t len = std::min(val.size(), 20ULL);
+    val.copy(buf.data(), len);
+    buf[len]             = '\0';
+    priimek_ind_.at(row) = static_cast<SQLLEN>(len);
+  }
+
+  void set_datum_rojstva(const Date& val, size_t row = 0)
+  {
+    datum_rojstva_.at(row)     = val;
+    datum_rojstva_ind_.at(row) = sizeof(Date);
+  }
+
+  void set_last_TS(const Timestamp& val, size_t row = 0)
+  {
+    last_TS_.at(row)     = val;
+    last_TS_ind_.at(row) = sizeof(Timestamp);
+  }
+
+  void set_id_null(size_t row = 0) { id_ind_.at(row) = SQL_NULL_DATA; }
+  void set_priimek_null(size_t row = 0) { priimek_ind_.at(row) = SQL_NULL_DATA; }
+  void set_datum_rojstva_null(size_t row = 0) { datum_rojstva_ind_.at(row) = SQL_NULL_DATA; }
+  void set_last_TS_null(size_t row = 0) { last_TS_ind_.at(row) = SQL_NULL_DATA; }
+
+  [[nodiscard]] int32_t          get_id(size_t row = 0) const { return id_.at(row); }
+  [[nodiscard]] std::string_view get_priimek(size_t row = 0) const
+  {
+    SQLLEN len = priimek_ind_.at(row);
+    return len == SQL_NULL_DATA
+             ? std::string_view{}
+             : std::string_view(priimek_.at(row).data(), static_cast<size_t>(len));
+  }
+  [[nodiscard]] const Date& get_datum_rojstva(size_t row = 0) const
+  {
+    return datum_rojstva_.at(row);
+  }
+  [[nodiscard]] const Timestamp& get_last_TS(size_t row = 0) const { return last_TS_.at(row); }
+
+  [[nodiscard]] bool is_id_null(size_t row = 0) const { return id_ind_.at(row) == SQL_NULL_DATA; }
+  [[nodiscard]] bool is_priimek_null(size_t row = 0) const
+  {
+    return priimek_ind_.at(row) == SQL_NULL_DATA;
+  }
+  [[nodiscard]] bool is_datum_rojstva_null(size_t row = 0) const
+  {
+    return datum_rojstva_ind_.at(row) == SQL_NULL_DATA;
+  }
+  [[nodiscard]] bool is_last_TS_null(size_t row = 0) const
+  {
+    return last_TS_ind_.at(row) == SQL_NULL_DATA;
+  }
+private:
+  std::array<int32_t, batch_size>   id_;
+  std::array<char[21], batch_size>  priimek_;
+  std::array<Date, batch_size>      datum_rojstva_;
+  std::array<Timestamp, batch_size> last_TS_;
+
+  std::array<SQLLEN, batch_size> id_ind_;
+  std::array<SQLLEN, batch_size> priimek_ind_;
+  std::array<SQLLEN, batch_size> datum_rojstva_ind_;
+  std::array<SQLLEN, batch_size> last_TS_ind_;
+
+  static constexpr BufferDescConst const_desc_data[] = {
+    {SQL_C_LONG, SQL_INTEGER, 0, 0},
+    {SQL_C_CHAR, SQL_VARCHAR, 20, 0},
+    {SQL_C_TYPE_DATE, SQL_TYPE_DATE, 0, 0},
+    {SQL_C_TYPE_TIMESTAMP, SQL_TYPE_TIMESTAMP, 0, 0}};
+};
+-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+// Results_001.h
+#pragma once
+#include "result_root.h"
+#include "types.h"
+#include <array>
+#include <string_view>
+
+                                                            class Results_001 : public result_root
+{
+public:
+  static constexpr size_t batch_size = 500;
+
+  static constexpr std::span<const BufferDescConst> buffer_description_const() noexcept
+  {
+    return std::span(const_desc_data);
+  }
+
+  std::span<const BufferDescInit> buffer_description_init() const override
+  {
+    static BufferDescInit init_data[] = {{id_.data(), id_ind_.data()},
+                                         {priimek_[0].data(), priimek_ind_.data()},
+                                         {datum_rojstva_.data(), datum_rojstva_ind_.data()},
+                                         {last_TS_.data(), last_TS_ind_.data()}};
+    return std::span(init_data, 4);
+  }
+
+  [[nodiscard]] int32_t          get_id(size_t row = 0) const { return id_.at(row); }
+  [[nodiscard]] std::string_view get_priimek(size_t row = 0) const
+  {
+    SQLLEN len = priimek_ind_.at(row);
+    return len == SQL_NULL_DATA
+             ? std::string_view{}
+             : std::string_view(priimek_.at(row).data(), static_cast<size_t>(len));
+  }
+  [[nodiscard]] const Date& get_datum_rojstva(size_t row = 0) const
+  {
+    return datum_rojstva_.at(row);
+  }
+  [[nodiscard]] const Timestamp& get_last_TS(size_t row = 0) const { return last_TS_.at(row); }
+
+  [[nodiscard]] bool is_id_null(size_t row = 0) const { return id_ind_.at(row) == SQL_NULL_DATA; }
+  [[nodiscard]] bool is_priimek_null(size_t row = 0) const
+  {
+    return priimek_ind_.at(row) == SQL_NULL_DATA;
+  }
+  [[nodiscard]] bool is_datum_rojstva_null(size_t row = 0) const
+  {
+    return datum_rojstva_ind_.at(row) == SQL_NULL_DATA;
+  }
+  [[nodiscard]] bool is_last_TS_null(size_t row = 0) const
+  {
+    return last_TS_ind_.at(row) == SQL_NULL_DATA;
+  }
+private:
+  std::array<int32_t, batch_size>   id_;
+  std::array<char[21], batch_size>  priimek_;
+  std::array<Date, batch_size>      datum_rojstva_;
+  std::array<Timestamp, batch_size> last_TS_;
+
+  std::array<SQLLEN, batch_size> id_ind_;
+  std::array<SQLLEN, batch_size> priimek_ind_;
+  std::array<SQLLEN, batch_size> datum_rojstva_ind_;
+  std::array<SQLLEN, batch_size> last_TS_ind_;
+
+  static constexpr BufferDescConst const_desc_data[] = {
+    {SQL_C_LONG, SQL_INTEGER, 0, 0},
+    {SQL_C_CHAR, SQL_VARCHAR, 20, 0},
+    {SQL_C_TYPE_DATE, SQL_TYPE_DATE, 0, 0},
+    {SQL_C_TYPE_TIMESTAMP, SQL_TYPE_TIMESTAMP, 0, 0}};
+};
+-- -- -- -- -- -- -- -- -- --
+// NoParams.h
+#pragma once
+#include "parameter_root.h"
+
+                           class NoParams : public parameter_root
+{
+public:
+  std::span<const BufferDescInit> buffer_description_init() const override { return {}; }
+  void                            reset_all_null() override { }
+};
+
+-- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+// NoResults.h
+#pragma once
+#include "result_root.h"
+
+                                          class NoResults : public result_root
+{
+public:
+  std::span<const BufferDescInit> buffer_description_init() const override { return {}; }
+};
+
+-- -- -- -- -- -- -- -- --
+// main.cpp
+#include "query.h"
+#include "Params_001.h"
+#include "Results_001.h"
+#include "NoParams.h"
+#include "NoResults.h"
+
+                        int
+                        main()
+{
+  MyDb db;
+
+  // 1. Brez parametrov, brez rezultatov
+  db::query<NoParams, NoResults> q1(&db, "DELETE FROM osebe WHERE id > 1000");
+  q1.prepare();
+  q1.execute();
+
+  // 2. Samo parametri
+  db::query<Params_001, NoResults> q2(&db, "INSERT INTO osebe VALUES (?, ?, ?, ?)");
+  q2.prepare();
+  auto p = q2.get_param();
+  p->set_id(123);
+  p->set_priimek("Novak");
+  q2.execute();
+
+  // 3. Samo rezultati
+  db::query<NoParams, Results_001> q3(&db, "SELECT id, priimek FROM osebe");
+  q3.prepare();
+  q3.execute();
+  while (size_t n = q3.fetch())
+  {
+    auto r = q3.get_result();
+    for (size_t i = 0; i < n; ++i) { std::cout << r->get_priimek(i) << "\n"; }
+  }
+
+  // 4. Oboje
+  db::query<Params_001, Results_001> q4(&db, "SELECT ... WHERE id = ?");
+  // ... uporaba ...
+}
+-- -- -- -- -- -- -- -- -- -- -- -- -- -- -Lastnost,
+  Status parameter_root / result_root brez batch_size, Yes NoParams / NoResults brez batch_size,
+  Yes batch_size samo v razredih z has_parameters() == true,
+  Yes if constexpr za bind in SQLSetStmtAttr,
+  Yes execute() = SQLExecute() povsod, Yes std::monostate + [[no_unique_address]],
+      Yes "Zero-cost, minimalno, semantično čisto", Yes Generator - ready,
+      Yes
+
+  -- -- -- -- -- -- -- -- --

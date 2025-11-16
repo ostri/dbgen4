@@ -252,37 +252,37 @@ namespace dbgen4
       for (const auto& col : stmt.columns())
       {
         json tmp_col;
-        tmp_col["index"]          = col.index;
-        tmp_col["name"]           = col.name;
-        tmp_col["type"]           = ME::enum_name(col.type);
-        tmp_col["type_name"]      = get_sql_mapping(col.type)->c_mnemonic;
-        tmp_col["odbc_name_type"] = col.odbc_type;
-        tmp_col["size"]           = col.size;
-        tmp_col["digits"]         = col.digits;
-        tmp_col["nullable"]       = col.nullable;
-        tmp_col["as-param"]       = get_sql_mapping(col.type)->par_type_name;
-        tmp_col["as-result"]      = get_sql_mapping(col.type)->ret_type_name;
-        tmp_col["storage"]        = attr_storage_type(col.type, col.name);
-        tmp_col["getter-code"]    = attr_getter_code(col.type, col.name);
-        tmp_col["setter-code"]    = attr_setter_code(col.type, col.name);
+        tmp_col["index"]         = col.index;
+        tmp_col["name"]          = col.name;
+        tmp_col["type"]          = ME::enum_name(col.type);
+        tmp_col["c-type-name"]   = get_sql_mapping(col.type)->c_mnemonic;
+        tmp_col["sql-type-name"] = get_sql_mapping(col.type)->sql_mnemonic;
+        tmp_col["size"]          = col.size;
+        tmp_col["digits"]        = col.digits;
+        tmp_col["nullable"]      = col.nullable;
+        tmp_col["as-param"]      = get_sql_mapping(col.type)->par_type_name;
+        tmp_col["as-result"]     = get_sql_mapping(col.type)->ret_type_name;
+        tmp_col["storage"]       = attr_storage_type(col.type, col.name);
+        tmp_col["getter-code"]   = attr_getter_code(col.type, col.name);
+        tmp_col["setter-code"]   = attr_setter_code(col.type, col.name);
         jstmt["column"].push_back(tmp_col);
       }
       for (const auto& par : stmt.params())
       {
         json tmp_col;
-        tmp_col["index"]          = par.index;
-        tmp_col["name"]           = par.name;
-        tmp_col["type"]           = ME::enum_name(par.type);
-        tmp_col["type_name"]      = get_sql_mapping(par.type)->c_mnemonic;
-        tmp_col["odbc_name_type"] = par.odbc_type;
-        tmp_col["size"]           = par.size;
-        tmp_col["digits"]         = par.digits;
-        tmp_col["nullable"]       = par.nullable;
-        tmp_col["as-param"]       = get_sql_mapping(par.type)->par_type_name;
-        tmp_col["as-result"]      = get_sql_mapping(par.type)->ret_type_name;
-        tmp_col["storage"]        = attr_storage_type(par.type, par.name);
-        tmp_col["getter-code"]    = attr_getter_code(par.type, par.name);
-        tmp_col["setter-code"]    = attr_setter_code(par.type, par.name);
+        tmp_col["index"]         = par.index;
+        tmp_col["name"]          = par.name;
+        tmp_col["type"]          = ME::enum_name(par.type);
+        tmp_col["c-type-name"]   = get_sql_mapping(par.type)->c_mnemonic;
+        tmp_col["sql-type-name"] = get_sql_mapping(par.type)->sql_mnemonic;
+        tmp_col["size"]          = par.size;
+        tmp_col["digits"]        = par.digits;
+        tmp_col["nullable"]      = par.nullable;
+        tmp_col["as-param"]      = get_sql_mapping(par.type)->par_type_name;
+        tmp_col["as-result"]     = get_sql_mapping(par.type)->ret_type_name;
+        tmp_col["storage"]       = attr_storage_type(par.type, par.name);
+        tmp_col["getter-code"]   = attr_getter_code(par.type, par.name);
+        tmp_col["setter-code"]   = attr_setter_code(par.type, par.name);
         jstmt["param"].push_back(tmp_col);
       }
 

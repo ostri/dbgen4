@@ -490,66 +490,65 @@ namespace rtl
   }
 
 
-  db_sts db_db2::bind_col(uint16_t   column_number,
-                          int16_t    target_type,
-                          SQLPOINTER target_value,
-                          int32_t    buffer_length,
-                          int32_t*   str_len_or_ind)
-  {
-    if (! is_connected() || data()->stmt_handle == 0)
-    {
-      log()->error("bind_col: No active connection or statement handle");
-      return db_sts::invalid_handle;
-    }
+  // db_sts db_db2::bind_col(uint16_t   column_number,
+  //                         int16_t    target_type,
+  //                         SQLPOINTER target_value,
+  //                         int32_t    buffer_length,
+  //                         int32_t*   str_len_or_ind)
+  // {
+  //   if (! is_connected() || data()->stmt_handle == 0)
+  //   {
+  //     log()->error("bind_col: No active connection or statement handle");
+  //     return db_sts::invalid_handle;
+  //   }
 
-    SQLRETURN ret = SQLBindCol(
-      data()->stmt_handle, column_number, target_type, target_value, buffer_length, str_len_or_ind);
+  //   SQLRETURN ret = SQLBindCol(
+  //     data()->stmt_handle, column_number, target_type, target_value, buffer_length,
+  //     str_len_or_ind);
 
-    if (! is_success(static_cast<db_sts>(ret)))
-    {
-      chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, "SQLBindCol");
-      return static_cast<db_sts>(ret);
-    }
+  //   if (! is_success(static_cast<db_sts>(ret)))
+  //   {
+  //     chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, "SQLBindCol");
+  //     return static_cast<db_sts>(ret);
+  //   }
 
-    log()->debug("Column {} bound successfully", column_number);
-    return db_sts::success;
-  }
+  //   log()->debug("Column {} bound successfully", column_number);
+  //   return db_sts::success;
+  // }
 
 
-  db_sts db_db2::bind_param(uint16_t parameter_number,
-                            int16_t  input_output_type,
-                            int16_t  value_type,
-                            sql_type parameter_type,
-                            uint32_t column_size,
-                            int16_t  decimal_digits,
-                            void*    parameter_value_ptr,
-                            int32_t  buffer_length,
-                            int32_t* str_len_or_ind_ptr)
-  {
-    if (! is_connected() || data()->stmt_handle == 0)
-    {
-      log()->error("bind_param: No active connection or statement handle");
-      return db_sts::invalid_handle;
-    }
+  // db_sts db_db2::bind_param(uint16_t parameter_number,
+  //                           int16_t  input_output_type,
+  //                           int16_t  value_type,
+  //                           sql_type parameter_type,
+  //                           uint32_t column_size,
+  //                           int16_t  decimal_digits,
+  //                           void*    parameter_value_ptr,
+  //                           int32_t  buffer_length,
+  //                           int32_t* str_len_or_ind_ptr)
+  // {
+  //   if (! is_connected() || data()->stmt_handle == 0)
+  //   {
+  //     log()->error("bind_param: No active connection or statement handle");
+  //     return db_sts::invalid_handle;
+  //   }
 
-    SQLRETURN ret = SQLBindParameter(data()->stmt_handle,
-                                     parameter_number,
-                                     input_output_type,
-                                     value_type,
-                                     static_cast<SQLSMALLINT>(parameter_type), // Cast from sql_type
-                                     column_size,
-                                     decimal_digits,
-                                     parameter_value_ptr,
-                                     buffer_length,
-                                     str_len_or_ind_ptr);
+  //   SQLRETURN ret = SQLBindParameter(data()->stmt_handle,
+  //                                    parameter_number,
+  //                                    input_output_type,
+  //                                    value_type,
+  //                                    static_cast<SQLSMALLINT>(parameter_type), // Cast from
+  //                                    sql_type column_size, decimal_digits, parameter_value_ptr,
+  //                                    buffer_length,
+  //                                    str_len_or_ind_ptr);
 
-    if (! is_success(static_cast<db_sts>(ret)))
-    {
-      chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, "SQLBindParameter");
-      return static_cast<db_sts>(ret);
-    }
+  //   if (! is_success(static_cast<db_sts>(ret)))
+  //   {
+  //     chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, "SQLBindParameter");
+  //     return static_cast<db_sts>(ret);
+  //   }
 
-    log()->debug("Parameter {} bound successfully", parameter_number);
-    return db_sts::success;
-  }
+  //   log()->debug("Parameter {} bound successfully", parameter_number);
+  //   return db_sts::success;
+  // }
 }; // namespace rtl

@@ -67,8 +67,15 @@ target_compile_definitions(log
 
 # === db2_rtl ===
 set(SRC_RTL_FILES
-     src/rtl/rtl.cpp
-     src/rtl/db2/db2_rtl.cpp
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/rtl.cpp
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/db2/db2_rtl.cpp
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/db2/buffer_dscr.cpp
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/db2/no_params.cpp
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/db2/no_results.cpp
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/db2/parameter_root.cpp
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/db2/result_root.cpp
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/db2/query.cpp
+
 )
 add_library(db2_rtl STATIC ${SRC_RTL_FILES})
 target_include_directories(db2_rtl
@@ -77,7 +84,7 @@ target_include_directories(db2_rtl
         ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/db2
         ${CMAKE_CURRENT_SOURCE_DIR}/src/log
         ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common
-    PRIVATE
+      PRIVATE
         $ENV{IBM_DB_INCLUDE}
 )
 target_link_libraries(db2_rtl PUBLIC DB2::DB2 PRIVATE log)
