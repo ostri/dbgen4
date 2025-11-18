@@ -2,6 +2,9 @@
 #pragma once
 #include "db2_rtl.hpp"
 #include "buffer_dscr.hpp"
+#include "fmt_structs.hpp"
+#include "utf8.hpp"
+#include "hex.hpp"
 /**
 * summary: {{summary}}
 *
@@ -65,24 +68,43 @@ namespace dbx
 ##    for col in statement.column
         void set_{{col.name}}_null(size_t row=0);
 ##    endfor
-      private:
         /// --- column types constant array  ---------------------------------
-        static constexpr std::span<const buffer_dscr_const> buffer_description_const() noexcept
+        static constexpr span_buffer_dscr_const buffer_description_const() noexcept
         {
           static constexpr const auto dim = {{statement.column|length}};
           static constexpr std::array<buffer_dscr_const, dim> arr =
-          {
-            {
+          { {
 ##        for col in statement.column
               { {{col.c-type-name}}, {{col.sql-type-name}}, {{col.size}}, {{col.digits}} },
 ##        endfor
-            }
-          };
+          } };
           return arr;
         };
+        /// --- column types init array  --------------------------------------
+        span_buffer_dscr_init buffer_description_init() noexcept
+        {
+          static constexpr const auto dim = {{statement.column|length}};
+          static std::array<buffer_dscr_init, dim> arr =
+          { {
+##        for col in statement.column
+              { {{col.name}}_.data(), len_{{col.name}}_.data() },
+##        endfor
+          } };
+          return arr;
+        };
+        /// --- dump    -------------------------------------------------------
+        [[nodiscard]]std::string dump() const
+        {
+           constexpr const char* fmt = "\n{:>3}:\n {%for el in statement.column%}    {{el.name}} {{el.category}}:-'{}'\n {%endfor%}";
+           std::string s;
+           for (auto n=0UL; n < buf_dim; n++)
+             s +=  fmt::format(fmt, n, {%for el in statement.column%}{{el.dump-value}}{% if el != last(statement.column) %}, {% endif %}{%endfor%});
+           return s;
+        }
+      private:
         /// --- members -------------------------------------------------------
-##    for col in statement.column
-        std::array<{{col.storage}}, buf_dim> {{col.name}}_{};
+##    for el in statement.column
+        std::array<{{el.storage}}, buf_dim> {{el.name}}_{};
 ##    endfor
         /// --- length or NULL indicators -------------------------------------
         /// ------ positive values actual length ------------------------------
@@ -136,38 +158,43 @@ namespace dbx
 ##    for par in statement.param
         void set_{{par.name}}_null(size_t row=0);
 ##    endfor
-      private:
-        /// --- column types constant array  ----------------------------------
-        static constexpr std::span<const buffer_dscr_const> buffer_description_const() noexcept
+        /// --- param types constant array  ----------------------------------
+        static constexpr span_buffer_dscr_const buffer_description_const() noexcept
         {
           static constexpr const auto dim = {{statement.param|length}};
           static constexpr std::array<buffer_dscr_const, dim> arr =
-          {
-            {
+          { {
 ##        for par in statement.param
               { {{par.c-type-name}}, {{par.sql-type-name}}, {{par.size}}, {{par.digits}} },
 ##        endfor
-            }
-          };
+          } };
           return arr;
         };
-        /// --- column types init array  ----------------------------------
-        std::span<const buffer_dscr_init> buffer_description_init() noexcept
+        /// --- param types init array  ----------------------------------
+        span_buffer_dscr_init buffer_description_init() noexcept
         {
           static constexpr const auto dim = {{statement.param|length}};
           static std::array<buffer_dscr_init, dim> arr =
-          {
-            {
+          { {
 ##        for par in statement.param
               { {{par.name}}_.data(), len_{{par.name}}_.data() },
 ##        endfor
-            }
-          };
+          } };
           return arr;
         };
+        /// --- dump    -------------------------------------------------------
+        [[nodiscard]]std::string dump() const
+        {
+           constexpr const char* fmt = "\n{:>3}:\n {%for el in statement.param%}    {{el.name}} {{el.category}}:-'{}'\n {%endfor%}";
+           std::string s;
+           for (auto n=0UL; n < buf_dim; n++)
+             s +=  fmt::format(fmt, n, {%for el in statement.param%}{{el.dump-value}}{% if el != last(statement.param) %}, {% endif %}{%endfor%});
+           return s;
+        }
+      private:
         /// --- members -------------------------------------------------------
-##    for par in statement.param
-        std::array<{{par.storage}}, buf_dim> {{par.name}}_{};
+##    for el in statement.param
+        std::array<{{el.storage}}, buf_dim> {{el.name}}_{};
 ##    endfor
         /// --- length or NULL indicators -------------------------------------
         /// ------ positive values actual length ------------------------------

@@ -181,6 +181,13 @@ namespace dbgen4
     default: __builtin_unreachable();
     }
   }
+  /**
+   * @brief
+   *
+   * @param sql_type
+   * @param name
+   * @return str_t
+   */
   str_t generator::attr_setter_code(rtl::sql_type sql_type, const str_t& name)
   {
     const auto* dscr    = rtl::get_sql_mapping(sql_type);
@@ -224,7 +231,55 @@ namespace dbgen4
     default: __builtin_unreachable();
     }
   }
-
+  /**
+   * @brief
+   *
+   * @param sql_type
+   * @param name
+   * @return str_t
+   */
+  str_t generator::attr_dump_value(rtl::sql_type sql_type, const str_t& name)
+  {
+    const auto* dscr    = rtl::get_sql_mapping(sql_type);
+    auto        col_cat = dscr->category;
+    switch (col_cat)
+    {
+    case rtl::sql_cat::atomic:
+    case rtl::sql_cat::structure: // return fmt::format("{0}(n)", name);
+    case rtl::sql_cat::c_string: return fmt::format("{0}(n)", name);
+    case rtl::sql_cat::w_string:
+      return fmt::format("dbgen4::to_utf8({0}(n))", name);
+      //    case rtl::sql_cat::b_string: return fmt::format("dbgen4::to_hex(&{0}_.at(n)[0])", name);
+    case rtl::sql_cat::b_string: return fmt::format("dbgen4::to_hex({0}(n))", name);
+    default: __builtin_unreachable();
+    }
+  }
+  /**
+   * @brief
+   *
+   * @param s
+   * @return e_json
+   */
+  json generator::attr_mappings(rtl::meta_dscr const& el)
+  {
+    json tmp_col;
+    tmp_col["index"]         = el.index;
+    tmp_col["name"]          = el.name;
+    tmp_col["type"]          = ME::enum_name(el.type);
+    tmp_col["c-type-name"]   = get_sql_mapping(el.type)->c_mnemonic;
+    tmp_col["sql-type-name"] = get_sql_mapping(el.type)->sql_mnemonic;
+    tmp_col["size"]          = el.size;
+    tmp_col["digits"]        = el.digits;
+    tmp_col["nullable"]      = el.nullable;
+    tmp_col["category"]      = ME::enum_name(get_sql_mapping(el.type)->category);
+    tmp_col["as-param"]      = get_sql_mapping(el.type)->par_type_name;
+    tmp_col["as-result"]     = get_sql_mapping(el.type)->ret_type_name;
+    tmp_col["storage"]       = attr_storage_type(el.type, el.name);
+    tmp_col["getter-code"]   = attr_getter_code(el.type, el.name);
+    tmp_col["setter-code"]   = attr_setter_code(el.type, el.name);
+    tmp_col["dump-value"]    = attr_dump_value(el.type, el.name);
+    return tmp_col;
+  }
   e_json generator::internal_model_to_json(const data_statements& s)
   {
     json j;
@@ -249,42 +304,27 @@ namespace dbgen4
 
       jstmt["column"] = json::array();
       jstmt["param"]  = json::array();
-      for (const auto& col : stmt.columns())
-      {
-        json tmp_col;
-        tmp_col["index"]         = col.index;
-        tmp_col["name"]          = col.name;
-        tmp_col["type"]          = ME::enum_name(col.type);
-        tmp_col["c-type-name"]   = get_sql_mapping(col.type)->c_mnemonic;
-        tmp_col["sql-type-name"] = get_sql_mapping(col.type)->sql_mnemonic;
-        tmp_col["size"]          = col.size;
-        tmp_col["digits"]        = col.digits;
-        tmp_col["nullable"]      = col.nullable;
-        tmp_col["as-param"]      = get_sql_mapping(col.type)->par_type_name;
-        tmp_col["as-result"]     = get_sql_mapping(col.type)->ret_type_name;
-        tmp_col["storage"]       = attr_storage_type(col.type, col.name);
-        tmp_col["getter-code"]   = attr_getter_code(col.type, col.name);
-        tmp_col["setter-code"]   = attr_setter_code(col.type, col.name);
-        jstmt["column"].push_back(tmp_col);
-      }
-      for (const auto& par : stmt.params())
-      {
-        json tmp_col;
-        tmp_col["index"]         = par.index;
-        tmp_col["name"]          = par.name;
-        tmp_col["type"]          = ME::enum_name(par.type);
-        tmp_col["c-type-name"]   = get_sql_mapping(par.type)->c_mnemonic;
-        tmp_col["sql-type-name"] = get_sql_mapping(par.type)->sql_mnemonic;
-        tmp_col["size"]          = par.size;
-        tmp_col["digits"]        = par.digits;
-        tmp_col["nullable"]      = par.nullable;
-        tmp_col["as-param"]      = get_sql_mapping(par.type)->par_type_name;
-        tmp_col["as-result"]     = get_sql_mapping(par.type)->ret_type_name;
-        tmp_col["storage"]       = attr_storage_type(par.type, par.name);
-        tmp_col["getter-code"]   = attr_getter_code(par.type, par.name);
-        tmp_col["setter-code"]   = attr_setter_code(par.type, par.name);
-        jstmt["param"].push_back(tmp_col);
-      }
+      // for (const auto& el : stmt.columns())
+      // {
+      //   json tmp_col;
+      //   tmp_col["index"]         = el.index;
+      //   tmp_col["name"]          = el.name;
+      //   tmp_col["type"]          = ME::enum_name(el.type);
+      //   tmp_col["c-type-name"]   = get_sql_mapping(el.type)->c_mnemonic;
+      //   tmp_col["sql-type-name"] = get_sql_mapping(el.type)->sql_mnemonic;
+      //   tmp_col["size"]          = el.size;
+      //   tmp_col["digits"]        = el.digits;
+      //   tmp_col["nullable"]      = el.nullable;
+      //   tmp_col["as-param"]      = get_sql_mapping(el.type)->par_type_name;
+      //   tmp_col["as-result"]     = get_sql_mapping(el.type)->ret_type_name;
+      //   tmp_col["storage"]       = attr_storage_type(el.type, el.name);
+      //   tmp_col["getter-code"]   = attr_getter_code(el.type, el.name);
+      //   tmp_col["setter-code"]   = attr_setter_code(el.type, el.name);
+      //   tmp_col["dump-value"]    = attr_dump_value(el.type, el.name);
+      //   jstmt["column"].push_back(tmp_col);
+      // }
+      for (const auto& el : stmt.columns()) jstmt["column"].push_back(attr_mappings(el));
+      for (const auto& el : stmt.params()) jstmt["param"].push_back(attr_mappings(el));
 
       j["statements"].push_back(jstmt);
     }

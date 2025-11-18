@@ -1,5 +1,6 @@
 // buffer_dscr.h
 #pragma once
+#include <span>
 #include <sqlcli1.h>
 // #include <sql.h>
 // #include <sqlext.h>
@@ -23,7 +24,7 @@ struct buffer_dscr_const
   {
   }
 } __attribute__((aligned(16))); // NOLINT
-
+using span_buffer_dscr_const = std::span<const buffer_dscr_const>;
 struct buffer_dscr_init
 {
   // NOLINTBEGIN(misc-non-private-member-variables-in-classes)
@@ -37,3 +38,4 @@ struct buffer_dscr_init
   {
   }
 } __attribute__((aligned(16))); // NOLINT
+using span_buffer_dscr_init = std::span<const buffer_dscr_init>;

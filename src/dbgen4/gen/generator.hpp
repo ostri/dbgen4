@@ -49,8 +49,10 @@ namespace dbgen4
     /// utility methods
     e_template prepare_templates();
     e_string   generate(const data_statements& s);
+    void       attr_mappings(json& jstmt, rtl::meta_dscr const& el);
     e_json     internal_model_to_json(const data_statements& s);
     e_string   generate_file_through_template(const json& data, tpl_types tpl_type);
+    str_t      attr_dump_value(rtl::sql_type sql_type, const str_t& name);
   private:
     spdlog::logger* log() { return log::get(); }; /// Member variables
     str_t           attr_storage_type(rtl::sql_type sql_type, const str_t& name);
@@ -74,5 +76,7 @@ namespace dbgen4
     str_t attr_getter_code(rtl::sql_type sql_type, const str_t& name);
 
     str_t attr_setter_code(rtl::sql_type sql_type, const str_t& name);
+
+    json attr_mappings(rtl::meta_dscr const& el);
   };
 }; // namespace dbgen4

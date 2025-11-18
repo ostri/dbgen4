@@ -182,11 +182,11 @@ namespace rtl
           add(sql_type::wchar,           "SQL_WCHAR",          c_sql_type::c_wchar, "SQL_C_WCHAR", sql_cat::w_string, "wchar_t", "wcstr_t", "wcstr_t");
           add(sql_type::wvar_char,       "SQL_WVARCHAR",       c_sql_type::c_wchar, "SQL_C_WCHAR", sql_cat::w_string, "wchar_t", "wcstr_t", "wcstr_t");
           add(sql_type::wlong_var_char,  "SQL_WLONGVARCHAR",   c_sql_type::c_wchar, "SQL_C_WCHAR", sql_cat::w_string, "wchar_t", "wcstr_t", "wcstr_t");
-          add(sql_type::graphic,         "SQL_GRAPHIC",        c_sql_type::c_wchar, "SQL_C_WCHAR", sql_cat::w_string, "wchar_t", "wcstr_t", "wcstr_t");
-          add(sql_type::var_graphic,     "SQL_VARGRAPHIC",     c_sql_type::c_wchar, "SQL_C_WCHAR", sql_cat::w_string, "wchar_t", "wcstr_t", "wcstr_t");
           add(sql_type::dbclob,          "SQL_DBCLOB",         c_sql_type::c_wchar, "SQL_C_WCHAR", sql_cat::w_string, "wchar_t", "wcstr_t", "wcstr_t");
 
           // === 4. Binarno (SQL_C_BINARY) ===
+          add(sql_type::graphic,         "SQL_GRAPHIC",        c_sql_type::c_wchar,  "SQL_C_BINARY", sql_cat::b_string, "uint8_t", "bcstr_t", "bcstr_t");
+          add(sql_type::var_graphic,     "SQL_VARGRAPHIC",     c_sql_type::c_wchar,  "SQL_C_BINARY", sql_cat::b_string, "uint8_t", "bcstr_t", "bcstr_t");
           add(sql_type::binary,          "SQL_BINARY",         c_sql_type::c_binary, "SQL_C_BINARY", sql_cat::b_string, "uint8_t", "bcstr_t", "bcstr_t");
           add(sql_type::var_binary,      "SQL_VARBINARY",      c_sql_type::c_binary, "SQL_C_BINARY", sql_cat::b_string, "uint8_t", "bcstr_t", "bcstr_t");
           add(sql_type::long_var_binary, "SQL_LONGVARBINARY",  c_sql_type::c_binary, "SQL_C_BINARY", sql_cat::b_string, "uint8_t", "bcstr_t", "bcstr_t");

@@ -150,3 +150,93 @@ find_package(Doxygen OPTIONAL_COMPONENTS dot)
 if(Doxygen_FOUND)
     add_subdirectory(docs)
 endif()
+
+# === generated code test ======================
+# ===================================================================
+# Smoke test generirane kode – z realnimi parametri klica generatorja
+# ===================================================================
+
+# Izogni se konfliktu, če že obstaja target "test_t1" (npr. iz add_subdirectory(test))
+if(NOT TARGET test_t1)
+    set(SMOKE_TEST_TARGET_NAME test_t1)
+else()
+    set(SMOKE_TEST_TARGET_NAME smoke_test_t1)
+    message(STATUS "Target 'test_t1' že obstaja → smoke test uporablja ime: ${SMOKE_TEST_TARGET_NAME}")
+endif()
+
+set(TEST_YAML           ${CMAKE_CURRENT_SOURCE_DIR}/yaml/t1.yaml)
+set(GEN_OUTPUT_DIR      ${CMAKE_BINARY_DIR}/out)
+set(GEN_STAMP           ${GEN_OUTPUT_DIR}/generated.stamp)
+
+file(MAKE_DIRECTORY ${GEN_OUTPUT_DIR})
+
+set(GENERATED_HPP       ${GEN_OUTPUT_DIR}/t1.hpp)
+set(GENERATED_CPP       ${GEN_OUTPUT_DIR}/t1.cpp)
+set(SOURCE_TEST_CPP     ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_t1.cpp)
+set(GEN_TEST_CPP        ${GEN_OUTPUT_DIR}/test_t1.cpp)
+
+# Predloge – ob spremembi se mora vse regenerirati
+set(HPP_TEMPLATE        ${CMAKE_BINARY_DIR}/template/hpp_template.jinja)
+set(CPP_TEMPLATE        ${CMAKE_BINARY_DIR}/template/cpp_template.jinja)
+
+# Preveri obstoj ključnih datotek
+if(NOT EXISTS ${SOURCE_TEST_CPP})
+    message(FATAL_ERROR "Manjka src/test/test_t1.cpp – smoke test ne more delovati!")
+endif()
+
+# 1. KLJUČNA custom command – z vsemi tvojimi realnimi parametri
+add_custom_command(
+    OUTPUT
+        ${GEN_STAMP}
+        ${GENERATED_HPP}
+        ${GENERATED_CPP}
+        ${GEN_TEST_CPP}
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${SOURCE_TEST_CPP} ${GEN_TEST_CPP}
+    COMMAND ${CMAKE_BINARY_DIR}/${PROJECT_NAME}-db2
+            -o ${GEN_OUTPUT_DIR}
+            -v -t db2 -n test -u ostri -p !123alfa
+            ${TEST_YAML}
+    COMMAND ${CMAKE_COMMAND} -E touch ${GEN_STAMP}
+    DEPENDS
+        ${PROJECT_NAME}-db2                     # sam generator
+        ${TEST_YAML}                            # vhodni yaml
+        ${SOURCE_TEST_CPP}                      # test_t1.cpp
+        ${HPP_TEMPLATE}                         # ob spremembi predloge → regeneriraj
+        ${CPP_TEMPLATE}                         # ob spremembi predloge → regeneriraj
+    COMMENT "Generiranje t1.* iz t1.yaml (s pravimi parametri) + kopiranje test_t1.cpp"
+    VERBATIM
+)
+
+# 2. Custom target za lažji ročni zagon
+add_custom_target(generate_smoke_test DEPENDS ${GEN_STAMP})
+
+# 3. Smoke test executable
+add_executable(${SMOKE_TEST_TARGET_NAME}
+    ${GENERATED_CPP}
+    ${GEN_TEST_CPP}
+)
+
+target_include_directories(${SMOKE_TEST_TARGET_NAME} PRIVATE ${GEN_OUTPUT_DIR})
+target_link_libraries(${SMOKE_TEST_TARGET_NAME} PRIVATE
+    db2_rtl
+    log
+    fmt::fmt
+    spdlog::spdlog
+    nlohmann_json::nlohmann_json
+    yaml-cpp::yaml-cpp
+    valijson
+)
+
+add_dependencies(${SMOKE_TEST_TARGET_NAME} generate_smoke_test)
+
+# 4. Dodaj v ctest (ctest bo zagnal smoke test)
+if(BUILD_TESTING)
+    add_test(NAME ${SMOKE_TEST_TARGET_NAME} COMMAND ${SMOKE_TEST_TARGET_NAME})
+    set_tests_properties(${SMOKE_TEST_TARGET_NAME} PROPERTIES
+        LABELS "smoke;generated"
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    )
+endif()
+
+message(STATUS "Smoke test '${SMOKE_TEST_TARGET_NAME}' je pripravljen – uporablja realne parametre generatorja")

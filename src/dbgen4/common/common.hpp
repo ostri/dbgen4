@@ -9,13 +9,13 @@
 #define MAGIC_ENUM_RANGE_MIN -400
 #define MAGIC_ENUM_RANGE_MAX 100
 #include <magic_enum.hpp>
-// #include <nlohmann/json.hpp>
-// #include <nlohmann/json-schema.hpp>
 #include "log.hpp"           // IWYU pragma: export
 #include "build_type.hpp"    // IWYU pragma: export
 #include "parser_errors.hpp" // IWYU pragma: export
 
 #include <vector>
+#include <utf8.hpp>
+#include "hex.hpp"
 
 // using json = nlohmann::json;
 
@@ -65,4 +65,8 @@ namespace dbgen4
   [[maybe_unused]] e_string_ write_file(const str_t& filename, const str_t& contents);
 
   std::string lowercse(std::string_view vhodni_pogled);
+
+  // // ali še krajše (inline) C++26
+  // inline std::string to_utf8(std::wstring_view ws) { return std::to_utf8(std::wcstring_view(ws));
+  // }
 }; // namespace dbgen4
