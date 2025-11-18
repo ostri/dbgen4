@@ -1,6 +1,6 @@
 #include "query.hpp"
 
-namespace db
+namespace rtl
 {
 
   odbc_error::odbc_error(SQLRETURN r, SQLHANDLE h, handle_type_enum t, SQLSMALLINT rec) noexcept
@@ -41,4 +41,4 @@ namespace db
 #endif
   }
 
-} // namespace db
+} // namespace rtl

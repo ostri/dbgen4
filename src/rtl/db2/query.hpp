@@ -21,7 +21,7 @@
 #include <string_view>
 
 
-namespace db
+namespace rtl
 {
   struct database // NOLINT
   {
@@ -298,4 +298,4 @@ namespace db
     [[nodiscard]] SQLHSTMT stmt() const noexcept { return stmt_; }
   };
 
-} // namespace db
+} // namespace rtl
