@@ -46,10 +46,14 @@ configure_file(${CMAKE_SOURCE_DIR}/config/log.debug.conf
                ${CMAKE_BINARY_DIR}/config/log.debug.conf COPYONLY)
 configure_file(${CMAKE_SOURCE_DIR}/config/log.release.conf
                ${CMAKE_BINARY_DIR}/config/log.release.conf COPYONLY)
-configure_file(${CMAKE_SOURCE_DIR}/config/hpp_template.jinja
-               ${CMAKE_BINARY_DIR}/template/hpp_template.jinja COPYONLY)
-configure_file(${CMAKE_SOURCE_DIR}/config/cpp_template.jinja
-               ${CMAKE_BINARY_DIR}/template/cpp_template.jinja COPYONLY)
+configure_file(${CMAKE_SOURCE_DIR}/config/main_hpp.jinja
+               ${CMAKE_BINARY_DIR}/template/main_hpp.jinja COPYONLY)
+configure_file(${CMAKE_SOURCE_DIR}/config/main_cpp.jinja
+               ${CMAKE_BINARY_DIR}/template/main_cpp.jinja COPYONLY)
+configure_file(${CMAKE_SOURCE_DIR}/config/buf_hpp.jinja
+               ${CMAKE_BINARY_DIR}/template/buf_hpp.jinja COPYONLY)
+configure_file(${CMAKE_SOURCE_DIR}/config/buf_cpp.jinja
+               ${CMAKE_BINARY_DIR}/template/buf_cpp.jinja COPYONLY)
 
 
 # === log library ===
@@ -176,12 +180,19 @@ set(SOURCE_TEST_CPP     ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_t1.cpp)
 set(GEN_TEST_CPP        ${GEN_OUTPUT_DIR}/test_t1.cpp)
 
 # Predloge – ob spremembi se mora vse regenerirati
-set(HPP_TEMPLATE        ${CMAKE_BINARY_DIR}/template/hpp_template.jinja)
-set(CPP_TEMPLATE        ${CMAKE_BINARY_DIR}/template/cpp_template.jinja)
+set(MAIN_HPP        ${CMAKE_BINARY_DIR}/template/main_hpp.jinja)
+set(CPP_TEMPLATE
+  ${CMAKE_BINARY_DIR}/template/main_cpp.jinja
+  ${CMAKE_BINARY_DIR}/template/buf_cpp.jinja
+  )
+set(HPP_TEMPLATE
+  ${CMAKE_BINARY_DIR}/template/main_hpp.jinja
+  ${CMAKE_BINARY_DIR}/template/buf_hpp.jinja
+  )
 
-# Preveri obstoj ključnih datotek
+# Main program for smoke test
 if(NOT EXISTS ${SOURCE_TEST_CPP})
-    message(FATAL_ERROR "Manjka src/test/test_t1.cpp – smoke test ne more delovati!")
+    message(FATAL_ERROR "File src/test/test_t1.cpp is missing – smoke test can't be built!")
 endif()
 
 # 1. KLJUČNA custom command – z vsemi tvojimi realnimi parametri
@@ -199,12 +210,12 @@ add_custom_command(
             ${TEST_YAML}
     COMMAND ${CMAKE_COMMAND} -E touch ${GEN_STAMP}
     DEPENDS
-        ${PROJECT_NAME}-db2                     # sam generator
-        ${TEST_YAML}                            # vhodni yaml
-        ${SOURCE_TEST_CPP}                      # test_t1.cpp
-        ${HPP_TEMPLATE}                         # ob spremembi predloge → regeneriraj
-        ${CPP_TEMPLATE}                         # ob spremembi predloge → regeneriraj
-    COMMENT "Generiranje t1.* iz t1.yaml (s pravimi parametri) + kopiranje test_t1.cpp"
+        ${PROJECT_NAME}-db2                     # generator program
+        ${TEST_YAML}                            # test yaml file
+        ${SOURCE_TEST_CPP}                      # main program source (test_t1.cpp)
+        ${HPP_TEMPLATE}                         # template files for hpp generation
+        ${CPP_TEMPLATE}                         # template files for cpp generation
+    COMMENT "Generating from '${TEST_YAML}' to '${GEN_OUTPUT_DIR}'."
     VERBATIM
 )
 
@@ -217,7 +228,7 @@ add_executable(${SMOKE_TEST_TARGET_NAME}
     ${GEN_TEST_CPP}
 )
 
-target_include_directories(${SMOKE_TEST_TARGET_NAME} PRIVATE ${GEN_OUTPUT_DIR})
+target_include_directories(${SMOKE_TEST_TARGET_NAME} PRIVATE ${GEN_OUTPUT_DIR} )
 target_link_libraries(${SMOKE_TEST_TARGET_NAME} PRIVATE
     db2_rtl
     log

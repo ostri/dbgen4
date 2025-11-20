@@ -7,6 +7,7 @@
 // #include <climits>
 #include <expected>
 #include <filesystem>
+#include <magic_enum.hpp>
 #include <stdexcept>
 #include <system_error>
 
@@ -43,11 +44,13 @@ namespace dbgen4
       log()->info("Output folder '{}' successfully created.", path.string());
     };
 
-    /// only for hpp and cpp
-    for (auto tpl_type : {tpl_types::hpp, tpl_types::cpp})
+    /// only for top level templates hpp and cpp
+    for (auto tpl_id : {inja_tpl_enum::main_hpp, inja_tpl_enum::main_cpp})
     {
-      auto fn  = filename(tpl_type);
-      auto res = generate_file_through_template(json.value(), tpl_type);
+      // auto fn_tpl = tpl_2_fn_enum(tpl_type);
+      auto fn  = ((tpl_id == inja_tpl_enum::main_hpp) ? filename(gen_fn_tpl_names::hpp)
+                                                      : filename(gen_fn_tpl_names::cpp));
+      auto res = generate_file_through_template(json.value(), tpl_id);
       if (! res) return std::unexpected(res.error());
       auto r = write_file(fn, res.value());
       if (! r) return std::unexpected(exit_status_enum::ok);
@@ -73,7 +76,7 @@ namespace dbgen4
 
   db_type_enum generator::db_type() const { return cmd().db_type(); }
 
-  str_t generator::filename(tpl_types tpl_type) const
+  str_t generator::filename(gen_fn_tpl_names tpl_type) const
   {
     auto fmt = fn_tpl_.at(tpl_type);
     return fmt::format(fmt::runtime_format_string<char>(fmt), cmd().out_folder(), barename_);
@@ -88,42 +91,121 @@ namespace dbgen4
     barename_ = path.stem().string();
   }
 
-  e_string generator::generate_file_through_template(const json& data, tpl_types tpl_type)
+  e_template generator::load_template(inja_tpl_enum tpl_id)
   {
+    {
+      auto template_fn = template_filename(tpl_id);
+      log()->trace("preparing template '{}'", template_fn);
+      auto res = read_file(template_fn);
+      if (! res)
+      {
+        const auto* fmt = get_exit_code_str(exit_status_enum::error_reading_file);
+        log()->error(fmt::runtime_format_string<char>(fmt), template_fn, res.error());
+        return std::unexpected(exit_status_enum::error_reading_file);
+      }
+
+      log()->trace("template read:\n'{}'", res.value());
+      inja::Template tmpl = env_.parse(res.value());
+      log()->debug("template '{}' successfuly read and evaluated.", template_fn);
+      return tmpl;
+    } // namespace dbgen4
+  }
+  /**
+   * @brief log error and return with provided error code
+   *
+   * @param filename_tpl name of the template
+   * @param template_str contents of the template (can be empty)
+   * @param e exception thrown by inja
+   * @param code exit code
+   * @return exit_status_enum the same as code
+   */
+  exit_status_enum generator::error(const str_t&           filename_tpl,
+                                    const str_t&           template_str,
+                                    const inja::InjaError& e,
+                                    exit_status_enum       code)
+  {
+    log()->critical("Render error file: '{}' error: '{}' line: {} col: {} template: \n{}.",
+                    filename_tpl,
+                    e.what(),
+                    e.location.line,
+                    e.location.column,
+                    template_str);
+    return code;
+  }
+
+  /**
+   * @brief load all inja templates to templates_ map
+   *
+   * @return e_templates (templates_, error code)
+   */
+  e_void generator::prepare_templates()
+  {
+    str_t fn; /// must be outside due to catch
+    str_t template_str = "Prepare templates";
     try
     {
-      auto res = ctx().env().render(ctx_[tpl_type], data);
+      /// prepare templates only for hpp and cpp files
+      for (auto tpl_id : ME::enum_values<inja_tpl_enum>())
+      {
+        fn       = template_filename(tpl_id);
+        auto res = load_template(tpl_id);
+        if (! res) return std::unexpected(exit_status_enum::error_reading_file);
+        templates_.emplace(tpl_id, res.value());
+      }
+    }
+    catch (const inja::RenderError& e)
+    {
+      return std::unexpected(error(fn, template_str, e, exit_status_enum::inja_render_error));
+    }
+    catch (const inja::ParserError& e)
+    {
+      return std::unexpected(error(fn, template_str, e, exit_status_enum::inja_parser_error));
+    }
+    catch (const inja::InjaError& e)
+    {
+      return std::unexpected(error(fn, template_str, e, exit_status_enum::inja_general_error));
+    }
+    catch (const std::exception& e)
+    {
+      throw;
+    }
+    return {};
+  }
+  /**
+   * @brief generate the file through the template
+   *
+   * @param data data to fill in into teplate
+   * @param tpl_type type of the template to generate
+   * @return e_string file contents (template+data) or error
+   */
+  e_string generator::generate_file_through_template(const json& data, inja_tpl_enum tpl_type)
+  {
+    auto fn = template_filename(tpl_type);
+    try
+    {
+      // auto res = ctx().env().render(ctx_[tpl_type], data);
+      auto res = env_.render(templates_[tpl_type], data);
       return res;
     }
     catch (const inja::RenderError& e)
     {
-      log()->error("RENDER ERROR: {} file: {}", e.what(), filename(tpl_type));
-      return std::unexpected(exit_status_enum::inja_render_error);
+      return std::unexpected(error(fn, "generate", e, exit_status_enum::inja_render_error));
     }
     catch (const inja::ParserError& e)
     {
-      log()->error("PARSER ERROR: {} file: {}", e.what(), filename(tpl_type));
-      return std::unexpected(exit_status_enum::inja_parser_error);
+      return std::unexpected(error(fn, "generate", e, exit_status_enum::inja_parser_error));
     }
     catch (const inja::FileError& e)
     {
-      log()->error("FILE ERROR: {} file: {}", e.what(), filename(tpl_type));
-      return std::unexpected(exit_status_enum::inja_file_error);
+      return std::unexpected(error(fn, "generate", e, exit_status_enum::inja_file_error));
     }
     catch (const inja::DataError& e)
     {
-      log()->error("Data error: {} file: {}", e.what(), filename(tpl_type));
-      return std::unexpected(exit_status_enum::inja_data_error);
+      return std::unexpected(error(fn, "generate", e, exit_status_enum::inja_data_error));
     }
-    // catch (const inja::inja_exception& e)
-    // {
-    //   log()->error("INJA EXCEPTION: {}", e.what());
-    //   return std::unexpected(exit_status_enum::inja_unknown_error);
-    // }
     catch (const std::exception& e)
     {
-      log()->error("STD EXCEPTION: {} file: ", e.what(), filename(tpl_type));
-      return std::unexpected(exit_status_enum::unhandled_exception);
+      throw;
     }
   }
   /**
@@ -151,8 +233,12 @@ namespace dbgen4
     case rtl::sql_cat::atomic:
     case rtl::sql_cat::structure: return fmt::format("{}", dscr->cpp_type_name);
     case rtl::sql_cat::c_string:
-    case rtl::sql_cat::w_string: return fmt::format("{0}[l_{1}+1]", dscr->cpp_type_name, name);
-    case rtl::sql_cat::b_string: return fmt::format("{0}[l_{1}]", dscr->cpp_type_name, name);
+    case rtl::sql_cat::w_string:
+      return fmt::format("std::array<{0}, l_{1}+1>", dscr->cpp_type_name, name);
+      //    case rtl::sql_cat::w_string: return fmt::format("{0}[l_{1}+1]", dscr->cpp_type_name,
+      //    name);
+    case rtl::sql_cat::b_string:
+      return fmt::format("std::array<{0}, l_{1}>", dscr->cpp_type_name, name);
     default: __builtin_unreachable();
     }
   }
@@ -176,7 +262,7 @@ namespace dbgen4
     case rtl::sql_cat::c_string:
     case rtl::sql_cat::w_string:
     case rtl::sql_cat::b_string:
-      return fmt::format("{{ return {{&{0}_.at(row)[0], l_{0} }};}}",
+      return fmt::format("{{ return {{{0}_.at(row).data(), l_{0} }};}}",
                          name); // FIXME actual length not max length
     default: __builtin_unreachable();
     }
@@ -199,40 +285,55 @@ namespace dbgen4
     case rtl::sql_cat::c_string:
       return fmt::format( //
         "{{"
-        "auto l = std::min(v.size(), l_{0}); "
-        "if (l > std::numeric_limits<std::int32_t>::max()) throw std::out_of_range(\"Value size is "
-        "too big.\");"
-        "len_{0}_.at(row) = static_cast<int32_t>(l);"
-        "auto pos = v.copy(&{0}_.at(row)[0], l,0);"
-        "{0}_.at(row)[pos] = '\\0'; /*safety*/"
+        "set_value<{0},l_{1}+1>(v, row, len_{1}_, {1}_);" // net capacity +1
         "}}",
+        "char",
         name);
+      // return fmt::format( //
+      //   "{{"
+      //   "auto l = std::min(v.size(), l_{0}); "
+      //   "if (l > std::numeric_limits<std::int32_t>::max()) throw std::out_of_range(\"Value size
+      //   is " "too big.\");" "len_{0}_.at(row) = static_cast<int32_t>(l);" "auto pos =
+      //   v.copy(&{0}_.at(row)[0], l,0);"
+      //   "{0}_.at(row)[pos] = '\\0'; /*safety*/"
+      //   "}}",
+      //   name);
     case rtl::sql_cat::w_string:
       return fmt::format( //
         "{{"
-        "auto l = std::min(v.size(), l_{0}); "
-        "if (l > std::numeric_limits<std::int32_t>::max()) throw std::out_of_range(\"Value size is "
-        "too big.\");"
-        "len_{0}_.at(row) = static_cast<int32_t>(l);"
-        "auto pos = v.copy(&{0}_.at(row)[0], l,0);"
-        "{0}_.at(row)[pos] = L'\\0'; /*safety*/"
+        "set_value<{0},l_{1}+1>(v, row, len_{1}_, {1}_);" // net capacity +1
         "}}",
+        "wchar_t",
         name);
+      // return fmt::format( //
+      // "{{"
+      // "auto l = std::min(v.size(), l_{0}); "
+      // "if (l > std::numeric_limits<std::int32_t>::max()) throw std::out_of_range(\"Value size is
+      // " "too big.\");" "len_{0}_.at(row) = static_cast<int32_t>(l);" "auto pos =
+      // v.copy(&{0}_.at(row)[0], l,0);"
+      // "{0}_.at(row)[pos] = L'\\0'; /*safety*/"
+      // "}}",
+      // name);
     case rtl::sql_cat::b_string:
-      return fmt::format( // (no final 0 on purpose)
+      return fmt::format( //
         "{{"
-        "auto l = std::min(v.size(), l_{0}); "
-        "if (l > std::numeric_limits<std::int32_t>::max()) throw std::out_of_range(\"Value size is "
-        "too big.\");"
-        "len_{0}_.at(row) = static_cast<int32_t>(l);"
-        "v.copy(&{0}_.at(row)[0], l,0);"
+        "set_value<{0},l_{1}>(v, row, len_{1}_, {1}_);" // net capacity +0 (to simplify, not needed)
         "}}",
+        "uint8_t",
         name);
+    // return fmt::format( // (no final 0 on purpose)
+    //   "{{"
+    //   "auto l = std::min(v.size(), l_{0}); "
+    //   "if (l > std::numeric_limits<std::int32_t>::max()) throw std::out_of_range(\"Value size is
+    //   " "too big.\");" "len_{0}_.at(row) = static_cast<int32_t>(l);" "v.copy(&{0}_.at(row)[0],
+    //   l,0);"
+    //   "}}",
+    //   name);
     default: __builtin_unreachable();
     }
   }
   /**
-   * @brief
+   * @brief fragment of attribut for dump method
    *
    * @param sql_type
    * @param name
@@ -254,8 +355,20 @@ namespace dbgen4
     default: __builtin_unreachable();
     }
   }
+  str_t generator::template_filename(inja_tpl_enum tpl_id) const
+  {
+    auto frag = ME::enum_name(tpl_id);
+    switch (tpl_id)
+    {
+    case inja_tpl_enum::main_hpp:
+    case inja_tpl_enum::main_cpp:
+    case inja_tpl_enum::buf_hpp:
+    case inja_tpl_enum::buf_cpp: return fmt::format("template/{}.jinja", frag);
+    default: __builtin_unreachable();
+    }
+  }
   /**
-   * @brief
+   * @brief (part of json) result/param attr data
    *
    * @param s
    * @return e_json
@@ -280,11 +393,34 @@ namespace dbgen4
     tmp_col["dump-value"]    = attr_dump_value(el.type, el.name);
     return tmp_col;
   }
+  // /**
+  //  * @brief translation from inja_tpl_enum to gen_fn_tpl_names
+  //  *
+  //  * @param v template code
+  //  * @return gen_fn_tpl_names  filename template for the provided input value
+  //  */
+  // gen_fn_tpl_names generator::tpl_2_fn_enum(inja_tpl_enum v) const
+  // {
+  //   auto h = cvt_.find(v);
+  //   if (h != cvt_.end()) return h->second;
+  //   throw std::runtime_error(fmt::format(
+  //     "internal: unknown translation in cvt_ for {} {}", ME::enum_name(v), ME::enum_integer(v)));
+  //   return cvt_.at(v);
+  // }
+  /**
+   * @brief preapre json structure from internal data.
+   *
+   * @param s internal structure
+   * @return e_json json structure to be used by inja template
+   */
   e_json generator::internal_model_to_json(const data_statements& s)
   {
     json j;
-    j["cpp-file"] = this->filename(tpl_types::cpp);
-    j["hpp-file"] = this->filename(tpl_types::hpp);
+    j["cpp-file"] = this->filename(gen_fn_tpl_names::cpp);
+    j["hpp-file"] = this->filename(gen_fn_tpl_names::hpp);
+    fs::path path(this->filename(gen_fn_tpl_names::hpp));
+    auto     hpp_include  = path.filename().string();
+    j["hpp-include-file"] = hpp_include;
 
     j["summary"]     = s.summary();
     j["description"] = join(prefix_split(s.description(), '\n', " *  "), "\n");
@@ -302,28 +438,10 @@ namespace dbgen4
       jstmt["res-set-size"] = stmt.res_set_size();
       jstmt["par-set-size"] = stmt.par_set_size();
 
-      jstmt["column"] = json::array();
+      jstmt["result"] = json::array();
       jstmt["param"]  = json::array();
-      // for (const auto& el : stmt.columns())
-      // {
-      //   json tmp_col;
-      //   tmp_col["index"]         = el.index;
-      //   tmp_col["name"]          = el.name;
-      //   tmp_col["type"]          = ME::enum_name(el.type);
-      //   tmp_col["c-type-name"]   = get_sql_mapping(el.type)->c_mnemonic;
-      //   tmp_col["sql-type-name"] = get_sql_mapping(el.type)->sql_mnemonic;
-      //   tmp_col["size"]          = el.size;
-      //   tmp_col["digits"]        = el.digits;
-      //   tmp_col["nullable"]      = el.nullable;
-      //   tmp_col["as-param"]      = get_sql_mapping(el.type)->par_type_name;
-      //   tmp_col["as-result"]     = get_sql_mapping(el.type)->ret_type_name;
-      //   tmp_col["storage"]       = attr_storage_type(el.type, el.name);
-      //   tmp_col["getter-code"]   = attr_getter_code(el.type, el.name);
-      //   tmp_col["setter-code"]   = attr_setter_code(el.type, el.name);
-      //   tmp_col["dump-value"]    = attr_dump_value(el.type, el.name);
-      //   jstmt["column"].push_back(tmp_col);
-      // }
-      for (const auto& el : stmt.columns()) jstmt["column"].push_back(attr_mappings(el));
+
+      for (const auto& el : stmt.columns()) jstmt["result"].push_back(attr_mappings(el));
       for (const auto& el : stmt.params()) jstmt["param"].push_back(attr_mappings(el));
 
       j["statements"].push_back(jstmt);

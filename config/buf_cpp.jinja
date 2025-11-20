@@ -1,0 +1,22 @@
+##  if (buf|length) > 0
+    /// --- getters -------------------------------------------------------
+##  for el in buf
+    {{el.as-param}} {{class-name}}::{{el.name}}(size_t row) const {{el.getter-code}}
+##  endfor
+    /// --- null getters --------------------------------------------------
+##  for el in buf
+    bool {{class-name}}::is_{{el.name}}_null(size_t row) const {return SQL_NULL_DATA == len_{{el.name}}_.at(row);}
+##  endfor
+    /// --- length getters ------------------------------------------------
+##  for el in buf
+    size_t {{class-name}}::{{el.name}}_length(size_t row) const {auto l = len_{{el.name}}_.at(row); return (SQL_NULL_DATA != l)?l:0;}
+##  endfor
+    /// --- setters -------------------------------------------------------
+##  for el in buf
+    void {{class-name}}::set_{{el.name}}(const {{el.as-param}}& v, size_t row) {{el.setter-code}}
+##  endfor
+    /// --- null setters --------------------------------------------------
+##  for el in buf
+    void {{class-name}}::set_{{el.name}}_null(size_t row) { len_{{el.name}}_.at(row) = SQL_NULL_DATA;}
+##  endfor
+##  endif

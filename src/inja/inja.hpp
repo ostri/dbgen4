@@ -35,6 +35,7 @@ SOFTWARE.
 #  pragma GCC diagnostic ignored "-Wswitch"
 #  pragma GCC diagnostic ignored "-Wswitch-default"
 #endif
+#define INJA_EXPERIMENTAL 1
 // NOLINTBEGIN
 #ifndef INCLUDE_INJA_INJA_HPP_
 #  define INCLUDE_INJA_INJA_HPP_
@@ -3653,6 +3654,7 @@ namespace inja
 
 
 #endif // INCLUDE_INJA_INJA_HPP_
+
 // NOLINTEND
 #if defined(__clang__)
 #  pragma clang diagnostic pop

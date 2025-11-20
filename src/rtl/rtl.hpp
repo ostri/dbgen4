@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cassert>
 #include <cstdint>
 #include <memory>
 // #include <spdlog/spdlog.h>
@@ -222,5 +223,47 @@ namespace rtl
       std::unique_ptr<db_data_root> data_; //NOLINT(cppcoreguidelines-non-private-member-variables-in-classes)
     // clang-format on
   };
+  /**
+   * @brief Set the value to the n-th row
+   *
+   * @tparam CharT type of the array element (char, wchar_t or uint8_t)
+   * @tparam NetCapacity
+   * @param value value to be set
+   * @param row row in buffer, to set the value
+   * @param len_vec length of the value (for strings)
+   * @param data_vec place to set the new value
+   */
+  template <typename CharT, size_t NetCapacity, size_t dim = 1>
+  void set_value(const std::basic_string_view<CharT>&      value,
+                 size_t                                    row,
+                 std::span<int32_t>                        len_vec,
+                 std::span<std::array<CharT, NetCapacity>> data_vec)
+  {
+    // clang-format off
+    static_assert(
+      std::is_same_v<CharT, char> ||
+      std::is_same_v<CharT, wchar_t> ||
+      std::is_same_v<CharT, unsigned char> || // uint8_t is sometimes typedef for unsigned char
+      std::is_same_v<CharT, std::uint8_t>,
+      "CharT must be char, wchar_t or uint8_t only!");
+      assert(len_vec.size() == data_vec.size()); //Both dimensions must be the same.
+    // clang-format on
+    if (value.size() > NetCapacity) [[unlikely]]
+      throw std::out_of_range(fmt::format(
+        "Value is too long. provided: {} maximum allowed {}", value.size(), NetCapacity));
+    if (data_vec.size() < row) [[unlikely]]
+      throw std::out_of_range(
+        fmt::format("Row is too long. provided: {} maximum allowed {}", row, data_vec.size()));
+
+    len_vec[row] = static_cast<int32_t>(value.size());
+    auto& buf    = data_vec[row];
+    value.copy(buf.data(), value.size(), 0);
+    if constexpr (std::is_same_v<CharT, char> || std::is_same_v<CharT, wchar_t>)
+      buf[value.size()] = CharT(0); // safety null
+    else
+    {
+      // Binary string - no need for trailing zero
+    };
+  }
 
 }; // namespace rtl

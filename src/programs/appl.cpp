@@ -3,6 +3,7 @@
 #include "context.hpp"
 // #include "data_statements.hpp"
 #include "parser.hpp"
+#include <stdexcept>
 #define MAGIC_ENUM_RANGE_MIN -400
 #define MAGIC_ENUM_RANGE_MAX 100
 #include <magic_enum.hpp>
@@ -91,10 +92,14 @@ namespace dbgen4
         log()->error("Unable to connect to database '{}'", p_.db_name());
         return exit_status_enum::connection_error;
       }
-      context ctx(p_);                       /// package cmd line parameters
-      auto    res = ctx.prepare_templates(); /// prepare templates
-      if (! res) return res.error();         /// errors in template generation
-      generator gen(ctx);                    /// barebone generator
+      context ctx(p_); /// package cmd line parameters
+      // auto    res = ctx.prepare_templates(); /// prepare templates
+      //      if (! res) return res.error();         /// errors in template generation
+      generator gen(ctx); /// barebone generator
+      auto      res = gen.register_callbacks();
+      if (! res) return res.error(); /// errors in template generation
+      res = gen.prepare_templates();
+      if (! res) return res.error(); /// errors in template generation
       /// walk over all parameter files
       for (const auto& filename : p_.files())
       {
@@ -117,6 +122,11 @@ namespace dbgen4
     {
       log()->debug("Help exit");
       return exit_status_enum::ok;
+    }
+    catch (const std::runtime_error& e)
+    {
+      log()->critical("Runtime error: '{}'", e.what());
+      return exit_status_enum::unhandled_exception;
     }
     catch (...)
     {

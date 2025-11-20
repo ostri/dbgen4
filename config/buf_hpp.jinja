@@ -1,0 +1,83 @@
+    class {{class-name}}
+    {
+      public:
+        /// --- constructors and destructor -------------------------------------------
+        {{class-name}}() = default;
+        ~{{class-name}}() = default;
+        {{class-name}}(const {{class-name}}& o) = default;
+        {{class-name}}({{class-name}}&& o) = default;
+        {{class-name}}& operator=(const {{class-name}}& o) = default;
+        {{class-name}}& operator=({{class-name}}&& o) = default;
+        /// --- buffer dimension ------------------------------------------------------
+        static constexpr const size_t buf_dim = {{buf-size}}; //# of rows
+        /// --- {{class-name}} buffer widths ------------------------------------------
+        /// ------ char values length without trailing zero ---------------------------
+        /// ------ atomic and structures size in bytes --------------------------------
+##    for el in buf
+        static constexpr const size_t l_{{el.name}} = {{el.size}};
+##    endfor
+        /// --- getters ---------------------------------------------------------------
+##    for el in buf
+        [[nodiscard]]{{el.as-result}} {{el.name}}(size_t row=0) const;
+##    endfor
+        /// --- null getters ----------------------------------------------------------
+##    for el in buf
+        [[nodiscard]]bool is_{{el.name}}_null(size_t row=0) const;
+##    endfor
+        /// --- length getters --------------------------------------------------------
+##    for el in buf
+        [[nodiscard]]size_t {{el.name}}_length(size_t row=0) const;
+##    endfor
+        /// --- setters ---------------------------------------------------------------
+##    for el in buf
+        void set_{{el.name}}(const {{el.as-param}}& v, size_t row=0);
+##    endfor
+        /// --- null setters ----------------------------------------------------------
+##    for el in buf
+        void set_{{el.name}}_null(size_t row=0);
+##    endfor
+        /// --- {{class-name}} types constant array  ----------------------------------
+        static constexpr span_buffer_dscr_const buffer_description_const() noexcept
+        {
+          static constexpr const auto dim = {{buf|length}}; // # of elements in buffer
+          static constexpr std::array<buffer_dscr_const, dim> arr =
+          { {
+##        for el in buf
+              { {{el.c-type-name}}, {{el.sql-type-name}}, {{el.size}}, {{el.digits}} },
+##        endfor
+          } };
+          return arr;
+        };
+        /// --- {{class-name}} types init array  --------------------------------------
+        span_buffer_dscr_init buffer_description_init() noexcept
+        {
+          static constexpr const auto dim = {{buf|length}}; // # of elements in buffer
+          static std::array<buffer_dscr_init, dim> arr =
+          { {
+##        for el in buf
+              { {{el.name}}_.data(), len_{{el.name}}_.data() },
+##        endfor
+          } };
+          return arr;
+        };
+        /// --- dump    ---------------------------------------------------------------
+        [[nodiscard]]std::string dump() const
+        {
+           constexpr const char* fmt = "\n{:>3}:\n" {%for el in buf%}"    {{el.name}} {{el.category}}:-'{}'\n" {%endfor%};
+           std::string s;
+           for (auto n=0UL; n < buf_dim; n++)
+             s +=  fmt::format(fmt, n, {%for el in buf%}{{el.dump-value}}{% if el != last(buf) %}, {% endif %}{%endfor%});
+           return s;
+        }
+      private:
+        /// --- members ---------------------------------------------------------------
+##    for el in buf
+        std::array<{{el.storage}}, buf_dim> {{el.name}}_{};
+##    endfor
+        /// --- length or NULL indicators ---------------------------------------------
+        /// ------ positive values actual length --------------------------------------
+        /// ------ SQL_NULL_DATA - sql null value -------------------------------------
+##    for el in buf
+        std::array<int32_t, buf_dim> len_{{el.name}}_{};
+##    endfor
+    }; // class {{class-name}} // -----------------------------------------------------
