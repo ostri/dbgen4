@@ -68,51 +68,13 @@ namespace dbgen4
     void set_yaml_fn_and_barename(cstr_t yaml_fn);
     void set_filename(const str_t& filename);
     /// utility methods
-    e_void   prepare_templates();
-    e_string generate(const data_statements& s);
-    void     attr_mappings(json& jstmt, rtl::meta_dscr const& el);
-    e_json   internal_model_to_json(const data_statements& s);
-    e_string generate_file_through_template(const json& data, inja_tpl_enum tpl_type);
-    str_t    attr_dump_value(rtl::sql_type sql_type, const str_t& name);
-
-    e_void register_callbacks()
-    {
-      log()->debug("register calbacks");
-      env_.add_callback("buffer-definition",
-                        3,
-                        [this](inja::Arguments& args) -> std::string
-                        {
-                          const json& buf        = *args[0];                    // data
-                          std::string class_name = args[1]->get<std::string>(); // name
-                          auto        buf_size   = args[2]->get<int>();         // buffer size
-
-                          json data   = j_data_; // tvoj glavni json (statement, timestamp ...)
-                          data["buf"] = buf;
-                          data["class-name"] = class_name;
-                          data["buf-size"]   = buf_size;
-
-                          // Samo renderamo že parsan template – brez branja datoteke!
-                          return env_.render(templates_.at(inja_tpl_enum::buf_hpp), data);
-                        });
-      log()->debug("callback {} - registered.", "buffer-definition");
-      env_.add_callback("buffer-implementation",
-                        2,
-                        [this](inja::Arguments& args) -> std::string
-                        {
-                          const json& buf        = *args[0];                    // data
-                          auto        class_name = args[1]->get<std::string>(); // name
-
-                          json data   = j_data_; // tvoj glavni json (statement, timestamp ...)
-                          data["buf"] = buf;
-                          data["class-name"] = class_name;
-
-                          // Samo renderamo že parsan template – brez branja datoteke!
-                          return env_.render(templates_.at(inja_tpl_enum::buf_cpp), data);
-                        });
-      log()->debug("callback {} - registered.", "buffer-implementation");
-
-      return {};
-    };
+    e_void              prepare_templates();
+    e_string            generate(const data_statements& s);
+    void                attr_mappings(json& jstmt, rtl::meta_dscr const& el);
+    e_json              internal_model_to_json(const data_statements& s);
+    e_string            generate_file_through_template(const json& data, inja_tpl_enum tpl_type);
+    str_t               attr_dump_value_to_string(rtl::sql_type sql_type, const str_t& name);
+    e_void              register_callbacks();
     [[nodiscard]] str_t template_filename(inja_tpl_enum tpl_id) const;
   private:
     spdlog::logger* log() { return log::get(); }; /// Member variables
@@ -142,12 +104,12 @@ namespace dbgen4
         {gen_fn_tpl_names::cpp, "{}/{}.cpp"},  // template for cpp filename
         {gen_fn_tpl_names::json, "{}/{}.json"} // template for json filename
       };
-    // // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
-    // const map_tpl_2_fn cvt_ = ///< conversion between template enum and filename template enum
-    //   {{inja_tpl_enum::hpp, gen_fn_tpl_names::hpp},  // hpp tpl -> hpp filename tpl
-    //    {inja_tpl_enum::cpp, gen_fn_tpl_names::cpp}}; // cpp tpl -> cpp filename tpl
     inja::Environment env_{"template"}; ///< inja environment
     map_inja_tpl      templates_;       ///< array of templates
+
+    str_t attr_storage_raw_type(rtl::sql_type sql_type, size_t len);
+
+    str_t attr_base_type(rtl::sql_type sql_type);
   };
 
 }; // namespace dbgen4

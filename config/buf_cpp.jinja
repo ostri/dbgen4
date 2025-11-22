@@ -1,22 +1,54 @@
 ##  if (buf|length) > 0
     /// --- getters -------------------------------------------------------
 ##  for el in buf
-    {{el.as-param}} {{class-name}}::{{el.name}}(size_t row) const {{el.getter-code}}
+    <<el.as-param>> <<class-name>>::<<el.name>>(size_t row) const <<el.getter-code>>
 ##  endfor
     /// --- null getters --------------------------------------------------
 ##  for el in buf
-    bool {{class-name}}::is_{{el.name}}_null(size_t row) const {return SQL_NULL_DATA == len_{{el.name}}_.at(row);}
+    bool <<class-name>>::is_<<el.name>>_null(size_t row) const {return SQL_NULL_DATA == len_<<el.name>>_.at(row);}
 ##  endfor
     /// --- length getters ------------------------------------------------
 ##  for el in buf
-    size_t {{class-name}}::{{el.name}}_length(size_t row) const {auto l = len_{{el.name}}_.at(row); return (SQL_NULL_DATA != l)?l:0;}
+    size_t <<class-name>>::<<el.name>>_length(size_t row) const {auto l = len_<<el.name>>_.at(row); return (SQL_NULL_DATA != l)?l:0;}
 ##  endfor
     /// --- setters -------------------------------------------------------
 ##  for el in buf
-    void {{class-name}}::set_{{el.name}}(const {{el.as-param}}& v, size_t row) {{el.setter-code}}
+    void <<class-name>>::set_<<el.name>>(const <<el.as-param>>& v, size_t row) <<el.setter-code>>
 ##  endfor
     /// --- null setters --------------------------------------------------
 ##  for el in buf
-    void {{class-name}}::set_{{el.name}}_null(size_t row) { len_{{el.name}}_.at(row) = SQL_NULL_DATA;}
+    void <<class-name>>::set_<<el.name>>_null(size_t row) { len_<<el.name>>_.at(row) = SQL_NULL_DATA;}
 ##  endfor
+    /// --- <<class-name>> types init array  --------------------------------------
+    span_buffer_dscr_init <<class-name>>::buffer_description_init() noexcept
+    {
+        static constexpr const auto dim = <<buf|length>>; // # of elements in buffer
+        static std::array<buffer_dscr_init, dim> arr =
+        {{
+##        for el in buf
+            { <<el.name>>_.data(), len_<<el.name>>_.data() },
+##        endfor
+        }};
+        return arr;
+    };
+    /// --- dump    ---------------------------------------------------------------
+    [[nodiscard]]std::string <<class-name>>::dump(uint8_t offs) const
+    {
+      constexpr const char* fmt = R"FMT(
+{1}rec: {0:}:{% for el in buf %}
+{1}  {<< 5+loop.index*4 >>:{2}} cat: {<< 5+loop.index*4+1 >>:{3}} type: {<< 5+loop.index*4+2 >>:{4}} value: '{<< 5+loop.index*4+3 >>}'{% endfor %})FMT";
+      std::string offs_str(offs*2UL, '.');
+      std::string s;
+      {%for el in buf%}std::string str_<< el.name >>;
+      {%endfor%}
+      for (auto n=0UL; n < buf_dim; n++)
+      {
+        {%for el in buf%}str_<< el.name >> = fmt::format("{}", <<el.dump-value>>);
+        {%endfor%}
+        s +=  fmt::format(fmt, n, offs_str, max_column_name_len(), max_category_name_len(), max_column_type_name_len(), {%for el in buf%}"<< el.name >>", "<< el.category >>",
+        "<< el.storage-raw >>", (is_<< el.name  >>_null(n) ? "NULL" : str_<< el.name >>){% if el != last(buf) %}, {% endif %}{%endfor%});
+        }
+        return s;
+    }
+
 ##  endif

@@ -32,6 +32,7 @@ namespace dbgen4
     inja_general_error  = 18, // inja general error
     error_writing_file  = 19, // error writing file
     error_reading_file  = 20, // error reading file
+    runtime_error       = 21, // runtime error normally signals internal error
   };
   // parser_err_enum cvt(rtl::db_sts s) { return reinterpret_cast<parser_err_enum>(s); }
   /**
@@ -65,6 +66,7 @@ namespace dbgen4
     case exit_status_enum::inja_general_error:        return "Document '{}' Inja general error: '{}'";
     case exit_status_enum::error_writing_file:        return "Document '{}' error writing file: '{}'";
     case exit_status_enum::error_reading_file:        return "Document '{}' error reading file: '{}'";
+    case exit_status_enum::runtime_error:             return "Document '{}' runtime/internal error: '{}'";
     default:
       // clang-format on
       __builtin_unreachable();

@@ -10,7 +10,71 @@
 #include <magic_enum.hpp>
 #include <stdexcept>
 #include <system_error>
+#include <utility>
 
+namespace
+{
+  std::string to_str(const inja::json* arg, const std::string& fallback = "")
+  {
+    if (arg == nullptr || arg->is_null()) return fallback;
+    if (arg->is_string()) return arg->get<std::string>();
+    if (arg->is_number()) return std::to_string(arg->get<int64_t>());
+    if (arg->is_boolean()) return arg->get<bool>() ? "true" : "false";
+    if (arg->is_array() || arg->is_object()) return arg->dump(); // JSON kot string
+    return arg->dump();                                          // fallback za vse ostalo
+  }
+
+  std::string pad_impl(inja::Arguments& args)
+  {
+    if (args.size() < 2) throw std::runtime_error("pad needs at least 2 args");
+    // required arguments
+    std::string str = to_str(args.at(0));
+    size_t      len = args.at(1)->get<size_t>();
+
+    // optional arguments
+    const std::string leading   = (args.size() > 2) ? args.at(2)->get<std::string>() : "";
+    const std::string trailing  = (args.size() > 3) ? args.at(3)->get<std::string>() : leading;
+    std::string       fill_char = (args.size() > 4) ? args.at(4)->get<std::string>() : " ";
+
+    // pad char is single character, blank is default;
+    char pad_char = ' ';
+    if (! fill_char.empty()) pad_char = fill_char[0];
+
+    // combine leading string and trailing
+    str = leading + str + trailing;
+    if (str.size() >= len) return str;
+    std::string pad(len - str.size(), pad_char);
+    auto        tmp = str + pad;
+    log::get()->trace(
+      fmt::format("Padded value: '{}' len: {} pad_char: '{}' pad '{}'", tmp, len, pad_char, pad));
+    return tmp;
+  }
+  std::string lpad_impl(inja::Arguments& args)
+  {
+    if (args.size() < 2) throw std::runtime_error("pad needs at least 2 args");
+    // required arguments
+    std::string str = to_str(args.at(0));
+    size_t      len = args.at(1)->get<size_t>();
+
+    // optional arguments
+    const std::string leading   = (args.size() > 2) ? args.at(2)->get<std::string>() : "";
+    const std::string trailing  = (args.size() > 3) ? args.at(3)->get<std::string>() : leading;
+    std::string       fill_char = (args.size() > 4) ? args.at(4)->get<std::string>() : " ";
+
+    // pad char is single character, blank is default;
+    char pad_char = '-';
+    if (! fill_char.empty()) pad_char = fill_char[0];
+
+    // combine leading string and trailing
+    str = leading + str + trailing;
+    if (str.size() >= len) return str;
+    std::string pad(len - str.size(), pad_char);
+    auto        tmp = pad + str;
+    log::get()->trace(
+      fmt::format("L Padded value: '{}' len: {} pad_char: '{}' pad '{}'", tmp, len, pad_char, pad));
+    return tmp;
+  }
+}; // anonymous namespace
 namespace dbgen4
 {
   namespace fs = std::filesystem;
@@ -106,7 +170,7 @@ namespace dbgen4
 
       log()->trace("template read:\n'{}'", res.value());
       inja::Template tmpl = env_.parse(res.value());
-      log()->debug("template '{}' successfuly read and evaluated.", template_fn);
+      log()->debug("template '{}' successfully read and evaluated.", template_fn);
       return tmpl;
     } // namespace dbgen4
   }
@@ -152,23 +216,12 @@ namespace dbgen4
         if (! res) return std::unexpected(exit_status_enum::error_reading_file);
         templates_.emplace(tpl_id, res.value());
       }
-    }
-    catch (const inja::RenderError& e)
-    {
-      return std::unexpected(error(fn, template_str, e, exit_status_enum::inja_render_error));
-    }
-    catch (const inja::ParserError& e)
-    {
-      return std::unexpected(error(fn, template_str, e, exit_status_enum::inja_parser_error));
-    }
-    catch (const inja::InjaError& e)
-    {
-      return std::unexpected(error(fn, template_str, e, exit_status_enum::inja_general_error));
-    }
-    catch (const std::exception& e)
-    {
-      throw;
-    }
+    } // clang-format off
+    catch (const inja::RenderError& e) {return std::unexpected(error(fn, template_str, e, exit_status_enum::inja_render_error));}
+    catch (const inja::ParserError& e) {return std::unexpected(error(fn, template_str, e, exit_status_enum::inja_parser_error));}
+    catch (const inja::InjaError& e)   {return std::unexpected(error(fn, template_str, e, exit_status_enum::inja_general_error));}
+    catch (const std::exception& e)    {throw;}
+    // clang-format on
     return {};
   }
   /**
@@ -183,30 +236,13 @@ namespace dbgen4
     auto fn = template_filename(tpl_type);
     try
     {
-      // auto res = ctx().env().render(ctx_[tpl_type], data);
-      auto res = env_.render(templates_[tpl_type], data);
-      return res;
-    }
-    catch (const inja::RenderError& e)
-    {
-      return std::unexpected(error(fn, "generate", e, exit_status_enum::inja_render_error));
-    }
-    catch (const inja::ParserError& e)
-    {
-      return std::unexpected(error(fn, "generate", e, exit_status_enum::inja_parser_error));
-    }
-    catch (const inja::FileError& e)
-    {
-      return std::unexpected(error(fn, "generate", e, exit_status_enum::inja_file_error));
-    }
-    catch (const inja::DataError& e)
-    {
-      return std::unexpected(error(fn, "generate", e, exit_status_enum::inja_data_error));
-    }
-    catch (const std::exception& e)
-    {
-      throw;
-    }
+      return env_.render(templates_[tpl_type], data);
+    } // clang-format off
+    catch (const inja::RenderError& e){return std::unexpected(error(fn, "generate", e, exit_status_enum::inja_render_error));}
+    catch (const inja::ParserError& e){return std::unexpected(error(fn, "generate", e, exit_status_enum::inja_parser_error));}
+    catch (const inja::FileError& e)  {return std::unexpected(error(fn, "generate", e, exit_status_enum::inja_file_error));  }
+    catch (const inja::DataError& e)  {return std::unexpected(error(fn, "generate", e, exit_status_enum::inja_data_error));  }
+    catch (const std::exception& e)   {throw; } // clang-format on
   }
   /**
    * @brief fetch reference to command line instance
@@ -235,12 +271,42 @@ namespace dbgen4
     case rtl::sql_cat::c_string:
     case rtl::sql_cat::w_string:
       return fmt::format("std::array<{0}, l_{1}+1>", dscr->cpp_type_name, name);
-      //    case rtl::sql_cat::w_string: return fmt::format("{0}[l_{1}+1]", dscr->cpp_type_name,
-      //    name);
     case rtl::sql_cat::b_string:
       return fmt::format("std::array<{0}, l_{1}>", dscr->cpp_type_name, name);
+    default: std::unreachable();
+    }
+  }
+  str_t generator::attr_storage_raw_type(rtl::sql_type sql_type, size_t len)
+  {
+    const auto* dscr    = rtl::get_sql_mapping(sql_type);
+    auto        col_cat = dscr->category;
+    switch (col_cat)
+    {
+    case rtl::sql_cat::atomic:
+    case rtl::sql_cat::structure: return fmt::format("{}", dscr->cpp_type_name);
+    case rtl::sql_cat::c_string:
+    case rtl::sql_cat::w_string: return fmt::format("{0}[{1:3}+1]", dscr->cpp_type_name, len);
+    case rtl::sql_cat::b_string: return fmt::format("{0}[{1:3}]", dscr->cpp_type_name, len);
     default: __builtin_unreachable();
     }
+  }
+  /**
+   * @brief fetch the base type of the attribute as string
+   *
+   * THe value is determined by the category database column type
+   * atomic: c type
+   * structure: c type
+   * string: char
+   * wstring: wchar_t
+   * bstring: uint8_t
+   *
+   * @param sql_type
+   * @return str_t
+   */
+  str_t generator::attr_base_type(rtl::sql_type sql_type)
+  {
+    const auto* dscr = rtl::get_sql_mapping(sql_type);
+    return std::string(dscr->cpp_type_name);
   }
   /**
    * @brief getter implementation code
@@ -289,15 +355,6 @@ namespace dbgen4
         "}}",
         "char",
         name);
-      // return fmt::format( //
-      //   "{{"
-      //   "auto l = std::min(v.size(), l_{0}); "
-      //   "if (l > std::numeric_limits<std::int32_t>::max()) throw std::out_of_range(\"Value size
-      //   is " "too big.\");" "len_{0}_.at(row) = static_cast<int32_t>(l);" "auto pos =
-      //   v.copy(&{0}_.at(row)[0], l,0);"
-      //   "{0}_.at(row)[pos] = '\\0'; /*safety*/"
-      //   "}}",
-      //   name);
     case rtl::sql_cat::w_string:
       return fmt::format( //
         "{{"
@@ -305,15 +362,6 @@ namespace dbgen4
         "}}",
         "wchar_t",
         name);
-      // return fmt::format( //
-      // "{{"
-      // "auto l = std::min(v.size(), l_{0}); "
-      // "if (l > std::numeric_limits<std::int32_t>::max()) throw std::out_of_range(\"Value size is
-      // " "too big.\");" "len_{0}_.at(row) = static_cast<int32_t>(l);" "auto pos =
-      // v.copy(&{0}_.at(row)[0], l,0);"
-      // "{0}_.at(row)[pos] = L'\\0'; /*safety*/"
-      // "}}",
-      // name);
     case rtl::sql_cat::b_string:
       return fmt::format( //
         "{{"
@@ -321,14 +369,6 @@ namespace dbgen4
         "}}",
         "uint8_t",
         name);
-    // return fmt::format( // (no final 0 on purpose)
-    //   "{{"
-    //   "auto l = std::min(v.size(), l_{0}); "
-    //   "if (l > std::numeric_limits<std::int32_t>::max()) throw std::out_of_range(\"Value size is
-    //   " "too big.\");" "len_{0}_.at(row) = static_cast<int32_t>(l);" "v.copy(&{0}_.at(row)[0],
-    //   l,0);"
-    //   "}}",
-    //   name);
     default: __builtin_unreachable();
     }
   }
@@ -339,14 +379,14 @@ namespace dbgen4
    * @param name
    * @return str_t
    */
-  str_t generator::attr_dump_value(rtl::sql_type sql_type, const str_t& name)
+  str_t generator::attr_dump_value_to_string(rtl::sql_type sql_type, const str_t& name)
   {
     const auto* dscr    = rtl::get_sql_mapping(sql_type);
     auto        col_cat = dscr->category;
     switch (col_cat)
     {
-    case rtl::sql_cat::atomic:
-    case rtl::sql_cat::structure: // return fmt::format("{0}(n)", name);
+    case rtl::sql_cat::structure: return fmt::format("fmt::format(\"{{}}\", {0}(n))", name);
+    case rtl::sql_cat::atomic: // return fmt::format("{0}(n))", name);
     case rtl::sql_cat::c_string: return fmt::format("{0}(n)", name);
     case rtl::sql_cat::w_string:
       return fmt::format("dbgen4::to_utf8({0}(n))", name);
@@ -355,6 +395,71 @@ namespace dbgen4
     default: __builtin_unreachable();
     }
   }
+
+  /**
+   * @brief register callback that can be called from inja template
+   *
+   * @return e_void
+   */
+  e_void generator::register_callbacks()
+  {
+    env_.set_expression("<<", ">>");
+    log()->info("Expression delimiter set to << and >>.");
+    log()->debug("register calbacks");
+    /**
+     * @brief hpp part of buffer definition
+     *
+     */
+    {
+      const auto* cb_name = "buffer-definition";
+
+      env_.add_callback(cb_name,
+                        3,
+                        [this](inja::Arguments& args) -> std::string
+                        {
+                          const json& buf        = *args[0];                    // data
+                          std::string class_name = args[1]->get<std::string>(); // name
+                          auto        buf_size   = args[2]->get<int>();         // buffer size
+
+                          json data   = j_data_; // tvoj glavni json (statement, timestamp ...)
+                          data["buf"] = buf;
+                          data["class-name"] = class_name;
+                          data["buf-size"]   = buf_size;
+
+                          // Samo renderamo že parsan template – brez branja datoteke!
+                          return env_.render(templates_.at(inja_tpl_enum::buf_hpp), data);
+                        });
+      log()->debug("callback {} - registered.", cb_name);
+    }
+
+    /**
+     * @brief cpp part of the buffer definition
+     *
+     */
+    {
+      const auto* cb_name = "buffer-implementation";
+      env_.add_callback(cb_name,
+                        2,
+                        [this](inja::Arguments& args) -> std::string
+                        {
+                          const json& buf        = *args[0];                    // data
+                          auto        class_name = args[1]->get<std::string>(); // name
+
+                          json data   = j_data_; // tvoj glavni json (statement, timestamp ...)
+                          data["buf"] = buf;
+                          data["class-name"] = class_name;
+
+                          // Samo renderamo že parsan template – brez branja datoteke!
+                          return env_.render(templates_.at(inja_tpl_enum::buf_cpp), data);
+                        });
+      log()->debug("callback {} - registered.", cb_name);
+    }
+    {
+      env_.add_callback("pad", pad_impl);
+      env_.add_callback("lpad", lpad_impl);
+    }
+    return {};
+  };
   str_t generator::template_filename(inja_tpl_enum tpl_id) const
   {
     auto frag = ME::enum_name(tpl_id);
@@ -378,6 +483,8 @@ namespace dbgen4
     json tmp_col;
     tmp_col["index"]         = el.index;
     tmp_col["name"]          = el.name;
+    tmp_col["col-name"]      = fmt::format("\"{}\"", el.name);
+    tmp_col["base-type"]     = get_sql_mapping(el.type)->cpp_type_name;
     tmp_col["type"]          = ME::enum_name(el.type);
     tmp_col["c-type-name"]   = get_sql_mapping(el.type)->c_mnemonic;
     tmp_col["sql-type-name"] = get_sql_mapping(el.type)->sql_mnemonic;
@@ -388,25 +495,12 @@ namespace dbgen4
     tmp_col["as-param"]      = get_sql_mapping(el.type)->par_type_name;
     tmp_col["as-result"]     = get_sql_mapping(el.type)->ret_type_name;
     tmp_col["storage"]       = attr_storage_type(el.type, el.name);
+    tmp_col["storage-raw"]   = attr_storage_raw_type(el.type, el.size);
     tmp_col["getter-code"]   = attr_getter_code(el.type, el.name);
     tmp_col["setter-code"]   = attr_setter_code(el.type, el.name);
-    tmp_col["dump-value"]    = attr_dump_value(el.type, el.name);
+    tmp_col["dump-value"]    = attr_dump_value_to_string(el.type, el.name);
     return tmp_col;
   }
-  // /**
-  //  * @brief translation from inja_tpl_enum to gen_fn_tpl_names
-  //  *
-  //  * @param v template code
-  //  * @return gen_fn_tpl_names  filename template for the provided input value
-  //  */
-  // gen_fn_tpl_names generator::tpl_2_fn_enum(inja_tpl_enum v) const
-  // {
-  //   auto h = cvt_.find(v);
-  //   if (h != cvt_.end()) return h->second;
-  //   throw std::runtime_error(fmt::format(
-  //     "internal: unknown translation in cvt_ for {} {}", ME::enum_name(v), ME::enum_integer(v)));
-  //   return cvt_.at(v);
-  // }
   /**
    * @brief preapre json structure from internal data.
    *

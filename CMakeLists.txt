@@ -157,7 +157,7 @@ endif()
 
 # === generated code test ======================
 # ===================================================================
-# Smoke test generirane kode – z realnimi parametri klica generatorja
+# Smoke test
 # ===================================================================
 
 # Izogni se konfliktu, če že obstaja target "test_t1" (npr. iz add_subdirectory(test))
@@ -165,7 +165,7 @@ if(NOT TARGET test_t1)
     set(SMOKE_TEST_TARGET_NAME test_t1)
 else()
     set(SMOKE_TEST_TARGET_NAME smoke_test_t1)
-    message(STATUS "Target 'test_t1' že obstaja → smoke test uporablja ime: ${SMOKE_TEST_TARGET_NAME}")
+    message(STATUS "Target 'test_t1' already exists → new smoke test name is: ${SMOKE_TEST_TARGET_NAME}")
 endif()
 
 set(TEST_YAML           ${CMAKE_CURRENT_SOURCE_DIR}/yaml/t1.yaml)
@@ -179,7 +179,7 @@ set(GENERATED_CPP       ${GEN_OUTPUT_DIR}/t1.cpp)
 set(SOURCE_TEST_CPP     ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_t1.cpp)
 set(GEN_TEST_CPP        ${GEN_OUTPUT_DIR}/test_t1.cpp)
 
-# Predloge – ob spremembi se mora vse regenerirati
+# Templates - if changed it must be regenerated
 set(MAIN_HPP        ${CMAKE_BINARY_DIR}/template/main_hpp.jinja)
 set(CPP_TEMPLATE
   ${CMAKE_BINARY_DIR}/template/main_cpp.jinja
@@ -195,7 +195,7 @@ if(NOT EXISTS ${SOURCE_TEST_CPP})
     message(FATAL_ERROR "File src/test/test_t1.cpp is missing – smoke test can't be built!")
 endif()
 
-# 1. KLJUČNA custom command – z vsemi tvojimi realnimi parametri
+# 1. code generation
 add_custom_command(
     OUTPUT
         ${GEN_STAMP}
@@ -238,6 +238,12 @@ target_link_libraries(${SMOKE_TEST_TARGET_NAME} PRIVATE
     yaml-cpp::yaml-cpp
     valijson
 )
+# Preveri podporo za opozorilo (za C++)
+include(CheckCXXCompilerFlag)
+check_cxx_compiler_flag(-Wswitch-default HAVE_SWITCH_DEFAULT_WARNING)
+if(HAVE_SWITCH_DEFAULT_WARNING)
+    target_compile_options(${SMOKE_TEST_TARGET_NAME} PRIVATE -Wno-switch-default)
+endif()
 
 add_dependencies(${SMOKE_TEST_TARGET_NAME} generate_smoke_test)
 
@@ -250,4 +256,4 @@ if(BUILD_TESTING)
     )
 endif()
 
-message(STATUS "Smoke test '${SMOKE_TEST_TARGET_NAME}' je pripravljen – uporablja realne parametre generatorja")
+message(STATUS "Smoke test '${SMOKE_TEST_TARGET_NAME}' is ready.")
