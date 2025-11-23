@@ -100,6 +100,7 @@ set(SRC_FILES
      ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/parser/data_statement.cpp
      ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/parser/data_statements.cpp
      ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/parser/sql_col_def.cpp
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/parser/parse_yaml.cpp
      ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/parameters/cmd_line_params.cpp
      ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/parameters/context.cpp
      ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common/build_type.cpp

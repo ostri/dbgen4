@@ -188,7 +188,16 @@ namespace dbgen4
         s.set_par_set_size(yaml_stmt["parameter-size"].as<size_t>());
       log()->debug("file {}: 'parameter-size' is '{}'", filename_, s.par_set_size());
 
-      /// check standard and rdbms specific sql statement. Specific version takes over.
+      /// result names
+      {
+        const auto* tag = "result-names";
+        if (yaml_stmt[tag].IsDefined() && yaml_stmt[tag].IsSequence())
+        {
+          //        s.set_par_set_size(yaml_stmt["parameter-size"].as<size_t>());
+          log()->debug("file {0}: '{1}' is '{2}'", filename_, tag, s.par_set_size());
+        }
+      }
+      /// check standard and RDBMS specific sql statement. Specific version takes over.
       auto res = extract_sql_to_statement(yaml_stmt, s, db_type);
       if (! res) return std::unexpected(no_sql_found(s.id()));
       log()->debug("file {}: new sql : id {} sql '{}'", filename_, s.id(), res.value().sql());

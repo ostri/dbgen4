@@ -4,32 +4,34 @@ description: |
   that spans multiple
   lines
 statements:
-# - krneki:
-#   sql: select * from test
-- id: sql_1
-  result-size: 5
-  parameter-size: 2
-  dscr: |
-    long
-    long
-    description of
-    the sql statement
-  sql: |
-       sql that should not be used in db2 testing
-  mariadb: |
-        sql specific for maria db n
-        ot used at this stage of the project
-  db2: |
-    select *
-      from test
-      where
-        col_smallint = ?
-- id: sql_2
-  sql: select col_smallint from test -- oneliner sql
-- id: sql_3
-  dscr: short description of the sql statement
-  sql:  |
-    insert into test
-      (col_smallint, col_integer)
-      values
-      (?, ?)
+  # - krneki:
+  #   sql: select * from test
+  - id: sql_1
+    result-size: 5 # number of record allocated in result buffer
+    parameter-size: 2 # number of records allocated in param buffer
+    dscr: |
+      long
+      long
+      description of
+      the sql statement
+    sql: |
+      sql that should not be used in db2 testing
+    mariadb: |
+      sql specific for maria db n
+      ot used at this stage of the project
+    db2: |
+      select *
+        from test
+        where
+          col_smallint = ?
+  - id: sql_2
+    sql: select col_smallint, col_integer, col_decimal from test -- one liner sql
+    result-names: [a, b, c, d] # to test the substitute names plus option when there are more names that is necessary
+  - id: sql_3
+    dscr: short description of the sql statement
+    sql: |
+      insert into test
+        (col_smallint, col_integer)
+        values
+        (?, ?)
+    parameter-names: [a1, b1]
