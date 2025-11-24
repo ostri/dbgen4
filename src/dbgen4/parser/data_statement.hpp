@@ -66,6 +66,22 @@ namespace dbgen4
     void set_params(meta_vec v);
     void set_result_names(str_vec v);
     void set_param_names(str_vec v);
+    /// utility methods
+    /**
+     * Overwrite database column names with user defined
+     */
+    void push_column_names()
+    {
+      {
+        auto len = std::min(param_names_.size(), params_.size());
+        for (auto cnt = 0UL; cnt < len; cnt++) params_[cnt].name = param_names_[cnt];
+      }
+      {
+        auto len = std::min(result_names_.size(), results_.size());
+        for (auto cnt = 0UL; cnt < len; cnt++) results_[cnt].name = result_names_[cnt];
+      }
+      log()->trace("{}", dump(2));
+    }
   protected:
   private:
     [[nodiscard]] spdlog::logger* log() const;

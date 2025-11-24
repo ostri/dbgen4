@@ -57,7 +57,7 @@ namespace dbgen4
   e_data_statements parser::load_file_meta_data(const data_statements& s, rtl::db_db2& db) const
   {
     data_statements res_stmts{s}; // result statements with updated metadata
-    for (const auto& map_stmt_pair : s.map())
+    for (const auto& map_stmt_pair : s.map_statements())
     { /// walking through whole list of statements in one file
       auto sql = map_stmt_pair.second.sql();
       auto res = db.get_sql_metadata(sql);
@@ -75,10 +75,11 @@ namespace dbgen4
       data_statement res_stmt(map_stmt_pair.second);
       res_stmt.set_results(res.value().columns());
       res_stmt.set_params(res.value().params());
+      res_stmt.push_column_names(); // overwrite database column names with user defined (if they exist)
       res_stmts.add_statement_with_replace(res_stmt); /// we are replacing existing statement values (meta data added,
                                                       /// everything else the same)
     };
-    log()->info("{} sql statements processed", s.map().size());
+    log()->info("{} sql statements processed", s.map_statements().size());
     return res_stmts;
   }
 

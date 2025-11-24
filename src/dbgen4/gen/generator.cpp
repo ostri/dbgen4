@@ -516,7 +516,7 @@ namespace dbgen4
     j["timestamp"] =
       fmt::format("{:%Y-%m-%d %H:%M:%Z %Z}", std::chrono::current_zone()->to_local(std::chrono::system_clock::now()));
     j["statements"] = json::array();
-    for (const auto& stmt : s.map() | std::views::values)
+    for (const auto& stmt : s.map_statements() | std::views::values)
     {
       json jstmt;
       jstmt["id"]           = stmt.id();

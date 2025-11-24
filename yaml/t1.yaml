@@ -34,4 +34,4 @@ statements:
         (col_smallint, col_integer)
         values
         (?, ?)
-    parameter-names: [a1, b1]
+    parameter-names: [a1]  # only one
