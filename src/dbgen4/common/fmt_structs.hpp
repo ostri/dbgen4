@@ -5,10 +5,7 @@
 #include <fmt/format.h>
 #include <fmt/ostream.h>
 #include <sqltypes.h>
-#include <string>
-#include <vector>
-#include <cstring>
-#include <cctype>
+#include <yaml-cpp/node/node.h>
 
 // // ===================================================================
 // // 1. Helperja za hex izpis (hitra, brez alokacij)
@@ -149,16 +146,16 @@ struct fmt::formatter<DATE_STRUCT> : fmt::formatter<std::string_view> // NOLINT
   auto format(const DATE_STRUCT& dt, FormatContext& ctx) const
   {
     // fmt::format_to je najhitrejši način (izogiba se std::string alokaciji kjer ni nujno)
-    char buffer[11]; // "YYYY-MM-DD\0"
+    char buffer[11]; // "YYYY-MM-DD\0" NOLINT
     // NOLINTBEGIN(readability-magic-numbers)
-    int written = std::snprintf(buffer,
+    int written = std::snprintf(buffer, // NOLINT
                                 sizeof(buffer),
                                 "%04d-%02d-%02d",
                                 static_cast<int>(dt.year),
                                 static_cast<int>(dt.month),
                                 static_cast<int>(dt.day));
     // NOLINTEND(readability-magic-numbers)
-    return formatter<std::string_view>::format(std::string_view(buffer, written), ctx);
+    return formatter<std::string_view>::format(std::string_view(buffer, written), ctx); // NOLINT
   }
 };
 
@@ -169,16 +166,16 @@ struct fmt::formatter<TIME_STRUCT> : fmt::formatter<std::string_view> // NOLINT
   template <typename FormatContext>
   auto format(const TIME_STRUCT& tm, FormatContext& ctx) const
   {
-    char buffer[9]; // "HH:MM:SS\0"
+    char buffer[9]; // "HH:MM:SS\0"  NOLINT
     // NOLINTBEGIN(readability-magic-numbers)
-    int written = std::snprintf(buffer,
+    int written = std::snprintf(buffer, // NOLINT
                                 sizeof(buffer),
                                 "%02d:%02d:%02d",
                                 static_cast<int>(tm.hour),
                                 static_cast<int>(tm.minute),
                                 static_cast<int>(tm.second));
     // NOLINTEND(readability-magic-numbers)
-    return formatter<std::string_view>::format(std::string_view(buffer, written), ctx);
+    return formatter<std::string_view>::format(std::string_view(buffer, written), ctx); // NOLINT
   }
 };
 
@@ -189,9 +186,9 @@ struct fmt::formatter<TIMESTAMP_STRUCT> : fmt::formatter<std::string_view> // NO
   template <typename FormatContext>
   auto format(const TIMESTAMP_STRUCT& ts, FormatContext& ctx) const
   {
-    char buffer[32]; // dovolj za 9 decimalk
+    char buffer[32]; // NOLINT
     // NOLINTBEGIN(readability-magic-numbers)
-    int written = std::snprintf(buffer,
+    int written = std::snprintf(buffer, // NOLINT
                                 sizeof(buffer),
                                 "%04d-%02d-%02d %02d:%02d:%02d.%09u",
                                 static_cast<int>(ts.year),
@@ -203,10 +200,14 @@ struct fmt::formatter<TIMESTAMP_STRUCT> : fmt::formatter<std::string_view> // NO
                                 ts.fraction);
     // NOLINTEND(readability-magic-numbers)
     // Odrežemo odvečne ničle na koncu (ni nujno, ampak lepše)
-    char* end = buffer + written;
-    while (end > buffer + 20 && *(end - 1) == '0') --end; // 20 = "YYYY-MM-DD HH:MM:SS."
-    if (end == buffer + 20) end += 1;                     // če ni bilo fraction, odstrani piko
-    else if (*(end - 1) == '.') --end;
-    return formatter<std::string_view>::format(std::string_view(buffer, end - buffer), ctx);
+    char* end = buffer + written;                         // NOLINT
+    while (end > buffer + 20 && *(end - 1) == '0') --end; // 20 = "YYYY-MM-DD HH:MM:SS." NOLINT
+    if (end == buffer + 20) end += 1;                     // če ni bilo fraction, odstrani piko NOLINT
+    else if (*(end - 1) == '.') --end;                    // NOLINT
+    return formatter<std::string_view>::format(std::string_view(buffer, end - buffer), ctx); // NOLINT
   }
 };
+template <>
+struct fmt::formatter<YAML::Node> : fmt::ostream_formatter // NOLINT
+{
+}; // NOLINT

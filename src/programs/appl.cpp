@@ -38,10 +38,7 @@ namespace dbgen4
     if (! r)
     {
       auto sts = ME::enum_integer(r.error());
-      log()->info("File '{}' parser status: {} db status {}",
-                  filename,
-                  magic_enum::enum_name(r.error()),
-                  sts);
+      log()->info("File '{}' parser status: {} db status {}", filename, magic_enum::enum_name(r.error()), sts);
       return std::unexpected(r.error());
     }
     r = parser_.load_file_meta_data(r.value(), db); /// statements enriched with metadata
@@ -53,9 +50,7 @@ namespace dbgen4
     auto res = gen.generate(r.value());
     if (! res)
     {
-      log()->info("File '{}' source code generation failed. status: {}",
-                  filename,
-                  ME::enum_name(res.error()));
+      log()->info("File '{}' source code generation failed. status: {}", filename, ME::enum_name(res.error()));
       return std::unexpected(res.error());
     }
     //    log()->info("Generated hpp file:\n{}", res.value());
@@ -95,7 +90,7 @@ namespace dbgen4
       context ctx(p_); /// package cmd line parameters
       // auto    res = ctx.prepare_templates(); /// prepare templates
       //      if (! res) return res.error();         /// errors in template generation
-      generator gen(ctx); /// barebone generator
+      generator gen(ctx); /// bare bone generator
       auto      res = gen.register_callbacks();
       if (! res) return res.error(); /// errors in template generation
       res = gen.prepare_templates();
@@ -107,8 +102,7 @@ namespace dbgen4
         auto res = process_one_file(db, gen);
         if (! res)
         {
-          log()->error(
-            "Error during processing file '{}' error {}", filename, ME::enum_name(res.error()));
+          log()->error("Error during processing file '{}' error {}", filename, ME::enum_name(res.error()));
           sts = res.error();
           break;
         }

@@ -20,19 +20,19 @@ namespace dbgen4
     inv_statement_syntax      = 6,   // invalid statement syntax
     stmt_unique_id_is_missing = 7,   // statement unique id is missing
     duplicated_stmt_id        = 8,   // duplicate statement id found
-    no_sql_stmt_found   = 9,  // sql statement is missing in the statement definition in yaml file
-    parse_error         = 10, // generic parse error
-    unhandled_exception = 11, // exception we are not prepared for
-    connection_error    = 12, // cant connect to the databaase
-    sql_syntax_err      = 13, // there is syntax in error in sql, so that prepare can not be done
-    inja_parser_error   = 14, // inja parser error
-    inja_render_error   = 15, // inja template rendering error
-    inja_data_error     = 16, // inja data error
-    inja_file_error     = 17, // inja file error
-    inja_general_error  = 18, // inja general error
-    error_writing_file  = 19, // error writing file
-    error_reading_file  = 20, // error reading file
-    runtime_error       = 21, // runtime error normally signals internal error
+    no_sql_stmt_found         = 9,   // sql statement is missing in the statement definition in yaml file
+    parse_error               = 10,  // generic parse error
+    unhandled_exception       = 11,  // exception we are not prepared for
+    connection_error          = 12,  // cant connect to the database
+    sql_syntax_err            = 13,  // there is syntax in error in sql, so that prepare can not be done
+    inja_parser_error         = 14,  // inja parser error
+    inja_render_error         = 15,  // inja template rendering error
+    inja_data_error           = 16,  // inja data error
+    inja_file_error           = 17,  // inja file error
+    inja_general_error        = 18,  // inja general error
+    error_writing_file        = 19,  // error writing file
+    error_reading_file        = 20,  // error reading file
+    runtime_error             = 21,  // runtime error normally signals internal error
   };
   // parser_err_enum cvt(rtl::db_sts s) { return reinterpret_cast<parser_err_enum>(s); }
   /**
@@ -46,7 +46,7 @@ namespace dbgen4
     {
       // clang-format off
     case exit_status_enum::ok:                        return "Document '{}' Operation successful '{}'";
-    case exit_status_enum::file_cant_be_open:         return "Document '{}' Unable to open file '{}'";
+    case exit_status_enum::file_cant_be_open:         return "Document '{}' Unable to open YAML file '{}'";
     case exit_status_enum::yaml_syntax_error:         return "Document '{}' YAML syntax error '{}' line: {} column: {}";
     case exit_status_enum::inv_top_level_struct:      return "Document '{}' Invalid top level structure '{}' line: {} column: {}";
     case exit_status_enum::statements_attr_missing:   return "Document '{}' Statements attribute is missing '{}' line: {} column: {}";

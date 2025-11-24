@@ -13,6 +13,7 @@ namespace dbgen4
   //  */
   // using map_db_type_t = std::map<db_type_enum, str_t>;
   using meta_vec = std::vector<rtl::meta_dscr>;
+  using str_vec  = std::vector<str_t>;
   /**
    * @brief data about specific sql statement
    *
@@ -41,14 +42,13 @@ namespace dbgen4
      */
     [[nodiscard]] str_t    sql() const;
     [[nodiscard]] str_t    dscr() const;
-    std::string            dump_meta_vector(size_t          offs,
-                                            const char*     fmt,
-                                            const char*     header,
-                                            const meta_vec& v) const;
-    [[nodiscard]] meta_vec columns() const;
+    std::string            dump_meta_vector(size_t offs, const char* fmt, const char* header, const meta_vec& v) const;
+    [[nodiscard]] meta_vec results() const;
     [[nodiscard]] meta_vec params() const;
-    [[nodiscard]] size_t   par_set_size() const;
-    [[nodiscard]] size_t   res_set_size() const;
+    [[nodiscard]] size_t   par_buf_size() const;
+    [[nodiscard]] size_t   res_buf_size() const;
+    [[nodiscard]] str_vec  param_names() const;
+    [[nodiscard]] str_vec  result_names() const;
     /**
      * @brief dump data statement info
      *
@@ -60,10 +60,12 @@ namespace dbgen4
     void set_id(const str_t& id);     ///< set unique id of the statement
     void set_sql(const str_t& sql);   ///< set sql for specific database type
     void set_dscr(const str_t& dscr); ///< set description of the statement
-    void set_par_set_size(size_t par_set_size);
-    void set_res_set_size(size_t res_set_size);
-    void set_columns(meta_vec v) { columns_ = std::move(v); }
-    void set_params(meta_vec v) { params_ = std::move(v); }
+    void set_par_buf_size(size_t par_set_size);
+    void set_res_buf_size(size_t res_set_size);
+    void set_results(meta_vec v);
+    void set_params(meta_vec v);
+    void set_result_names(str_vec v);
+    void set_param_names(str_vec v);
   protected:
   private:
     [[nodiscard]] spdlog::logger* log() const;
@@ -71,10 +73,12 @@ namespace dbgen4
     str_t    id_;              ///< unique id of the data statement
     str_t    sql_;             ///< sql statement (generic or specific for RDBMS)
     str_t    dscr_;            ///< statement description
-    size_t   par_set_size_{1}; ///< how many parameter records we have in parameter buffer
-    size_t   res_set_size_{1}; ///< how many result records we have in result buffer
-    meta_vec columns_;         ///< Result-set column metadata
+    size_t   par_buf_size_{1}; ///< how many parameter records we have in parameter buffer
+    size_t   res_buf_size_{1}; ///< how many result records we have in result buffer
+    meta_vec results_;         ///< Result-set column metadata
     meta_vec params_;          ///< Input parameter metadata
+    str_vec  result_names_;    ///< alternative result column names
+    str_vec  param_names_;     ///< alternative parameter column names
   };
 
 } // namespace dbgen4

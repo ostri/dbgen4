@@ -5,6 +5,7 @@
 #include "data_statement.hpp"
 #include "data_statements.hpp"
 #include "db2_rtl.hpp"
+#include "parse_yaml.hpp"
 #include "parser_errors.hpp"
 #include <cstddef>
 #include <expected>
@@ -37,18 +38,15 @@ namespace dbgen4
     e_data_statements parse_yaml_file(const str_t& filename, db_type_enum db_type);
     e_data_statements load_file_meta_data(const data_statements& s, rtl::db_db2& db) const;
     /// getters
-    [[nodiscard]] str_t filename() const; ///< filename where gsql definition is stored
+    [[nodiscard]] str_t filename() const; ///< YAML filename
     /// setters
     void set_filename(const str_t& filename);
   protected:
-    /// @brief loads the data from the yaml file structure to data structures
-    /// @param n internal yaml file structure
-    /// @return result of the operation, optional loaded data structure
-    [[nodiscard]] e_data_statements parse_yaml_file(const YAML::Node& n, db_type_enum db_type);
-    [[nodiscard]] exit_status_enum  no_sql_found(e_data_statement& res) const;
-    [[nodiscard]] e_data_statement  process_statement(const YAML::Node&      yaml_stmt,
-                                                      const data_statements& s,
-                                                      db_type_enum           db_type) const;
+    e_data_statements              parse_yaml_file(const parse_yaml& n, db_type_enum db_type);
+    [[nodiscard]] exit_status_enum no_sql_found(e_data_statement& res) const;
+    [[nodiscard]] e_data_statement process_statement(const YAML::Node&      yaml_stmt,
+                                                     const data_statements& s,
+                                                     db_type_enum           db_type) const;
   private:
     [[nodiscard]] spdlog::logger* log() const;
 
@@ -63,7 +61,7 @@ namespace dbgen4
     exit_status_enum               log_yaml_segment(const YAML::Node& n);
     [[nodiscard]] exit_status_enum log_id_is_missing(const YAML::Node& stmt, size_t pos) const;
     /// member(s)
-    str_t filename_; //< filename where gsql definition is stored
+    str_t filename_; //< YAML filename
 
     [[nodiscard]] exit_status_enum no_sql_found(const str_t& stmt_id) const;
   };

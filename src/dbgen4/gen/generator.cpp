@@ -45,8 +45,7 @@ namespace
     if (str.size() >= len) return str;
     std::string pad(len - str.size(), pad_char);
     auto        tmp = str + pad;
-    log::get()->trace(
-      fmt::format("Padded value: '{}' len: {} pad_char: '{}' pad '{}'", tmp, len, pad_char, pad));
+    log::get()->trace(fmt::format("Padded value: '{}' len: {} pad_char: '{}' pad '{}'", tmp, len, pad_char, pad));
     return tmp;
   }
   std::string lpad_impl(inja::Arguments& args)
@@ -70,8 +69,7 @@ namespace
     if (str.size() >= len) return str;
     std::string pad(len - str.size(), pad_char);
     auto        tmp = pad + str;
-    log::get()->trace(
-      fmt::format("L Padded value: '{}' len: {} pad_char: '{}' pad '{}'", tmp, len, pad_char, pad));
+    log::get()->trace(fmt::format("L Padded value: '{}' len: {} pad_char: '{}' pad '{}'", tmp, len, pad_char, pad));
     return tmp;
   }
 }; // anonymous namespace
@@ -98,10 +96,8 @@ namespace dbgen4
       auto            ret = fs::create_directories(path, ec);
       if (! ret)
       {
-        auto msg = fmt::format("Program was not able to create folder '{}' msg: {} code: {}",
-                               path.string(),
-                               ec.message(),
-                               ec.value());
+        auto msg = fmt::format(
+          "Program was not able to create folder '{}' msg: {} code: {}", path.string(), ec.message(), ec.value());
         log()->critical(msg);
         throw std::runtime_error(msg);
       }
@@ -112,8 +108,8 @@ namespace dbgen4
     for (auto tpl_id : {inja_tpl_enum::main_hpp, inja_tpl_enum::main_cpp})
     {
       // auto fn_tpl = tpl_2_fn_enum(tpl_type);
-      auto fn  = ((tpl_id == inja_tpl_enum::main_hpp) ? filename(gen_fn_tpl_names::hpp)
-                                                      : filename(gen_fn_tpl_names::cpp));
+      auto fn =
+        ((tpl_id == inja_tpl_enum::main_hpp) ? filename(gen_fn_tpl_names::hpp) : filename(gen_fn_tpl_names::cpp));
       auto res = generate_file_through_template(json.value(), tpl_id);
       if (! res) return std::unexpected(res.error());
       auto r = write_file(fn, res.value());
@@ -269,10 +265,8 @@ namespace dbgen4
     case rtl::sql_cat::atomic:
     case rtl::sql_cat::structure: return fmt::format("{}", dscr->cpp_type_name);
     case rtl::sql_cat::c_string:
-    case rtl::sql_cat::w_string:
-      return fmt::format("std::array<{0}, l_{1}+1>", dscr->cpp_type_name, name);
-    case rtl::sql_cat::b_string:
-      return fmt::format("std::array<{0}, l_{1}>", dscr->cpp_type_name, name);
+    case rtl::sql_cat::w_string: return fmt::format("std::array<{0}, l_{1}+1>", dscr->cpp_type_name, name);
+    case rtl::sql_cat::b_string: return fmt::format("std::array<{0}, l_{1}>", dscr->cpp_type_name, name);
     default: std::unreachable();
     }
   }
@@ -421,8 +415,8 @@ namespace dbgen4
                           std::string class_name = args[1]->get<std::string>(); // name
                           auto        buf_size   = args[2]->get<int>();         // buffer size
 
-                          json data   = j_data_; // tvoj glavni json (statement, timestamp ...)
-                          data["buf"] = buf;
+                          json data          = j_data_; // tvoj glavni json (statement, timestamp ...)
+                          data["buf"]        = buf;
                           data["class-name"] = class_name;
                           data["buf-size"]   = buf_size;
 
@@ -445,8 +439,8 @@ namespace dbgen4
                           const json& buf        = *args[0];                    // data
                           auto        class_name = args[1]->get<std::string>(); // name
 
-                          json data   = j_data_; // tvoj glavni json (statement, timestamp ...)
-                          data["buf"] = buf;
+                          json data          = j_data_; // tvoj glavni json (statement, timestamp ...)
+                          data["buf"]        = buf;
                           data["class-name"] = class_name;
 
                           // Samo renderamo že parsan template – brez branja datoteke!
@@ -520,22 +514,21 @@ namespace dbgen4
     j["description"] = join(prefix_split(s.description(), '\n', " *  "), "\n");
     j["version"]     = "0.1.0"; // FIXME(ostri) magic string
     j["timestamp"] =
-      fmt::format("{:%Y-%m-%d %H:%M:%Z %Z}",
-                  std::chrono::current_zone()->to_local(std::chrono::system_clock::now()));
+      fmt::format("{:%Y-%m-%d %H:%M:%Z %Z}", std::chrono::current_zone()->to_local(std::chrono::system_clock::now()));
     j["statements"] = json::array();
     for (const auto& stmt : s.map() | std::views::values)
     {
       json jstmt;
       jstmt["id"]           = stmt.id();
-      jstmt["sql"]          = prefix_text(stmt.sql(), 10); // no offset NOLINT
+      jstmt["sql"]          = prefix_text(stmt.sql(), 10);                             // no offset NOLINT
       jstmt["dscr"]         = stmt.dscr().empty() ? "" : prefix_text(stmt.dscr(), 10); // NOLINT
-      jstmt["res-set-size"] = stmt.res_set_size();
-      jstmt["par-set-size"] = stmt.par_set_size();
+      jstmt["res-set-size"] = stmt.res_buf_size();
+      jstmt["par-set-size"] = stmt.par_buf_size();
 
       jstmt["result"] = json::array();
       jstmt["param"]  = json::array();
 
-      for (const auto& el : stmt.columns()) jstmt["result"].push_back(attr_mappings(el));
+      for (const auto& el : stmt.results()) jstmt["result"].push_back(attr_mappings(el));
       for (const auto& el : stmt.params()) jstmt["param"].push_back(attr_mappings(el));
 
       j["statements"].push_back(jstmt);
