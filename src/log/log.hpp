@@ -12,19 +12,12 @@
 #include <spdlog/sinks/daily_file_sink.h>
 #include <spdlog/async.h>
 #include <nlohmann/json.hpp>
-// #include <filesystem>
 #include <memory>
 #include <string_view>
-// #include <stacktrace>
-// #include <csignal>
-// #include <array>
 
-// namespace fs = std::filesystem;
-
-const int keep_days_default = 7; ///< how long we keep the logs by default
-// NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members, cert-err58-cpp)
-constexpr const char* def_log_cfg_path = is_debug_build() ? "config/log.debug.conf" : "config/log.release.conf";
-constexpr const char* def_log_path     = is_debug_build() ? "logs/fallback.debug.log" : "logs/fallback.release.log";
+const int             keep_days_default = 7; ///< how long we keep the logs by default
+constexpr const char* def_log_cfg_path  = is_debug_build() ? "config/log.debug.conf" : "config/log.release.conf";
+constexpr const char* def_log_path      = is_debug_build() ? "logs/fallback.debug.log" : "logs/fallback.release.log";
 
 class log
 {
@@ -32,10 +25,7 @@ public:
   // Meyers' Singleton – thread-safe, lazy initialization
   static log& instance()
   {
-    // static std::once_flag init_flag;
     static log singleton_;
-    // static bool init_ = false;
-
     if (singleton_.cfg_filename_.empty())
     {
       const auto* config_file = std::getenv("LOG_CONFIG"); // NOLINT(concurrency-mt-unsafe)
