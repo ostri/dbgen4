@@ -12,6 +12,6 @@ int main()
   par.set_par_1_null();
   par.set_par_1_null(1);
   res.set_col_xml_null();
-  std::cout << "param" << par.dump(5) << "\n";
+  std::cout << "param" << par.dump(5) << "\n"; // NOLINT
   return 0;
 }
