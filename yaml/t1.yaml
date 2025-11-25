@@ -8,7 +8,7 @@ statements:
   #   sql: select * from test
   - id: sql_1
     result-size: 5 # number of record allocated in result buffer
-    parameter-size: 2 # number of records allocated in param buffer
+    param-size: 2 # number of records allocated in param buffer
     dscr: |
       long
       long

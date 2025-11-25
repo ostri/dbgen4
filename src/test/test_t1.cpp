@@ -9,8 +9,9 @@ int main()
   p par; // parameters (e.g. for inset, update)
   std::cout << "result" << res.dump() << "\n";
   std::cout << "param" << par.dump() << "\n";
-  par.set_par_1(10, 0); // NOLINT
+  par.set_par_1_null();
   par.set_par_1_null(1);
+  res.set_col_xml_null();
   std::cout << "param" << par.dump(5) << "\n";
   return 0;
 }
