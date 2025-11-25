@@ -57,7 +57,11 @@ configure_file(${CMAKE_SOURCE_DIR}/config/buf_cpp.jinja
 
 
 # === log library ===
-add_library(log STATIC src/log/log.cpp)
+add_library(log
+  STATIC
+    src/log/log.cpp
+    src/log/log_impl.cpp
+    )
 target_include_directories(log
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/log
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common
