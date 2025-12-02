@@ -20,8 +20,8 @@ namespace
     if (arg->is_string()) return arg->get<std::string>();
     if (arg->is_number()) return std::to_string(arg->get<int64_t>());
     if (arg->is_boolean()) return arg->get<bool>() ? "true" : "false";
-    if (arg->is_array() || arg->is_object()) return arg->dump(); // JSON kot string
-    return arg->dump();                                          // fallback za vse ostalo
+    if (arg->is_array() || arg->is_object()) return arg->dump(); // JSON as string
+    return arg->dump();                                          // fallback
   }
 
   std::string pad_impl(inja::Arguments& args)
@@ -79,7 +79,7 @@ namespace dbgen4
   /**
    * @brief generate hpp and cpp file
    *
-   * @param s statements - liat of sql statements that we need to generate the c++ code
+   * @param s statements - vector of sql statements that we need to generate the c++ code
    * @return e_string or error - if successful - empty string error code otherwise
    */
   e_string generator::generate(const data_statements& s)
@@ -96,8 +96,7 @@ namespace dbgen4
       auto            ret = fs::create_directories(path, ec);
       if (! ret)
       {
-        auto msg = fmt::format(
-          "Program was not able to create folder '{}' msg: {} code: {}", path.string(), ec.message(), ec.value());
+        auto msg = fmt::format("Program was not able to create folder '{}' msg: {} code: {}", path.string(), ec.message(), ec.value());
         log()->critical(msg);
         throw std::runtime_error(msg);
       }
@@ -108,8 +107,7 @@ namespace dbgen4
     for (auto tpl_id : {inja_tpl_enum::main_hpp, inja_tpl_enum::main_cpp})
     {
       // auto fn_tpl = tpl_2_fn_enum(tpl_type);
-      auto fn =
-        ((tpl_id == inja_tpl_enum::main_hpp) ? filename(gen_fn_tpl_names::hpp) : filename(gen_fn_tpl_names::cpp));
+      auto fn  = ((tpl_id == inja_tpl_enum::main_hpp) ? filename(gen_fn_tpl_names::hpp) : filename(gen_fn_tpl_names::cpp));
       auto res = generate_file_through_template(json.value(), tpl_id);
       if (! res) return std::unexpected(res.error());
       auto r = write_file(fn, res.value());
@@ -135,6 +133,11 @@ namespace dbgen4
   str_t generator::out_folder() const { return ctx().cmd().out_folder(); }
 
   db_type_enum generator::db_type() const { return cmd().db_type(); }
+
+  str_t generator::hpp_fn() const { return filename(gen_fn_tpl_names::hpp); }
+
+
+  str_t generator::cpp_fn() const { return filename(gen_fn_tpl_names::cpp); }
 
   str_t generator::filename(gen_fn_tpl_names tpl_type) const
   {
@@ -165,9 +168,9 @@ namespace dbgen4
       }
 
       log()->trace("template read:\n'{}'", res.value());
-      inja::Template tmpl = env_.parse(res.value());
+      inja::Template templ = env_.parse(res.value());
       log()->debug("template '{}' successfully read and evaluated.", template_fn);
-      return tmpl;
+      return templ;
     } // namespace dbgen4
   }
   /**
@@ -179,10 +182,7 @@ namespace dbgen4
    * @param code exit code
    * @return exit_status_enum the same as code
    */
-  exit_status_enum generator::error(const str_t&           filename_tpl,
-                                    const str_t&           template_str,
-                                    const inja::InjaError& e,
-                                    exit_status_enum       code)
+  exit_status_enum generator::error(const str_t& filename_tpl, const str_t& template_str, const inja::InjaError& e, exit_status_enum code)
   {
     log()->critical("Render error file: '{}' error: '{}' line: {} col: {} template: \n{}.",
                     filename_tpl,
@@ -223,7 +223,7 @@ namespace dbgen4
   /**
    * @brief generate the file through the template
    *
-   * @param data data to fill in into teplate
+   * @param data data to fill in into template
    * @param tpl_type type of the template to generate
    * @return e_string file contents (template+data) or error
    */
@@ -367,7 +367,7 @@ namespace dbgen4
     }
   }
   /**
-   * @brief fragment of attribut for dump method
+   * @brief fragment of attribute for dump method
    *
    * @param sql_type
    * @param name
@@ -399,7 +399,7 @@ namespace dbgen4
   {
     env_.set_expression("<<", ">>");
     log()->info("Expression delimiter set to << and >>.");
-    log()->debug("register calbacks");
+    log()->debug("register callbacks");
     /**
      * @brief hpp part of buffer definition
      *
@@ -415,12 +415,12 @@ namespace dbgen4
                           std::string class_name = args[1]->get<std::string>(); // name
                           auto        buf_size   = args[2]->get<int>();         // buffer size
 
-                          json data          = j_data_; // tvoj glavni json (statement, timestamp ...)
+                          json data          = j_data_; //  main json
                           data["buf"]        = buf;
                           data["class-name"] = class_name;
                           data["buf-size"]   = buf_size;
 
-                          // Samo renderamo že parsan template – brez branja datoteke!
+                          // only rendering of the preloaded template
                           return env_.render(templates_.at(inja_tpl_enum::buf_hpp), data);
                         });
       log()->debug("callback {} - registered.", cb_name);
@@ -439,11 +439,11 @@ namespace dbgen4
                           const json& buf        = *args[0];                    // data
                           auto        class_name = args[1]->get<std::string>(); // name
 
-                          json data          = j_data_; // tvoj glavni json (statement, timestamp ...)
+                          json data          = j_data_; // main json
                           data["buf"]        = buf;
                           data["class-name"] = class_name;
 
-                          // Samo renderamo že parsan template – brez branja datoteke!
+                          // only rendering of the preloaded template
                           return env_.render(templates_.at(inja_tpl_enum::buf_cpp), data);
                         });
       log()->debug("callback {} - registered.", cb_name);
@@ -496,7 +496,7 @@ namespace dbgen4
     return tmp_col;
   }
   /**
-   * @brief preapre json structure from internal data.
+   * @brief prepare json structure from internal data.
    *
    * @param s internal structure
    * @return e_json json structure to be used by inja template
@@ -513,25 +513,24 @@ namespace dbgen4
     j["summary"]     = s.summary();
     j["description"] = join(prefix_split(s.description(), '\n', " *  "), "\n");
     j["version"]     = "0.1.0"; // FIXME(ostri) magic string
-    j["timestamp"] =
-      fmt::format("{:%Y-%m-%d %H:%M:%Z %Z}", std::chrono::current_zone()->to_local(std::chrono::system_clock::now()));
-    j["statements"] = json::array();
+    j["timestamp"]   = fmt::format("{:%Y-%m-%d %H:%M:%Z %Z}", std::chrono::current_zone()->to_local(std::chrono::system_clock::now()));
+    j["statements"]  = json::array();
     for (const auto& stmt : s.map_statements() | std::views::values)
     {
-      json jstmt;
-      jstmt["id"]           = stmt.id();
-      jstmt["sql"]          = prefix_text(stmt.sql(), 10);                             // no offset NOLINT
-      jstmt["dscr"]         = stmt.dscr().empty() ? "" : prefix_text(stmt.dscr(), 10); // NOLINT
-      jstmt["res-set-size"] = stmt.res_buf_size();
-      jstmt["par-set-size"] = stmt.par_buf_size();
+      json s;
+      s["id"]           = stmt.id();
+      s["sql"]          = prefix_text(stmt.sql(), 10);                             // no offset NOLINT
+      s["dscr"]         = stmt.dscr().empty() ? "" : prefix_text(stmt.dscr(), 10); // NOLINT
+      s["res-set-size"] = stmt.res_buf_size();
+      s["par-set-size"] = stmt.par_buf_size();
 
-      jstmt["result"] = json::array();
-      jstmt["param"]  = json::array();
+      s["result"] = json::array();
+      s["param"]  = json::array();
 
-      for (const auto& el : stmt.results()) jstmt["result"].push_back(attr_mappings(el));
-      for (const auto& el : stmt.params()) jstmt["param"].push_back(attr_mappings(el));
+      for (const auto& el : stmt.results()) s["result"].push_back(attr_mappings(el));
+      for (const auto& el : stmt.params()) s["param"].push_back(attr_mappings(el));
 
-      j["statements"].push_back(jstmt);
+      j["statements"].push_back(s);
     }
     return j;
   };

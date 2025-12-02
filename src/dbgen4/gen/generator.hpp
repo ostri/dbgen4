@@ -58,11 +58,11 @@ namespace dbgen4
     [[nodiscard]] str_t                  yaml_fn() const;
     [[nodiscard]] str_t                  out_folder() const;
     [[nodiscard]] db_type_enum           db_type() const;
-    [[nodiscard]] str_t                  hpp_fn() const { return filename(gen_fn_tpl_names::hpp); }
-    [[nodiscard]] str_t                  cpp_fn() const { return filename(gen_fn_tpl_names::cpp); }
-    [[nodiscard]] str_t  json_fn() const { return filename(gen_fn_tpl_names::json); }
-    [[nodiscard]] str_t  filename(gen_fn_tpl_names tpl_type) const;
-    [[nodiscard]] map_fn get_fn_tpl() const;
+    [[nodiscard]] str_t                  hpp_fn() const;
+    [[nodiscard]] str_t                  cpp_fn() const;
+    [[nodiscard]] str_t                  json_fn() const { return filename(gen_fn_tpl_names::json); }
+    [[nodiscard]] str_t                  filename(gen_fn_tpl_names tpl_type) const;
+    [[nodiscard]] map_fn                 get_fn_tpl() const;
     /// setters
     void set_s(data_statements* s);
     void set_yaml_fn_and_barename(cstr_t yaml_fn);

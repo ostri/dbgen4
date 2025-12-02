@@ -84,9 +84,9 @@ public:
   // Backward compatibility
   static spdlog::logger* get() { return log::instance().get_internal(); }
 private:
-  log()             = default; // creates fallback logger
-  ~log()            = default;
-  bool initialized_ = false; // full construction when singleton is already constructed
+  log()  = default; // creates fallback logger
+  ~log() = default;
+  // bool initialized_ = false; // full construction when singleton is already constructed
 
   // Helper functions
   static spdlog::level::level_enum flush_level_from_string(const std::string& level);
