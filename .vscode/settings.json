@@ -9,21 +9,25 @@
   "cmake.buildArgs": [
     "-j8"
   ],
-  "editor.formatOnSave": true,
+  "cmake.buildDirectory": "${workspaceFolder}/build/${buildType}",
+//  "editor.formatOnSave": true,
   "[cpp]": {
     "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd",
     "editor.tabSize": 2,
     "editor.insertSpaces": true,
-    "editor.detectIndentation": false
+    "editor.detectIndentation": false,
+    "editor.formatOnSave": true,
   },
   "[hpp]": {
     "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd",
     "editor.tabSize": 2,
     "editor.insertSpaces": true,
-    "editor.detectIndentation": false
+    "editor.detectIndentation": false,
+    "editor.formatOnSave": true
   },
   "clangd.arguments": [
     "--clang-tidy",
+    "--background-index",
     "--pretty",
     "--fallback-style=Google",
     "--compile-commands-dir=${workspaceFolder}/build"
