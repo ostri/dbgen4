@@ -70,7 +70,7 @@ namespace dbgen4
     /// utility methods
     e_void              prepare_templates();
     e_string            generate(const data_statements& s);
-    void                attr_mappings(json& jstmt, rtl::meta_dscr const& el);
+    void                attr_mappings(json& j_stmt, rtl::meta_dscr const& el);
     e_json              internal_model_to_json(const data_statements& s);
     e_string            generate_file_through_template(const json& data, inja_tpl_enum tpl_type);
     str_t               attr_dump_value_to_string(rtl::sql_type sql_type, const str_t& name);
