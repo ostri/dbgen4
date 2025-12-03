@@ -3,7 +3,7 @@
     "cmath": "cpp",
     "initializer_list": "cpp"
   },
-  "cmake.generator": "Unix Makefiles",
+  "cmake.generator": "Ninja",
   "cmake.configureOnOpen": true,
   "cmake.buildBeforeRun": true,
   "cmake.buildArgs": [

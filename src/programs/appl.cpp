@@ -74,9 +74,7 @@ namespace dbgen4
     auto sts = p_.load_parameters(argc, argv, env);
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers)
     if (sts != exit_status_enum::ok) return sts; // exit on help or error in parsing
-    // FIXME(ostri) magic number
-
-    raw_command_line(argc, argv);
+    display_raw_command_line_log(argc, argv);
     try
     {
       rtl::db_db2 db; // access to the RDBMS
@@ -132,7 +130,7 @@ namespace dbgen4
 
   spdlog::logger* appl::log() { return log::get(); };
 
-  void appl::raw_command_line(int argc, char** argv)
+  void appl::display_raw_command_line_log(int argc, char** argv)
   {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     const vec_str_t vec(argv, argv + argc);

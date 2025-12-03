@@ -1,7 +1,32 @@
 cmake_minimum_required(VERSION 3.16)
 project(dbgen4 VERSION 0.1.0 DESCRIPTION "database access code generator" LANGUAGES CXX)
 
+# ===================================================================
+# Force the same build tool and behavior as manual command line
+# ===================================================================
+
+# 1. Always use Ninja (fastest + single-config → CMAKE_BUILD_TYPE actually works)
+if(NOT CMAKE_GENERATOR)
+    set(CMAKE_GENERATOR "Ninja" CACHE STRING "Force Ninja generator" FORCE)
+endif()
+
+# 2. Disable multi-config nonsense that VS Code loves to enable
+set(CMAKE_CONFIGURATION_TYPES "Debug" CACHE STRING "" FORCE)
+
+# 3. Default to Debug if nothing is specified (both CLI and VS Code)
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Default build type" FORCE)
+endif()
+
+# 4. Optional: lock it so VS Code cannot silently switch to multi-config
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE BOOL "" FORCE)
+
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+
+# === Build Type & NDEBUG ===
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Debug CACHE STRING "Choose the type of build." FORCE)
+endif()
 
 # === C++ Standard ===
 set(CMAKE_CXX_STANDARD 23)
@@ -9,10 +34,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# === Build Type & NDEBUG ===
-if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
-endif()
+
 
 # Ensure NDEBUG is defined in Release
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -25,6 +47,35 @@ endif()
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     add_compile_options(-Wall -Wextra -Wpedantic -Werror -Wnarrowing -Wswitch-enum -Werror=switch-enum -Wswitch-default)
     add_link_options(-fno-omit-frame-pointer)
+endif()
+
+# ===================================================================
+# Sanitizers – enabled only in Debug and RelWithDebInfo builds
+# Fully compatible with IBM DB2 thanks to protect_shadow_gap=0 workaround
+# ===================================================================
+option(ENABLE_SANITIZERS "Enable Address/Undefined/Leak sanitizers in Debug builds" ON)
+
+if((CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo") AND ENABLE_SANITIZERS)
+
+    # AddressSanitizer + UndefinedBehaviorSanitizer + LeakSanitizer (GCC & Clang)
+    add_compile_options(-fsanitize=address,undefined,leak -fno-omit-frame-pointer -g3 -O1)
+    add_link_options(   -fsanitize=address,undefined,leak)
+
+    # Runtime options – fix DB2 shadow memory conflict and give nicer reports
+    set(SANITIZER_ENV
+        "ASAN_OPTIONS=protect_shadow_gap=0:detect_leaks=1:detect_stack_use_after_return=1:halt_on_error=0:abort_on_error=1:strip_path_prefix=${CMAKE_SOURCE_DIR}/"
+        "LSAN_OPTIONS=detect_leaks=1:suppressions=${CMAKE_SOURCE_DIR}/lsan.supp:print_suppressions=0"
+        "UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1"
+    )
+
+    # Helper to attach the environment variables to every executable that links DB2
+    function(enable_sanitizers_for_target target_name)
+        set_property(TARGET ${target_name} APPEND PROPERTY ENVIRONMENT ${SANITIZER_ENV})
+        message(STATUS "Sanitizers + DB2 compatibility enabled for target: ${target_name}")
+    endfunction()
+
+else()
+    message(STATUS "Release/MinSizeRel build → sanitizers disabled")
 endif()
 
 # === Dependencies ===
@@ -262,3 +313,102 @@ if(BUILD_TESTING)
 endif()
 
 message(STATUS "Smoke test '${SMOKE_TEST_TARGET_NAME}' is ready.")
+
+# Enable sanitizer environment for all DB2-linked executables - should be at the end
+if((CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo") AND ENABLE_SANITIZERS)
+    enable_sanitizers_for_target(${PROJECT_NAME}-db2)
+    enable_sanitizers_for_target(${SMOKE_TEST_TARGET_NAME})
+endif()
+
+# # ──────────────────────────────────────────────────────────────
+# # Describe build type
+# # ──────────────────────────────────────────────────────────────
+# if(CMAKE_BUILD_TYPE)
+#     string(TOUPPER "${CMAKE_BUILD_TYPE}" _build_type_upper)
+#     message(STATUS "─────────────────────────────────────────────────────")
+#     message(STATUS "BUILD TYPE              : ${CMAKE_BUILD_TYPE}")
+#     message(STATUS "CMAKE_CXX_FLAGS         : ${CMAKE_CXX_FLAGS}")
+#     message(STATUS "CMAKE_CXX_FLAGS_${_build_type_upper} : ${CMAKE_CXX_FLAGS_${_build_type_upper}}")
+#     message(STATUS "NDEBUG defined          : ${CMAKE_CXX_FLAGS_${_build_type_upper}}")
+#     if(CMAKE_CXX_FLAGS_${_build_type_upper} MATCHES "-g")
+#         message(STATUS "Debug symbols           : YES")
+#     else()
+#         message(STATUS "Debug symbols           : NO")
+#     endif()
+#     if(CMAKE_CXX_FLAGS_${_build_type_upper} MATCHES "fsanitize")
+#         message(STATUS "Sanitizers              : YES")
+#     else()
+#         message(STATUS "Sanitizers              : NO")
+#     endif()
+#     message(STATUS "─────────────────────────────────────────────────────")
+# else()
+#     # Multi-config generatorators (Visual Studio, Xcode, Ninja Multi-Config …)
+#     message(STATUS "Multi-config generator – possible build types: ${CMAKE_CONFIGURATION_TYPES}")
+# endif()
+# ===================================================================
+# Show real compile and link flags used for selected targets
+# (works correctly with modern CMake + add_compile_options / target_*)
+# ===================================================================
+function(show_target_build_info target)
+    if(NOT TARGET ${target})
+        return()
+    endif()
+
+    #message(STATUS "═════════════════════════════════════════════════════")
+    message(STATUS "TARGET                  : ${target}")
+    message(STATUS "BUILD TYPE              : ${CMAKE_BUILD_TYPE}")
+
+    # --- Compile options (includes add_compile_options, target_compile_options, etc.) ---
+    get_target_property(_compile_opts ${target} COMPILE_OPTIONS)
+    if(NOT _compile_opts)
+        set(_compile_opts "<none>")
+    endif()
+
+    get_target_property(_iface_compile ${target} INTERFACE_COMPILE_OPTIONS)
+    if(_iface_compile)
+        list(APPEND _compile_opts "INTERFACE_COMPILE_OPTIONS: ${_iface_compile}")
+    endif()
+
+    # --- Link options ---
+    get_target_property(_link_opts ${target} LINK_OPTIONS)
+    if(NOT _link_opts)
+        set(_link_opts "<none>")
+    endif()
+
+    get_target_property(_iface_link ${target} INTERFACE_LINK_OPTIONS)
+    if(_iface_link)
+        list(APPEND _link_opts "INTERFACE_LINK_OPTIONS: ${_iface_link}")
+    endif()
+
+    # --- Final output ---
+    message(STATUS "COMPILE_OPTIONS         : ${_compile_opts}")
+    message(STATUS "LINK_OPTIONS            : ${_link_opts}")
+
+    # Helper checks
+    string(JOIN " " _all_compile_flags ${_compile_opts})
+    if(_all_compile_flags MATCHES "-g")
+        message(STATUS "Debug symbols (-g)      : YES")
+    else()
+        message(STATUS "Debug symbols (-g)      : NO")
+    endif()
+
+    if(_all_compile_flags MATCHES "sanitize")
+        message(STATUS "Sanitizers              : YES")
+    else()
+        message(STATUS "Sanitizers              : NO")
+    endif()
+
+    message(STATUS "═════════════════════════════════════════════════════")
+endfunction()
+
+message(STATUS "═════════════════════════════════════════════════════")
+# Show info for the main executable
+show_target_build_info(${PROJECT_NAME}-db2)
+
+# Optionally show for the smoke test as well (uncomment if desired)
+show_target_build_info(test_t1)
+
+# Very compact one-liner (useful when you just want a quick check)
+get_target_property(C ${PROJECT_NAME}-db2 COMPILE_OPTIONS)
+get_target_property(L ${PROJECT_NAME}-db2 LINK_OPTIONS)
+message(STATUS "QUICK → ${CMAKE_BUILD_TYPE} | COMPILE: ${C} | LINK: ${L}")

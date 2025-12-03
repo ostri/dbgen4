@@ -1,0 +1,4 @@
+# lsan.supp – suppression of warnings of leaks from IBM DB2 and other libraries
+leak:libdb2.so
+leak:libcli*
+leak:libstdc++exp

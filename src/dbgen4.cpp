@@ -24,9 +24,11 @@ int main(int argc, char** argv, char** env)
     dbgen4::appl app;
     /// start with parsing and generating
     auto sts = app.exec(argc, argv, env);
-    log::get()->info(
-      "Program is finished. return code '{}' return status '{}'", ME::enum_integer(sts), ME::enum_name(sts));
+    log::get()->info("Program is finished. return code '{}' return status '{}'", ME::enum_integer(sts), ME::enum_name(sts));
     log::get()->flush();
+    // char* ptr = new char[1024]; // NOLINT
+    // std::strcpy(ptr, "kr neki");
+    // log::get()->info("text: '{}'", *ptr);
     // spdlog::shutdown();
     return ME::enum_integer(sts);
   }

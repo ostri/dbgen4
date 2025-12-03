@@ -1,0 +1,9 @@
+{
+    "version": 8,
+    "configurePresets": [
+        {
+            "name": "my-default",
+            "inherits": "ninja-debug"
+        }
+    ]
+}
