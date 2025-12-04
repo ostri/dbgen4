@@ -72,7 +72,7 @@ namespace dbgen4
     parser p;
     log()->info("=========== Application initialized ===========");
     auto sts = p_.load_parameters(argc, argv, env);
-    // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers)
+    log()->info("Command line parsing. status: '{}'", ME::enum_name(sts));
     if (sts != exit_status_enum::ok) return sts; // exit on help or error in parsing
     display_raw_command_line_log(argc, argv);
     try

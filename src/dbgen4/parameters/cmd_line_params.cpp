@@ -2,7 +2,7 @@
 // Created by ostri on 2024/02/04
 //
 
-#include "log.hpp"
+// #include "log.hpp"
 #include "cmd_line_params.hpp"
 #include "common.hpp"
 #include "parser_errors.hpp"
@@ -58,7 +58,7 @@ namespace dbgen4
 {}pass:       {}
 {}out folder: {}
 {}verbose:    {}
-{}files:      
+{}files:
 {}
 )",
                            left_padding,
@@ -86,9 +86,9 @@ namespace dbgen4
   {
     CLI::App app{"Generator of db layer for c++ programs."};
 
-    str_t           s{};
-    const vec_str_t arr(ME::enum_names<db_type_enum>().begin() + 1,
-                        ME::enum_names<db_type_enum>().end());
+    str_t s{};
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    const vec_str_t arr(ME::enum_names<db_type_enum>().begin() + 1, ME::enum_names<db_type_enum>().end());
     for (const auto& el : arr) s += str_t(el) + str_t(",");
     s.resize(s.length() - 1);
     str_t enum_str = std::string(ME::enum_name<db_type_enum>(db_type_enum::sql));
@@ -140,28 +140,48 @@ namespace dbgen4
     try
     {
       // set_log_level(false);
-      if (argc == 1) throw CLI::CallForHelp();
-      app.parse(argc, argv);
+      std::vector<const char*> arg = {};
+      if (argc == 1)
+      {
+        // char* fake_argv[] = {argv[0], (char*)"--help"}; // NOLINT
+        // argc              = 2;
+        // argv              = fake_argv; // NOLINT
+        std::array<char*, 3> arg = {argv[0], const_cast<char*>("--help"), nullptr}; // NOLINT
+        app.parse(arg.size() - 1, arg.data());
+      }
+      else app.parse(argc, argv);
       set_log_level(verbose_);
 
       log()->info(R"(Command line parameter values :
 {})",
                   dump(2));
+      return exit_status_enum::ok;
+    }
+    catch (const CLI::CallForAllHelp& e)
+    {
+      app.exit(e);
+      log()->debug("All Help command.{}", e.what());
+      return exit_status_enum::cmd_all_help;
     }
     catch (const CLI::CallForHelp& e)
     {
-      log()->debug("Help command.{}", e.what());
       app.exit(e);
-      return exit_status_enum::ok;
+      log()->debug("Help command.{}", e.what());
+      return exit_status_enum::cmd_help;
+    }
+    catch (const CLI::CallForVersion& e)
+    {
+      app.exit(e);
+      log()->debug("Version command.{}", e.what());
+      return exit_status_enum::cmd_version;
     }
     catch (const CLI::ParseError& e)
     {
-      auto msg =
-        fmt::format("name: '{}' code: {} msg: '{}'", e.get_name(), e.get_exit_code(), e.what());
+      app.exit(e);
+      auto msg = fmt::format("name: '{}' code: {} msg: '{}'", e.get_name(), e.get_exit_code(), e.what());
       log()->warn(msg);
       log()->warn("Parameters with error(s) \n{}", dump(2));
-      app.exit(e);
-      throw;
+      return exit_status_enum::connection_error;
     }
     catch (...)
     {
@@ -169,12 +189,13 @@ namespace dbgen4
       log()->critical(msg);
       throw;
     }
-    return exit_status_enum::ok;
   }
 
   void cmd_line_params::set_log_level(bool verbose) const
   {
     if (is_debug_build()) { log()->set_level(verbose ? log::trace : log::info); }
-    else { log()->set_level(verbose ? log::info : log::warn); };
+    else {
+      log()->set_level(verbose ? log::info : log::warn);
+    };
   }
 }; // namespace dbgen4

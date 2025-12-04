@@ -33,6 +33,10 @@ namespace dbgen4
     error_writing_file        = 19,  // error writing file
     error_reading_file        = 20,  // error reading file
     runtime_error             = 21,  // runtime error normally signals internal error
+    cmd_help                  = 22,  // help request on command line
+    cmd_all_help              = 23,  // all help
+    cmd_version               = 24,  // display version via cmd line
+    cmd_line_parse_error      = 25,  // command line parser error
   };
   // parser_err_enum cvt(rtl::db_sts s) { return reinterpret_cast<parser_err_enum>(s); }
   /**
@@ -67,6 +71,10 @@ namespace dbgen4
     case exit_status_enum::error_writing_file:        return "Document '{}' error writing file: '{}'";
     case exit_status_enum::error_reading_file:        return "Document '{}' error reading file: '{}'";
     case exit_status_enum::runtime_error:             return "Document '{}' runtime/internal error: '{}'";
+    case exit_status_enum::cmd_help:                  return "User asked for explanation of program usage description.";
+    case exit_status_enum::cmd_all_help:              return "User asked for full program usage description.";
+    case exit_status_enum::cmd_version:               return "User asked for version of the program.";
+    case exit_status_enum::cmd_line_parse_error:      return "Command line parser error cmd:'' error code: {}";
     default:
       // clang-format on
       __builtin_unreachable();

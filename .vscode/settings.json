@@ -7,7 +7,7 @@
   "cmake.configureOnOpen": true,
   "cmake.buildBeforeRun": true,
   "cmake.buildArgs": [
-    "-j8"
+    "--parallel 8"
   ],
   "cmake.buildDirectory": "${workspaceFolder}/build/${buildType}",
 //  "editor.formatOnSave": true,

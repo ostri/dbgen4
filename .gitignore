@@ -35,3 +35,4 @@ build
 .cache
 externals
 .vscode/dbgen4.log
+logs/dbgen4-db2_2025-12-04.log
