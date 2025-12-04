@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.16)
 project(dbgen4 VERSION 0.1.0 DESCRIPTION "database access code generator" LANGUAGES CXX)
 
+option(BUILD_TESTING "Build the testing tree." ON)
+include(CTest)
+enable_testing()
+
 # ===================================================================
 # Force the same build tool and behavior as manual command line
 # ===================================================================
@@ -21,7 +25,7 @@ endif()
 # 4. Optional: lock it so VS Code cannot silently switch to multi-config
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE BOOL "" FORCE)
 
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
 # === Build Type & NDEBUG ===
 if(NOT CMAKE_BUILD_TYPE)
@@ -108,14 +112,19 @@ configure_file(${CMAKE_SOURCE_DIR}/config/buf_cpp.jinja
 
 
 # === log library ===
+set (LOG_INCLUDE_DIRS
+    ${CMAKE_SOURCE_DIR}/src/log
+    ${CMAKE_SOURCE_DIR}/src/dbgen4/common
+)
 add_library(log
   STATIC
     src/log/log.cpp
     src/log/log_impl.cpp
     )
 target_include_directories(log
-    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/log
-    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common
+    # PUBLIC ${CMAKE_SOURCE_DIR}/src/log
+    # PRIVATE ${CMAKE_SOURCE_DIR}/src/dbgen4/common
+    PRIVATE ${LOG_INCLUDE_DIRS}
 )
 target_link_libraries(log PRIVATE spdlog::spdlog nlohmann_json::nlohmann_json)
 target_compile_definitions(log
@@ -126,59 +135,69 @@ target_compile_definitions(log
 
 # === db2_rtl ===
 set(SRC_RTL_FILES
-     ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/rtl.cpp
-     ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/db2/db2_rtl.cpp
-     ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/db2/buffer_dscr.cpp
-     ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/db2/no_params.cpp
-     ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/db2/no_results.cpp
-     ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/db2/parameter_root.cpp
-     ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/db2/result_root.cpp
-     ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/db2/query.cpp
+  ${CMAKE_SOURCE_DIR}/src/rtl/rtl.cpp
+  ${CMAKE_SOURCE_DIR}/src/rtl/db2/db2_rtl.cpp
+  ${CMAKE_SOURCE_DIR}/src/rtl/db2/buffer_dscr.cpp
+  ${CMAKE_SOURCE_DIR}/src/rtl/db2/no_params.cpp
+  ${CMAKE_SOURCE_DIR}/src/rtl/db2/no_results.cpp
+  ${CMAKE_SOURCE_DIR}/src/rtl/db2/parameter_root.cpp
+  ${CMAKE_SOURCE_DIR}/src/rtl/db2/result_root.cpp
+  ${CMAKE_SOURCE_DIR}/src/rtl/db2/query.cpp
 
+)
+set (RTL_INCLUDE_DIRS
+  ${CMAKE_SOURCE_DIR}/src/rtl
+  ${CMAKE_SOURCE_DIR}/src/rtl/db2
+  ${CMAKE_SOURCE_DIR}/src/log
+  ${CMAKE_SOURCE_DIR}/src/dbgen4/common
+  $ENV{IBM_DB_INCLUDE}
 )
 add_library(db2_rtl STATIC ${SRC_RTL_FILES})
 target_include_directories(db2_rtl
-    PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/db2
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/log
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common
-      PRIVATE
-        $ENV{IBM_DB_INCLUDE}
+    # PUBLIC
+    #     ${CMAKE_SOURCE_DIR}/src/rtl
+    #     ${CMAKE_SOURCE_DIR}/src/rtl/db2
+    #     ${CMAKE_SOURCE_DIR}/src/log
+    #     ${CMAKE_SOURCE_DIR}/src/dbgen4/common
+    #   PRIVATE
+    #     $ENV{IBM_DB_INCLUDE}
+    PRIVATE ${RTL_INCLUDE_DIRS}
 )
 target_link_libraries(db2_rtl PUBLIC DB2::DB2 PRIVATE log)
 
 # === Main executable ===
-set(SRC_FILES
-     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4.cpp
-     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/parser/parser.cpp
-     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/parser/data_statement.cpp
-     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/parser/data_statements.cpp
-     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/parser/sql_col_def.cpp
-     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/parser/parse_yaml.cpp
-     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/parameters/cmd_line_params.cpp
-     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/parameters/context.cpp
-     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common/build_type.cpp
-     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common/parser_errors.cpp
-     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common/common.cpp
-     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common/cli_constants.cpp
-     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/gen/generator.cpp
-     ${CMAKE_CURRENT_SOURCE_DIR}/src/programs/appl.cpp
+set(GEN_SRC_FILES
+#     ${CMAKE_SOURCE_DIR}/src/dbgen4.cpp
+     ${CMAKE_SOURCE_DIR}/src/dbgen4/parser/parser.cpp
+     ${CMAKE_SOURCE_DIR}/src/dbgen4/parser/data_statement.cpp
+     ${CMAKE_SOURCE_DIR}/src/dbgen4/parser/data_statements.cpp
+     ${CMAKE_SOURCE_DIR}/src/dbgen4/parser/sql_col_def.cpp
+     ${CMAKE_SOURCE_DIR}/src/dbgen4/parser/parse_yaml.cpp
+     ${CMAKE_SOURCE_DIR}/src/dbgen4/parameters/cmd_line_params.cpp
+     ${CMAKE_SOURCE_DIR}/src/dbgen4/parameters/context.cpp
+     ${CMAKE_SOURCE_DIR}/src/dbgen4/common/build_type.cpp
+     ${CMAKE_SOURCE_DIR}/src/dbgen4/common/parser_errors.cpp
+     ${CMAKE_SOURCE_DIR}/src/dbgen4/common/common.cpp
+     ${CMAKE_SOURCE_DIR}/src/dbgen4/common/cli_constants.cpp
+     ${CMAKE_SOURCE_DIR}/src/dbgen4/gen/generator.cpp
+     ${CMAKE_SOURCE_DIR}/src/programs/appl.cpp
 )
-add_executable(${PROJECT_NAME}-db2 ${SRC_FILES})
+set(GEN_INCLUDE_DIRS
+    ${CMAKE_SOURCE_DIR}/src/log
+    ${CMAKE_SOURCE_DIR}/src/programs
+    ${CMAKE_SOURCE_DIR}/src/dbgen4/common
+    ${CMAKE_SOURCE_DIR}/src/dbgen4/gen
+    ${CMAKE_SOURCE_DIR}/src/dbgen4/parameters
+    ${CMAKE_SOURCE_DIR}/src/dbgen4/parser
+    ${CMAKE_SOURCE_DIR}/src/rtl
+    ${CMAKE_SOURCE_DIR}/src/rtl/db2
+    ${CMAKE_SOURCE_DIR}/src/inja
+)
+add_executable(${PROJECT_NAME}-db2 ${CMAKE_SOURCE_DIR}/src/dbgen4.cpp ${GEN_SRC_FILES})
 target_compile_definitions(${PROJECT_NAME}-db2 PRIVATE SPDLOG_COMPILED_LIB)
 
 target_include_directories(${PROJECT_NAME}-db2 PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/log
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/programs
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/parser
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/parameters
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/db2
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/gen
-    ${CMAKE_SOURCE_DIR}/src/inja
-    ${CMAKE_BINARY_DIR}/
+    ${GEN_INCLUDE_DIRS}
 )
 
 target_link_libraries(${PROJECT_NAME}-db2 PRIVATE
@@ -199,7 +218,7 @@ if(CLANG_TIDY_EXECUTABLE)
         COMMAND ${CLANG_TIDY_EXECUTABLE}
             -p ${CMAKE_BINARY_DIR}
             -config-file=${CMAKE_SOURCE_DIR}/.clang-tidy
-            ${SRC_FILES} ${SRC_RTL_FILES}
+            ${GEN_SRC_FILES} ${SRC_RTL_FILES}
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         COMMENT "Running clang-tidy"
     )
@@ -224,7 +243,7 @@ else()
     message(STATUS "Target 'test_t1' already exists → new smoke test name is: ${SMOKE_TEST_TARGET_NAME}")
 endif()
 
-set(TEST_YAML           ${CMAKE_CURRENT_SOURCE_DIR}/yaml/t1.yaml)
+set(TEST_YAML           ${CMAKE_SOURCE_DIR}/yaml/t1.yaml)
 set(GEN_OUTPUT_DIR      ${CMAKE_BINARY_DIR}/out)
 set(GEN_STAMP           ${GEN_OUTPUT_DIR}/generated.stamp)
 
@@ -232,7 +251,7 @@ file(MAKE_DIRECTORY ${GEN_OUTPUT_DIR})
 
 set(GENERATED_HPP       ${GEN_OUTPUT_DIR}/t1.hpp)
 set(GENERATED_CPP       ${GEN_OUTPUT_DIR}/t1.cpp)
-set(SOURCE_TEST_CPP     ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_t1.cpp)
+set(SOURCE_TEST_CPP     ${CMAKE_SOURCE_DIR}/src/test/test_t1.cpp)
 set(GEN_TEST_CPP        ${GEN_OUTPUT_DIR}/test_t1.cpp)
 
 # Templates - if changed it must be regenerated
@@ -282,9 +301,10 @@ add_custom_target(generate_smoke_test DEPENDS ${GEN_STAMP})
 add_executable(${SMOKE_TEST_TARGET_NAME}
     ${GENERATED_CPP}
     ${GEN_TEST_CPP}
+#    ${GEN_SRC_FILES}
 )
 
-target_include_directories(${SMOKE_TEST_TARGET_NAME} PRIVATE ${GEN_OUTPUT_DIR} )
+target_include_directories(${SMOKE_TEST_TARGET_NAME} PRIVATE ${GEN_OUTPUT_DIR} ${LOG_INCLUDE_DIRS} ${RTL_INCLUDE_DIRS})
 target_link_libraries(${SMOKE_TEST_TARGET_NAME} PRIVATE
     db2_rtl
     log
@@ -319,7 +339,101 @@ if((CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebIn
     enable_sanitizers_for_target(${PROJECT_NAME}-db2)
     enable_sanitizers_for_target(${SMOKE_TEST_TARGET_NAME})
 endif()
+# ===================================================================
+# Unit tests with Catch2
+# ===================================================================
+if(BUILD_TESTING)
+    enable_testing()
 
+    include(FetchContent)
+
+    FetchContent_Declare(
+        Catch2
+        GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+        GIT_TAG        v3.7.1
+    )
+    FetchContent_MakeAvailable(Catch2)
+
+    # ──────────────────────────────
+    # 1. Disable clang-tidy for Catch2 only
+    # ──────────────────────────────
+    set_target_properties(Catch2 Catch2WithMain PROPERTIES CXX_CLANG_TIDY "")
+
+    if(TARGET Catch2 AND TARGET Catch2WithMain)
+        target_compile_options(Catch2 PRIVATE
+            -Wno-error=switch-enum
+            -Wno-error=switch-default
+            -Wno-switch-enum
+            -Wno-switch-default
+            -Wno-switch
+            -Wno-error=maybe-uninitialized
+            -Wno-maybe-uninitialized
+        )
+        target_compile_options(Catch2WithMain PRIVATE
+            -Wno-error=switch-enum
+            -Wno-error=switch-default
+            -Wno-switch-enum
+            -Wno-switch-default
+            -Wno-switch
+            -Wno-error=maybe-uninitialized
+            -Wno-maybe-uninitialized
+        )
+    endif()
+
+    add_executable(unit_tests
+        tests/main.cpp
+        tests/log_test.cpp
+        tests/parser_test.cpp
+        ${GEN_SRC_FILES}
+    )
+    set_target_properties(unit_tests PROPERTIES
+      CXX_CLANG_TIDY ""          # no clang-tidy for test cases (catch triggers false positives)
+    )
+
+    target_link_libraries(unit_tests PRIVATE
+        Catch2::Catch2WithMain
+        log
+        db2_rtl
+        fmt::fmt
+        spdlog::spdlog
+        nlohmann_json::nlohmann_json
+        yaml-cpp::yaml-cpp
+        valijson
+        stdc++exp
+    )
+
+    target_include_directories(unit_tests
+      PRIVATE
+        ${GEN_INCLUDE_DIRS}
+        ${LOG_INCLUDE_DIRS}
+        ${RTL_INCLUDE_DIRS}
+      SYSTEM PRIVATE
+        "${catch2_SOURCE_DIR}/src"
+    )
+
+    target_compile_features(unit_tests PRIVATE cxx_std_23)
+
+    # Tvoji strogi flag-i ostanejo za tvoj kod (unit_tests target)
+    target_compile_options(unit_tests PRIVATE
+        -Wall
+        -Wextra
+        -Wpedantic
+        -Werror
+        -Wnarrowing
+        -Wswitch-enum
+        -Werror=switch-enum
+        -Wswitch-default
+        -Wno-readability-avoid-do-while # catch2  reserved words trigger this
+    )
+
+    if(ENABLE_SANITIZERS AND (CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo"))
+        enable_sanitizers_for_target(unit_tests)
+    endif()
+
+    list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
+    include(Catch)
+    catch_discover_tests(unit_tests PROPERTIES LABELS "unit")
+endif()
 # # ──────────────────────────────────────────────────────────────
 # # Describe build type
 # # ──────────────────────────────────────────────────────────────

@@ -40,16 +40,14 @@ namespace dbgen4
         file.close();
       }
 
-      if (lines.empty())
-        return fmt::format("\033[1;31mYAML error in {0} at {1}:{2} :\033[0m\n{3}\n", filename, line, column, message);
+      if (lines.empty()) return fmt::format("\033[1;31mYAML error in {0} at {1}:{2} :\033[0m\n{3}\n", filename, line, column, message);
 
       const int  cur_idx = line - 1;
       const int  start   = std::max(0, cur_idx - 3);
       const int  end     = std::min(static_cast<int>(lines.size()), cur_idx + 4);
       const auto width   = std::to_string(end).size();
 
-      auto msg =
-        fmt::format("\033[1;31mYAML error in {0} at {1}:{2}:\033[0m\n {3}\n\n", filename, line, column, message);
+      auto msg = fmt::format("\033[1;31mYAML error in {0} at {1}:{2}:\033[0m\n {3}\n\n", filename, line, column, message);
 
       for (int i = start; i < end; ++i)
       {
@@ -59,8 +57,7 @@ namespace dbgen4
         if (i == cur_idx)
         {
           std::string msg_feed(column > 0 ? column - 1 : 0, ' ');
-          msg += fmt::format(
-            "\033[1;37m{0}{1} \033[1;31m>\033[0m {2}\n{3}\033[1;31m^ here\033[0m\n", pad, num, lines[i], msg_feed);
+          msg += fmt::format("\033[1;37m{0}{1} \033[1;31m>\033[0m {2}\n{3}\033[1;31m^ here\033[0m\n", pad, num, lines[i], msg_feed);
         }
         else msg += fmt::format("\033[2m{0}{1}  \033[0m {2}\n", pad, num, lines[i]);
       }
@@ -98,12 +95,11 @@ namespace dbgen4
       }
       catch (const YAML::Exception& e)
       {
-        return std::unexpected(
-          Error{.message = e.msg, .line = e.mark.line, .column = e.mark.column, .filename = filename});
+        return std::unexpected(Error{.message = e.msg, .line = e.mark.line, .column = e.mark.column, .filename = filename});
       }
     }
 
-    static Result from_string(const std::string& content, const std::string& name = "<string>")
+    static Result load_from_string(const std::string& content, const std::string& name = "<string>")
     {
       try
       {
@@ -117,8 +113,7 @@ namespace dbgen4
 
     // getters
     template <typename T>
-    [[nodiscard]] std::expected<T, Error> get(const std::string&     key,
-                                              [[maybe_unused]] loc_t loc = std::source_location::current()) const
+    [[nodiscard]] std::expected<T, Error> get(const std::string& key, [[maybe_unused]] loc_t loc = std::source_location::current()) const
     {
       try
       {
@@ -134,10 +129,8 @@ namespace dbgen4
       }
       catch (const YAML::Exception& e)
       {
-        return std::unexpected(Error{.message  = "Failed to convert key '" + key + "': " + e.msg,
-                                     .line     = e.mark.line,
-                                     .column   = e.mark.column,
-                                     .filename = filename_});
+        return std::unexpected(Error{
+          .message = "Failed to convert key '" + key + "': " + e.msg, .line = e.mark.line, .column = e.mark.column, .filename = filename_});
       }
     }
 
@@ -157,10 +150,7 @@ namespace dbgen4
     /// node existence and type checking
     [[nodiscard]] bool exists(const std::string& key) const noexcept { return root_[key] && ! root_[key].IsNull(); }
     [[nodiscard]] bool is_map(const std::string& key) const noexcept { return exists(key) && root_[key].IsMap(); }
-    [[nodiscard]] bool is_sequence(const std::string& key) const noexcept
-    {
-      return exists(key) && root_[key].IsSequence();
-    }
+    [[nodiscard]] bool is_sequence(const std::string& key) const noexcept { return exists(key) && root_[key].IsSequence(); }
     [[nodiscard]] bool is_scalar(const std::string& key) const noexcept { return exists(key) && root_[key].IsScalar(); }
 
     // sequence of strings
@@ -190,9 +180,8 @@ namespace dbgen4
       return result;
     }
 
-    [[nodiscard]] std::vector<std::string> get_sequence_of_strings_or(
-      const std::string&              key,
-      const std::vector<std::string>& def = {}) const noexcept
+    [[nodiscard]] std::vector<std::string> get_sequence_of_strings_or(const std::string&              key,
+                                                                      const std::vector<std::string>& def = {}) const noexcept
     {
       auto res = get_sequence_of_strings(key);
       if (! res)
@@ -223,20 +212,18 @@ namespace dbgen4
         const auto& item = root_[key][i];
         if (! item.IsMap())
         {
-          return std::unexpected(
-            Error{.message  = "Item " + std::to_string(i) + " in sequence '" + key + "' is not a map",
-                  .line     = item.Mark().line,
-                  .column   = item.Mark().column,
-                  .filename = filename_});
+          return std::unexpected(Error{.message  = "Item " + std::to_string(i) + " in sequence '" + key + "' is not a map",
+                                       .line     = item.Mark().line,
+                                       .column   = item.Mark().column,
+                                       .filename = filename_});
         }
         result.emplace_back(item, filename_ + "." + key + "[" + std::to_string(i) + "]");
       }
       return result;
     }
 
-    [[nodiscard]] std::vector<parse_yaml> get_sequence_of_maps_or(
-      const std::string&             key,
-      const std::vector<parse_yaml>& def = {}) const noexcept
+    [[nodiscard]] std::vector<parse_yaml> get_sequence_of_maps_or(const std::string&             key,
+                                                                  const std::vector<parse_yaml>& def = {}) const noexcept
     {
       auto res = get_sequence_of_maps(key);
       if (! res)

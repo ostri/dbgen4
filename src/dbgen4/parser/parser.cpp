@@ -43,7 +43,13 @@ namespace dbgen4
     filename_ = filename;
     auto res  = parse_yaml::load(filename_);
     if (! res) return std::unexpected(exit_status_enum::file_cant_be_open);
-    return parse_yaml_file(res.value(), db_type);
+    return parse_yaml_file_json(res.value(), db_type);
+  }
+  e_data_statements parser::parse_yaml_string(const str_t& yaml_str, db_type_enum db_type)
+  {
+    auto res = parse_yaml::load_from_string(yaml_str);
+    if (! res) return std::unexpected(exit_status_enum::yaml_syntax_error);
+    return parse_yaml_file_json(res.value(), db_type);
   }
   /**
    * @brief walks through all sql statements of the yaml document and extract its metadata
@@ -63,10 +69,8 @@ namespace dbgen4
       auto res = db.get_sql_metadata(sql);
       if (! res)
       {
-        log()->error("Invalid sql '{}' status: {} mnemonic {}",
-                     sql,
-                     ME::enum_integer(res.error()),
-                     ME::enum_name<rtl::db_sts>(res.error()));
+        log()->error(
+          "Invalid sql '{}' status: {} mnemonic {}", sql, ME::enum_integer(res.error()), ME::enum_name<rtl::db_sts>(res.error()));
         return std::unexpected(exit_status_enum::sql_syntax_err);
       }
 
@@ -75,7 +79,7 @@ namespace dbgen4
       data_statement res_stmt(map_stmt_pair.second);
       res_stmt.set_results(res.value().columns());
       res_stmt.set_params(res.value().params());
-      res_stmt.push_column_names(); // overwrite database column names with user defined (if they exist)
+      res_stmt.push_column_names();                   // overwrite database column names with user defined (if they exist)
       res_stmts.add_statement_with_replace(res_stmt); /// we are replacing existing statement values (meta data added,
                                                       /// everything else the same)
     };
@@ -90,7 +94,7 @@ namespace dbgen4
   /// @brief loads the data from the yaml file structure to data structures
   /// @param n internal yaml file structure
   /// @return result of the operation, optional loaded data structure
-  e_data_statements parser::parse_yaml_file(const parse_yaml& n, db_type_enum db_type)
+  e_data_statements parser::parse_yaml_file_json(const parse_yaml& n, db_type_enum db_type) const
   {
     data_statements stmts{};
 

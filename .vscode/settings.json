@@ -9,14 +9,14 @@
   "cmake.buildArgs": [
     "--parallel 8"
   ],
-  "cmake.buildDirectory": "${workspaceFolder}/build/${buildType}",
-//  "editor.formatOnSave": true,
+  "cmake.buildDirectory": "${workspaceFolder}/build",
+
   "[cpp]": {
     "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd",
     "editor.tabSize": 2,
     "editor.insertSpaces": true,
     "editor.detectIndentation": false,
-    "editor.formatOnSave": true,
+    "editor.formatOnSave": true
   },
   "[hpp]": {
     "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd",
@@ -25,19 +25,24 @@
     "editor.detectIndentation": false,
     "editor.formatOnSave": true
   },
+
   "clangd.arguments": [
-    "--clang-tidy",
     "--background-index",
     "--pretty",
-    "--fallback-style=Google",
+    "--header-insertion=iwyu",
+    "--completion-style=detailed",
+    "--function-arg-placeholders=false",
+    "--clang-tidy",
+    "--clang-tidy-checks=-*,readability-*,bugprone-*,performance-*,cppcoreguidelines-*,-readability-avoid-do-while,-misc-static-assert-in-test,-readability-function-cognitive-complexity,-cppcoreguidelines-macro-usage",
     "--compile-commands-dir=${workspaceFolder}/build"
   ],
+
   "C_Cpp.intelliSenseEngine": "disabled",
-  "clangd.fallbackFlags": [],
+
   "C_mantic.caseStyle": "snake_case",
   "C_mantic.cpp.accessor.boolGetterIsPrefix": true,
   "C_mantic.cpp.accessor.getterDefinitionLocation": "Generate definition in matching source file",
   "C_mantic.cpp.accessor.setterDefinitionLocation": "Generate definition in matching source file",
   "C_mantic.cpp.resolveTypes": true,
-  "C_mantic.headerGuard.style": "Add #pragma once",
+  "C_mantic.headerGuard.style": "Add #pragma once"
 }

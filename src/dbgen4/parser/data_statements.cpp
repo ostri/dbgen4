@@ -25,7 +25,7 @@ namespace dbgen4
   {0}  dscription: {2}
   {0}  filename: {4}
   {0}  statements:{4}
-  )", /// this new line is on purpose to delimit sql statement from the metadata
+  )",                                       /// this new line is on purpose to delimit sql statement from the metadata
                            left_padding,    /// document description
                            summary_str,     /// summary
                            description_str, /// description
@@ -35,11 +35,11 @@ namespace dbgen4
     return msg;
   }
   /// getters
-  str_t                data_statements::summary() const { return summary_; }
-  str_t                data_statements::description() const { return description_; }
-  str_t                data_statements::filename() const { return filename_; }
-  data_statement_map_t data_statements::map_statements() const { return map_statements_; }
-  spdlog::logger*      data_statements::log() const { return log::get(); }
+  str_t                       data_statements::summary() const { return summary_; }
+  str_t                       data_statements::description() const { return description_; }
+  str_t                       data_statements::filename() const { return filename_; }
+  const data_statement_map_t& data_statements::map_statements() const { return map_statements_; }
+  spdlog::logger*             data_statements::log() const { return log::get(); }
   /// setters
   void data_statements::set_summary(const str_t& summary) { summary_ = summary; }
   void data_statements::set_description(const str_t& description) { description_ = description; }
@@ -53,7 +53,7 @@ namespace dbgen4
    * @return true the statement was added new
    * @return false the statement replaced existing one
    */
-  bool data_statements::add_statement_with_replace(data_statement s)
+  bool data_statements::add_statement_with_replace(data_statement s) // NOLINT(performance-unnecessary-value-param)
   {
     auto [it, inserted] = map_statements_.try_emplace(s.id(), std::move(s));
     if (! inserted)

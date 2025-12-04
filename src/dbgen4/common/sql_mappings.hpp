@@ -9,7 +9,7 @@
 #include <cstdint>
 
 // === 1. Enum definicije ===
-enum class sql_type : int
+enum class sql_type : int // NOLINT
 {
   integer,
   smallInt,
@@ -60,7 +60,7 @@ enum class sql_type : int
   unknown
 };
 
-enum class c_sql_type : int
+enum class c_sql_type : int // NOLINT
 {
   c_slong,
   c_short,
@@ -92,7 +92,7 @@ enum class c_sql_type : int
   c_unknown
 };
 
-enum class sql_cat
+enum class sql_cat : uint8_t
 {
   atomic,
   c_string,
@@ -104,7 +104,7 @@ enum class sql_cat
 using cstr_t = const char*;
 
 // === 2. Struktura ===
-struct sql_mapping
+struct sql_mapping // NOLINT
 {
   sql_type         sql;
   c_sql_type       c_type;
@@ -123,7 +123,8 @@ struct sql_mapping
 
 
   // clang-format off
-static constexpr auto mappings = std::to_array<sql_mapping>({
+static constexpr auto mappings = std::to_array<sql_mapping>( //NOLINT
+  {
   {sql_type::integer,                     c_sql_type::c_slong,             "SQL_C_SLONG"sv,             sql_cat::atomic,     "int32_t"sv,       "int32_t"sv,       "int32_t"sv,       "SQL_INTEGER"sv},
   {sql_type::smallInt,                    c_sql_type::c_short,             "SQL_C_SHORT"sv,             sql_cat::atomic,     "int16_t"sv,       "int16_t"sv,       "int16_t"sv,       "SQL_SMALLINT"sv},
   {sql_type::bigint,                      c_sql_type::c_sbigint,           "SQL_C_SBIGINT"sv,           sql_cat::atomic,     "int64_t"sv,       "int64_t"sv,       "int64_t"sv,       "SQL_BIGINT"sv},

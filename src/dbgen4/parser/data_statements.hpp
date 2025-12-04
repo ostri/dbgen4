@@ -31,7 +31,7 @@ namespace dbgen4
     void set_description(const str_t& description);
     void set_filename(const str_t& filename) { filename_ = filename; }
 
-    [[nodiscard]] data_statement_map_t map_statements() const;
+    [[nodiscard]] const data_statement_map_t& map_statements() const;
     /**
      * @brief add statement to the map
      *
