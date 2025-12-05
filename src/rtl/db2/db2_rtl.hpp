@@ -12,7 +12,7 @@ constexpr auto DATA_ALIGNMENT_128 = 128;
 constexpr auto DATA_ALIGNMENT_64  = 64;
 constexpr auto DATA_ALIGNMENT_16  = 16;
 
-#include "magic_enum_config.hpp"
+#include "magic_enum_config.hpp" // IWYU pragma: keep.
 #include <magic_enum.hpp>
 namespace ME = magic_enum; // NOLINT(misc-unused-alias-decls)
 

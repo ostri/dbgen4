@@ -1,8 +1,6 @@
 
 #include "appl.hpp"
-// #include "log.hpp" // NOLINT(unused-includes)
-// #include "inja.hpp"
-#include "magic_enum_config.hpp"
+#include "magic_enum_config.hpp" // IWYU pragma: keep.
 #include <magic_enum.hpp>
 namespace ME = magic_enum; // NOLINT(misc-unused-alias-decls)
 namespace fs = std::filesystem;

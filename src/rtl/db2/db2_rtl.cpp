@@ -6,7 +6,7 @@
 #include <fmt/base.h>
 #include <fmt/format.h>
 #include <array>
-#include "magic_enum_config.hpp"
+#include "magic_enum_config.hpp" // IWYU pragma: keep.
 #include <magic_enum.hpp>
 namespace ME = magic_enum; // NOLINT(misc-unused-alias-decls)
 
@@ -324,7 +324,7 @@ namespace rtl
       if (is_success(static_cast<db_sts>(ret))) [[likely]]
       {
         col.index = i;
-        col.name  = dbgen4::lowercse(std::string(col_name.begin(), col_name.begin() + name_len));
+        col.name  = dbgen4::lowercase(std::string(col_name.begin(), col_name.begin() + name_len));
         col.type  = static_cast<sql_type>(col.odbc_type);
         result.add_col_dscr(col);
       }

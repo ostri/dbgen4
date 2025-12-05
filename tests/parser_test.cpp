@@ -1,6 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
 #include <iostream>
-#include "magic_enum_config.hpp"
+#include "magic_enum_config.hpp" // IWYU pragma: keep.
 #include <magic_enum.hpp>
 namespace ME = magic_enum; // NOLINT(misc-unused-alias-decls)
 #include "common.hpp"

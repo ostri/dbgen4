@@ -1,33 +1,24 @@
 #include "parse_yaml.hpp"
 #include <cstddef>
 #include <expected>
-// #include <filesystem>
 #include <fmt/format.h>
 #include <source_location>
-// #include <fstream>
-// #include <iostream>
-#include "magic_enum_config.hpp"
+#include "magic_enum_config.hpp" // IWYU pragma: keep.
 #include <magic_enum.hpp>
 namespace ME = magic_enum; // NOLINT(misc-unused-alias-decls)
 #include <yaml-cpp/emitter.h>
 #include <yaml-cpp/exceptions.h>
-// NOLINTNEXTLINE(misc-include-cleaner)
 #include <yaml-cpp/node/detail/iterator.h>
 #include <yaml-cpp/node/node.h>
 #include <yaml-cpp/node/parse.h>
-// NOLINTNEXTLINE(misc-include-cleaner)
 #include <yaml-cpp/yaml.h>
-
-// NOLINTNEXTLINE
 #include "common.hpp"
 #include "data_statement.hpp"
 #include "data_statements.hpp"
 #include "db2_rtl.hpp"
-// #include "pars_result.hpp"
 #include "parser_errors.hpp"
 #include "parser.hpp"
 
-// namespace fs = std::filesystem;
 namespace dbgen4
 {
   /**

@@ -8,7 +8,7 @@
 #include "parser_errors.hpp"
 #include <expected>
 #include <fmt/base.h>
-#include "magic_enum_config.hpp"
+#include "magic_enum_config.hpp" // IWYU pragma: keep.
 #include <magic_enum.hpp>
 namespace ME = magic_enum; // NOLINT(misc-unused-alias-decls)
 #include <nlohmann/json.hpp>

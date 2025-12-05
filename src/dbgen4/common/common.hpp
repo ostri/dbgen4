@@ -12,7 +12,7 @@
 
 #include <vector>
 #include <utf8.hpp>
-#include "hex.hpp"
+#include "hex.hpp" // IWYU pragma: keep.
 
 // using json = nlohmann::json;
 
@@ -60,10 +60,5 @@ namespace dbgen4
   using e_string_ = std::expected<str_t, str_t>;
   e_string_                  read_file(const str_t& filename);
   [[maybe_unused]] e_string_ write_file(const str_t& filename, const str_t& contents);
-
-  std::string lowercse(std::string_view vhodni_pogled);
-
-  // // ali še krajše (inline) C++26
-  // inline std::string to_utf8(std::wstring_view ws) { return std::to_utf8(std::wcstring_view(ws));
-  // }
+  std::string                lowercase(std::string_view input_view);
 }; // namespace dbgen4

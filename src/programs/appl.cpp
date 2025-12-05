@@ -4,7 +4,7 @@
 // #include "data_statements.hpp"
 #include "parser.hpp"
 #include <stdexcept>
-#include "magic_enum_config.hpp"
+#include "magic_enum_config.hpp" // IWYU pragma: keep.
 #include <magic_enum.hpp>
 namespace ME = magic_enum; // NOLINT(misc-unused-alias-decls)
 

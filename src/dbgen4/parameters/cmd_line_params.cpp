@@ -7,7 +7,7 @@
 #include "common.hpp"
 #include "parser_errors.hpp"
 #include <fmt/format.h>
-#include "magic_enum_config.hpp"
+#include "magic_enum_config.hpp" // IWYU pragma: keep.
 #include <magic_enum.hpp>
 namespace ME = magic_enum; // NOLINT(misc-unused-alias-decls)
 
@@ -43,7 +43,7 @@ namespace dbgen4
     str_t left_padding(offs, ' ');
 
     const auto* db_type = ME::enum_name(db_type_).data();
-    /// serualize files
+    /// serialize files
     for (auto const& el : files_)
     {
       s += fmt::format(R"(    {}
@@ -133,8 +133,8 @@ namespace dbgen4
     /// verbose
     app.add_flag("-v,--verbose", verbose_, "verbose output")
       ->default_val(false);
-    /// gsql files
-    app.add_option("files", files_, "gsql files to be processed")
+    /// YAML files
+    app.add_option("files", files_, "YAML files to be processed")
       ->check(CLI::ExistingFile) // the file provided must exist
       ->required();              // one or more filenames must be provided
     // clang-format on
@@ -186,7 +186,7 @@ namespace dbgen4
     }
     catch (...)
     {
-      auto msg = fmt::format("Unhadled exception. file: {} line {}", __FILE_NAME__, __LINE__);
+      auto msg = fmt::format("Unhandled exception. file: {} line {}", __FILE_NAME__, __LINE__);
       log()->critical(msg);
       throw;
     }
