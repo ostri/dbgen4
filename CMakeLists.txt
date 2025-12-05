@@ -235,7 +235,6 @@ endif()
 # Smoke test
 # ===================================================================
 
-# Izogni se konfliktu, če že obstaja target "test_t1" (npr. iz add_subdirectory(test))
 if(NOT TARGET test_t1)
     set(SMOKE_TEST_TARGET_NAME test_t1)
 else()
@@ -294,7 +293,6 @@ add_custom_command(
     VERBATIM
 )
 
-# 2. Custom target za lažji ročni zagon
 add_custom_target(generate_smoke_test DEPENDS ${GEN_STAMP})
 
 # 3. Smoke test executable
@@ -314,7 +312,6 @@ target_link_libraries(${SMOKE_TEST_TARGET_NAME} PRIVATE
     yaml-cpp::yaml-cpp
     valijson
 )
-# Preveri podporo za opozorilo (za C++)
 include(CheckCXXCompilerFlag)
 check_cxx_compiler_flag(-Wswitch-default HAVE_SWITCH_DEFAULT_WARNING)
 if(HAVE_SWITCH_DEFAULT_WARNING)
@@ -323,7 +320,6 @@ endif()
 
 add_dependencies(${SMOKE_TEST_TARGET_NAME} generate_smoke_test)
 
-# 4. Dodaj v ctest (ctest bo zagnal smoke test)
 if(BUILD_TESTING)
     add_test(NAME ${SMOKE_TEST_TARGET_NAME} COMMAND ${SMOKE_TEST_TARGET_NAME})
     set_tests_properties(${SMOKE_TEST_TARGET_NAME} PROPERTIES
@@ -413,7 +409,6 @@ if(BUILD_TESTING)
 
     target_compile_features(unit_tests PRIVATE cxx_std_23)
 
-    # Tvoji strogi flag-i ostanejo za tvoj kod (unit_tests target)
     target_compile_options(unit_tests PRIVATE
         -Wall
         -Wextra
@@ -434,31 +429,6 @@ if(BUILD_TESTING)
     include(Catch)
     catch_discover_tests(unit_tests PROPERTIES LABELS "unit")
 endif()
-# # ──────────────────────────────────────────────────────────────
-# # Describe build type
-# # ──────────────────────────────────────────────────────────────
-# if(CMAKE_BUILD_TYPE)
-#     string(TOUPPER "${CMAKE_BUILD_TYPE}" _build_type_upper)
-#     message(STATUS "─────────────────────────────────────────────────────")
-#     message(STATUS "BUILD TYPE              : ${CMAKE_BUILD_TYPE}")
-#     message(STATUS "CMAKE_CXX_FLAGS         : ${CMAKE_CXX_FLAGS}")
-#     message(STATUS "CMAKE_CXX_FLAGS_${_build_type_upper} : ${CMAKE_CXX_FLAGS_${_build_type_upper}}")
-#     message(STATUS "NDEBUG defined          : ${CMAKE_CXX_FLAGS_${_build_type_upper}}")
-#     if(CMAKE_CXX_FLAGS_${_build_type_upper} MATCHES "-g")
-#         message(STATUS "Debug symbols           : YES")
-#     else()
-#         message(STATUS "Debug symbols           : NO")
-#     endif()
-#     if(CMAKE_CXX_FLAGS_${_build_type_upper} MATCHES "fsanitize")
-#         message(STATUS "Sanitizers              : YES")
-#     else()
-#         message(STATUS "Sanitizers              : NO")
-#     endif()
-#     message(STATUS "─────────────────────────────────────────────────────")
-# else()
-#     # Multi-config generatorators (Visual Studio, Xcode, Ninja Multi-Config …)
-#     message(STATUS "Multi-config generator – possible build types: ${CMAKE_CONFIGURATION_TYPES}")
-# endif()
 # ===================================================================
 # Show real compile and link flags used for selected targets
 # (works correctly with modern CMake + add_compile_options / target_*)
