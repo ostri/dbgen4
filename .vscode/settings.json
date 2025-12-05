@@ -34,7 +34,7 @@
     "--header-insertion-decorators=false",  // no decorators around include
     "--completion-style=bundled",
     "--function-arg-placeholders=false",
-    "--clang-tidy=true",
+    "--clang-tidy=false",
     "--compile-commands-dir=${workspaceFolder}/build",
     "--all-scopes-completion",
     "--enable-config"  // <<< To aktivira branje .clangd in .clang-tidy datotek
