@@ -1,9 +1,9 @@
 #pragma once
 // #include <expected>
 #include <fmt/base.h>
-#define MAGIC_ENUM_RANGE_MIN -400
-#define MAGIC_ENUM_RANGE_MAX 100
+#include "magic_enum_config.hpp"
 #include <magic_enum.hpp>
+namespace ME = magic_enum; // NOLINT(misc-unused-alias-decls)
 #include <spdlog/logger.h>
 #include "cmd_line_params.hpp"
 // #include "inja.hpp"

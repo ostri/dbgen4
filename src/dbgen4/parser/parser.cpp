@@ -6,9 +6,9 @@
 #include <source_location>
 // #include <fstream>
 // #include <iostream>
-#define MAGIC_ENUM_RANGE_MIN -400
-#define MAGIC_ENUM_RANGE_MAX 100
+#include "magic_enum_config.hpp"
 #include <magic_enum.hpp>
+namespace ME = magic_enum; // NOLINT(misc-unused-alias-decls)
 #include <yaml-cpp/emitter.h>
 #include <yaml-cpp/exceptions.h>
 // NOLINTNEXTLINE(misc-include-cleaner)

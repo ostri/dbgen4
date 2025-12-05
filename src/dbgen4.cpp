@@ -2,34 +2,24 @@
 #include "appl.hpp"
 // #include "log.hpp" // NOLINT(unused-includes)
 // #include "inja.hpp"
-#define MAGIC_ENUM_RANGE_MIN -400
-#define MAGIC_ENUM_RANGE_MAX 100
+#include "magic_enum_config.hpp"
 #include <magic_enum.hpp>
+namespace ME = magic_enum; // NOLINT(misc-unused-alias-decls)
 namespace fs = std::filesystem;
 
 int main(int argc, char** argv, char** env)
 {
   try
   {
-    // Log initialization
-    // NOLINTNEXTLINE(concurrency-mt-unsafe)
-    // const auto* config_file = std::getenv("LOG_CONFIG");
-    // log::instance().init_from_json(config_file != nullptr ? config_file : "");
-    // log::instance().setup_terminate_handler();
-    // log::instance().setup_signal_handler();
     const auto* program_name = argv[0]; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     fs::path    p(program_name);
     log::get()->info("Program {} started", p.filename().string());
     /// application initialization
     dbgen4::appl app;
-    /// start with parsing and generating
+    /// start with command line parsing and generating
     auto sts = app.exec(argc, argv, env);
     log::get()->info("Program is finished. return code '{}' return status '{}'", ME::enum_integer(sts), ME::enum_name(sts));
     log::get()->flush();
-    // char* ptr = new char[1024]; // NOLINT
-    // std::strcpy(ptr, "kr neki");
-    // log::get()->info("text: '{}'", *ptr);
-    // spdlog::shutdown();
     return ME::enum_integer(sts);
   }
   catch (...)

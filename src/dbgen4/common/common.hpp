@@ -6,9 +6,6 @@
 #include <expected>
 #include <string>
 #include <string_view>
-#define MAGIC_ENUM_RANGE_MIN -400
-#define MAGIC_ENUM_RANGE_MAX 100
-#include <magic_enum.hpp>
 #include "log.hpp"           // IWYU pragma: export
 #include "build_type.hpp"    // IWYU pragma: export
 #include "parser_errors.hpp" // IWYU pragma: export
@@ -24,8 +21,8 @@ namespace dbgen4
   using str_t     = std::string;
   using cstr_t    = std::string_view;
   using vec_str_t = std::vector<str_t>;
-  namespace ME    = magic_enum; // NOLINT(misc-unused-alias-decls)
-  namespace spd   = spdlog;     // NOLINT(misc-unused-alias-decls)
+  //  namespace ME    = magic_enum; // NOLINT(misc-unused-alias-decls)
+  namespace spd = spdlog; // NOLINT(misc-unused-alias-decls)
 
   /**
    * @brief enumeration of supported databases

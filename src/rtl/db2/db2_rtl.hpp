@@ -12,8 +12,11 @@ constexpr auto DATA_ALIGNMENT_128 = 128;
 constexpr auto DATA_ALIGNMENT_64  = 64;
 constexpr auto DATA_ALIGNMENT_16  = 16;
 
-namespace ME  = magic_enum; // NOLINT(misc-unused-alias-decls)
-namespace spd = spdlog;     // NOLINT(misc-unused-alias-decls)
+#include "magic_enum_config.hpp"
+#include <magic_enum.hpp>
+namespace ME = magic_enum; // NOLINT(misc-unused-alias-decls)
+
+namespace spd = spdlog; // NOLINT(misc-unused-alias-decls)
 namespace rtl
 {
   // db2_rtl.hpp – namespace rtl
@@ -172,11 +175,7 @@ namespace rtl
      * @param str_len_or_ind Pointer to length/indicator buffer.
      * @return db_sts Status of the operation.
      */
-    db_sts bind_col(uint16_t   column_number,
-                    int16_t    target_type,
-                    SQLPOINTER target_value,
-                    int32_t    buffer_length,
-                    int32_t*   str_len_or_ind);
+    db_sts bind_col(uint16_t column_number, int16_t target_type, SQLPOINTER target_value, int32_t buffer_length, int32_t* str_len_or_ind);
     /**
      * @brief Binds a parameter in the SQL statement to a variable.
      *

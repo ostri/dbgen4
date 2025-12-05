@@ -7,9 +7,10 @@
 #include "common.hpp"
 #include "parser_errors.hpp"
 #include <fmt/format.h>
-#define MAGIC_ENUM_RANGE_MIN -400
-#define MAGIC_ENUM_RANGE_MAX 100
+#include "magic_enum_config.hpp"
 #include <magic_enum.hpp>
+namespace ME = magic_enum; // NOLINT(misc-unused-alias-decls)
+
 
 #include "CLI/App.hpp"
 #include "CLI/Config.hpp"    // IWYU pragma: export

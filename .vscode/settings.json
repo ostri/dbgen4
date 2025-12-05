@@ -3,6 +3,7 @@
     "cmath": "cpp",
     "initializer_list": "cpp"
   },
+  /// cmake
   "cmake.generator": "Ninja",
   "cmake.configureOnOpen": true,
   "cmake.buildBeforeRun": true,
@@ -25,24 +26,35 @@
     "editor.detectIndentation": false,
     "editor.formatOnSave": true
   },
-
+/// clangd
   "clangd.arguments": [
     "--background-index",
     "--pretty",
     "--header-insertion=iwyu",
-    "--completion-style=detailed",
+    "--header-insertion-decorators=false",  // no decorators around include
+    "--completion-style=bundled",
     "--function-arg-placeholders=false",
-    "--clang-tidy",
-    "--clang-tidy-checks=-*,readability-*,bugprone-*,performance-*,cppcoreguidelines-*,-readability-avoid-do-while,-misc-static-assert-in-test,-readability-function-cognitive-complexity,-cppcoreguidelines-macro-usage",
-    "--compile-commands-dir=${workspaceFolder}/build"
+    "--clang-tidy=true",
+    "--compile-commands-dir=${workspaceFolder}/build",
+    "--all-scopes-completion",
+    "--enable-config"  // <<< To aktivira branje .clangd in .clang-tidy datotek
   ],
+  "clangd.onConfigChanged": "restart",
+  "clangd.checkUpdates": true,
+  "clangd.trace": "messages",
+  "clangd.detectExtensionConflicts": true,
+  "clangd.enableCodeCompletion": true,
 
   "C_Cpp.intelliSenseEngine": "disabled",
-
+  ///cmantic
   "C_mantic.caseStyle": "snake_case",
   "C_mantic.cpp.accessor.boolGetterIsPrefix": true,
   "C_mantic.cpp.accessor.getterDefinitionLocation": "Generate definition in matching source file",
   "C_mantic.cpp.accessor.setterDefinitionLocation": "Generate definition in matching source file",
   "C_mantic.cpp.resolveTypes": true,
-  "C_mantic.headerGuard.style": "Add #pragma once"
+  "C_mantic.headerGuard.style": "Add #pragma once",
+  "C_mantic.extensions.headerFiles": [ "hpp" ],
+  "C_mantic.extensions.sourceFiles": [ "cpp" ],
+  "C_mantic.cpp.generateNamespaces": true,
+  "C_mantic.alwaysMoveComments": true
 }

@@ -4,9 +4,10 @@
 // #include "data_statements.hpp"
 #include "parser.hpp"
 #include <stdexcept>
-#define MAGIC_ENUM_RANGE_MIN -400
-#define MAGIC_ENUM_RANGE_MAX 100
+#include "magic_enum_config.hpp"
 #include <magic_enum.hpp>
+namespace ME = magic_enum; // NOLINT(misc-unused-alias-decls)
+
 // #include <vector>
 // #include <string>
 //  #include "build_type.hpp"

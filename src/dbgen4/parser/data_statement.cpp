@@ -1,7 +1,11 @@
 #include "data_statement.hpp"
-// #include <magic_enum.hpp>
+#include "magic_enum_config.hpp"
+#include <magic_enum.hpp>
+namespace ME = magic_enum; // NOLINT(misc-unused-alias-decls)
 #include "common.hpp"
 #include <fmt/format.h>
+namespace ME = magic_enum; // NOLINT(misc-unused-alias-decls)
+
 namespace dbgen4
 {
 
@@ -18,10 +22,7 @@ namespace dbgen4
    * @param v
    * @return serialized vector of meta data
    */
-  std::string data_statement::dump_meta_vector(size_t          offs,
-                                               const char*     fmt,
-                                               const char*     header,
-                                               const meta_vec& v) const
+  std::string data_statement::dump_meta_vector(size_t offs, const char* fmt, const char* header, const meta_vec& v) const
   {
     if (! v.empty())
     {
@@ -51,10 +52,9 @@ namespace dbgen4
     str_t                 left_padding_2(offs + 2, ' ');
     constexpr const char* fmt = "{}{:>3} {:<20} {:<18} {:<20} {:>9} {:>4} {:>6} {:^8}\n";
 
-    auto msg_hdr = fmt::format(
-      fmt, left_padding_2, "ndx", "column name", "col type", "cli id", "ODBC type", "size", "digits", "nullable");
-    auto col = dump_meta_vector(offs + 4, fmt, msg_hdr.c_str(), results_);
-    auto par = dump_meta_vector(offs + 4, fmt, msg_hdr.c_str(), params_);
+    auto msg_hdr = fmt::format(fmt, left_padding_2, "ndx", "column name", "col type", "cli id", "ODBC type", "size", "digits", "nullable");
+    auto col     = dump_meta_vector(offs + 4, fmt, msg_hdr.c_str(), results_);
+    auto par     = dump_meta_vector(offs + 4, fmt, msg_hdr.c_str(), params_);
 
     /// NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers)
     str_t sql_str = offset_text(sql_, offs + 6);

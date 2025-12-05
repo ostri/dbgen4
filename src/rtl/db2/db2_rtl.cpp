@@ -6,18 +6,16 @@
 #include <fmt/base.h>
 #include <fmt/format.h>
 #include <array>
-#define MAGIC_ENUM_RANGE_MIN -400
-#define MAGIC_ENUM_RANGE_MAX 100
+#include "magic_enum_config.hpp"
 #include <magic_enum.hpp>
+namespace ME = magic_enum; // NOLINT(misc-unused-alias-decls)
+
 // #include <stdexcept>
 namespace
 {
 
   /// check what is wrong and report to the log
-  void chk_error(SQLRETURN          ret,
-                 SQLSMALLINT        handleType,
-                 SQLHANDLE          handle,
-                 const std::string& operation)
+  void chk_error(SQLRETURN ret, SQLSMALLINT handleType, SQLHANDLE handle, const std::string& operation)
   {
     constexpr const int sql_state_len = 5 + 1;
     constexpr const int msg_len       = 1024 + 1;
@@ -34,14 +32,8 @@ namespace
 
       while (! is_no_data(static_cast<rtl::db_sts>(res)))
       {
-        res = SQLGetDiagRec(handleType,
-                            handle,
-                            rec_number,
-                            sqlState.data(),
-                            &native_error,
-                            messageText.data(),
-                            messageText.size(),
-                            &messageLength);
+        res = SQLGetDiagRec(
+          handleType, handle, rec_number, sqlState.data(), &native_error, messageText.data(), messageText.size(), &messageLength);
 
         err_msg = fmt::format(R"(
   Error in {}
@@ -49,7 +41,7 @@ namespace
   native err {}
 )",
                               operation,
-                              std::string(messageText.begin(), messageText.begin() + messageLength),
+                              std::string(messageText.begin(), messageText.begin() + messageLength), // NOLINT
                               native_error);
         log::get()->error(err_msg);
         rec_number++;
@@ -144,11 +136,7 @@ namespace rtl
   spdlog::logger* db_db2::log() const { return log::get(); }
   ///
   db_sts db_db2::connect(const std::string& conn_str) { return internal_connect(conn_str); }
-  db_sts db_db2::connect(const std::string& host,
-                         uint16_t           port,
-                         const std::string& name,
-                         const std::string& user,
-                         const std::string& pass)
+  db_sts db_db2::connect(const std::string& host, uint16_t port, const std::string& name, const std::string& user, const std::string& pass)
   {
     auto ret = internal_allocate_handles();
     if (ret == db_sts::success)
@@ -182,8 +170,7 @@ namespace rtl
     if (data()->conn_handle != 0)
     {
       ret = SQLDisconnect(data()->conn_handle);
-      if (! is_success(static_cast<db_sts>(ret)))
-        chk_error(ret, SQL_HANDLE_DBC, data()->conn_handle, "disconnecting from DB2 database");
+      if (! is_success(static_cast<db_sts>(ret))) chk_error(ret, SQL_HANDLE_DBC, data()->conn_handle, "disconnecting from DB2 database");
       free_conn_handle();
       log()->info("Database disconnected");
     }
@@ -206,11 +193,10 @@ namespace rtl
     SQLRETURN ret = SQLEndTran(SQL_HANDLE_DBC, data()->conn_handle, SQL_COMMIT);
     chk_error(ret, SQL_HANDLE_DBC, data()->conn_handle, "commit transaction");
 
-    if (is_success(static_cast<db_sts>(ret)))
-    {
-      log()->info("Transaction committed successfully.");
+    if (is_success(static_cast<db_sts>(ret))) { log()->info("Transaction committed successfully."); }
+    else {
+      log()->error("Transaction commit failed.");
     }
-    else { log()->error("Transaction commit failed."); }
 
     return static_cast<db_sts>(ret);
   }
@@ -231,11 +217,10 @@ namespace rtl
     SQLRETURN ret = SQLEndTran(SQL_HANDLE_DBC, data()->conn_handle, SQL_ROLLBACK);
     chk_error(ret, SQL_HANDLE_DBC, data()->conn_handle, "rollback transaction");
 
-    if (is_success(static_cast<db_sts>(ret))) [[likely]]
-    {
-      log()->info("Transaction rolled back successfully.");
+    if (is_success(static_cast<db_sts>(ret))) [[likely]] { log()->info("Transaction rolled back successfully."); }
+    else {
+      log()->error("Transaction rollback failed.");
     }
-    else { log()->error("Transaction rollback failed."); }
 
     return static_cast<db_sts>(ret);
   }
@@ -303,8 +288,7 @@ namespace rtl
     for (SQLSMALLINT i = 1; i <= num_params; ++i)
     {
       meta_dscr par{};
-      ret = SQLDescribeParam(
-        data()->stmt_handle, i, &par.odbc_type, &par.size, &par.digits, &par.nullable);
+      ret = SQLDescribeParam(data()->stmt_handle, i, &par.odbc_type, &par.size, &par.digits, &par.nullable);
 
       if (is_success(static_cast<db_sts>(ret)))
       {
@@ -313,8 +297,7 @@ namespace rtl
         par.type  = static_cast<sql_type>(par.odbc_type);
         result.add_par_dscr(par);
       }
-      else [[unlikely]]
-      {
+      else [[unlikely]] {
         auto msg = fmt::format("SQLDescribeParam for parameter {}", i);
         return error_cleanup(ret, msg, db_sts::invalid_sql);
       }
@@ -335,15 +318,8 @@ namespace rtl
       std::array<SQLCHAR, 128 + 1> col_name{}; // NOLINT
       SQLSMALLINT                  name_len = 0;
 
-      ret = SQLDescribeCol(data()->stmt_handle,
-                           i,
-                           col_name.data(),
-                           col_name.size(),
-                           &name_len,
-                           &col.odbc_type,
-                           &col.size,
-                           &col.digits,
-                           &col.nullable);
+      ret = SQLDescribeCol(
+        data()->stmt_handle, i, col_name.data(), col_name.size(), &name_len, &col.odbc_type, &col.size, &col.digits, &col.nullable);
 
       if (is_success(static_cast<db_sts>(ret))) [[likely]]
       {
@@ -352,8 +328,7 @@ namespace rtl
         col.type  = static_cast<sql_type>(col.odbc_type);
         result.add_col_dscr(col);
       }
-      else [[unlikely]]
-      {
+      else [[unlikely]] {
         auto msg = fmt::format("SQLDescribeCol for column {}", i);
         return error_cleanup(ret, msg, db_sts::invalid_sql);
       }
@@ -444,9 +419,7 @@ namespace rtl
   //   return ((db_sts::success == status_) || (db_sts::success_with_info == status_));
   // }
 
-  std::string qry_metadata::dump_meta_vector(const char*     fmt,
-                                             const char*     header,
-                                             const meta_vec& v) const
+  std::string qry_metadata::dump_meta_vector(const char* fmt, const char* header, const meta_vec& v) const
   {
     if (! v.empty())
     {
@@ -470,11 +443,10 @@ namespace rtl
   std::string qry_metadata::dump() const
   {
     constexpr const char* fmt     = "      {:>3} {:<20} {:<18} {:<20} {:>9} {:>4} {:>6} {:^8}\n";
-    auto                  msg_hdr = fmt::format(
-      fmt, "ndx", "column name", "col type", "cli id", "ODBC type", "size", "digits", "nullable");
-    auto col = dump_meta_vector(fmt, msg_hdr.c_str(), columns_);
-    auto par = dump_meta_vector(fmt, msg_hdr.c_str(), params_);
-    auto msg = fmt::format(R"(
+    auto                  msg_hdr = fmt::format(fmt, "ndx", "column name", "col type", "cli id", "ODBC type", "size", "digits", "nullable");
+    auto                  col     = dump_meta_vector(fmt, msg_hdr.c_str(), columns_);
+    auto                  par     = dump_meta_vector(fmt, msg_hdr.c_str(), params_);
+    auto                  msg     = fmt::format(R"(
      columns: {}
 {}
     parameters: {}

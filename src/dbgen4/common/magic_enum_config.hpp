@@ -1,0 +1,8 @@
+#pragma once
+#ifndef MAGIC_ENUM_CONFIG_HPP
+#  define MAGIC_ENUM_CONFIG_HPP
+
+#  define MAGIC_ENUM_RANGE_MIN -400
+#  define MAGIC_ENUM_RANGE_MAX 100
+
+#endif // MAGIC_ENUM_CONFIG_HPP
