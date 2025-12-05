@@ -16,44 +16,22 @@ namespace dbgen4
   };
 
   /**
-   * @brief Obreže beli prostor na začetku in koncu niza in vrne std::string_view.
-   * * KLJUČNO: Ta funkcija ne kopira podatkov; vrne pogled (view) na izvorni niz.
-   * To je izjemno hitro in učinkovito.
-   * * @param s Vhodni niz (lahko std::string, std::string_view ali const char*).
-   * @return std::string_view Pogled na obrezani niz.
+   * @brief trim leading and trailing whitespace, it returns references (no copying)
+   * * @param s string to be trimmed
+   * @return view to trimmed string
    */
   std::string_view trim_whitespace_view(std::string_view s)
   {
-    // 1. Določitev predikata za preverjanje whitespace znakov
-    auto is_space = [](char ch)
-    {
-      // Pomembno: static_cast za varnost pri isspace
-      return std::isspace(static_cast<unsigned char>(ch));
-    };
+    auto is_space = [](char ch) { return std::isspace(static_cast<unsigned char>(ch)); };
 
-    // 2. Iskanje začetka (Levo obrezovanje)
-    // std::find_if_not poišče prvi znak, ki NI whitespace.
-    const auto* first = find_if_not(s.begin(), s.end(), is_space); // NOLINT
-
-    // 3. Iskanje konca (Desno obrezovanje)
-    // Uporabimo reverzne iteratorje za učinkovito iskanje od zadaj.
-    const auto* last = find_if_not(s.rbegin(), s.rend(), is_space).base(); // NOLINT
-
-    // 4. Izračun in vrnitev string_view
-
-    // Preverimo, če je niz prazen ali samo whitespace.
+    const auto* first = find_if_not(s.begin(), s.end(), is_space);          // NOLINT
+    const auto* last  = find_if_not(s.rbegin(), s.rend(), is_space).base(); // NOLINT
     if (first >= last)
     {
-      return ""; // Vrni prazen string_view
+      return ""; // return empty string
     }
-
-    // Ustvarimo string_view s pravim začetkom in dolžino
-    // Začetek: razdalja od začetka niza do prvega ne-whitespace znaka (first)
     size_t pos = first - s.begin();
-
-    // Dolžina: razdalja med najdenima iteratorjema (last - first)
     size_t len = last - first;
-
     return s.substr(pos, len);
   }
 
@@ -73,14 +51,8 @@ namespace dbgen4
   vec_str_t prefix_split(std::string_view input_sv, char delimiter, const std::string& prefix)
   {
     std::vector<std::string> result;
-
-    // 1. Copying to std::stringstream:
-    // This step is required to use std::getline with an in-memory string.
-    std::stringstream ss{std::string(input_sv)};
-
-    std::string segment;
-
-    // 2. Using std::getline to read segments delimited by 'delimiter'
+    std::stringstream        ss{std::string(input_sv)};
+    std::string              segment;
     while (std::getline(ss, segment, delimiter))
     {
       // Process the segment: adding the prefix
@@ -100,16 +72,16 @@ namespace dbgen4
    * @brief offset_text offsets multiline text with proper indentation
    *
    * single liner texts are returned as is
-   * multiliner texts are splitted to lines and each line is prefixed with proper number of spaces
+   * multiline texts are splitted to lines and each line is prefixed with proper number of spaces
    *
-   * @param text text to be offseted
+   * @param text text to be prepended
    * @param offs amount of offset from the left margin
-   * @return str_t offseted text
+   * @return str_t prepended text
    */
   str_t offset_text(const str_t& text, size_t offs)
   {
     auto sql_view = trim_whitespace_view(text); /// trim leading and trailing whitespaces
-    if (sql_view.contains("\n"))                /// multiliner
+    if (sql_view.contains("\n"))                /// multiline
       return str_t("\n") + join(prefix_split(sql_view, '\n', str_t(offs, ' ')), "\n");
     return str_t(sql_view); /// single liner
   }
@@ -138,11 +110,7 @@ namespace dbgen4
   {
     std::string exit_string(input_view);
     /// NOLINTNEXTLINE(modernize-use-ranges, boost-use-ranges)
-    std::transform(exit_string.begin(),
-                   exit_string.end(),
-                   exit_string.begin(),
-                   // Lambda funkcija za varno uporabo std::tolower
-                   [](unsigned char c) { return std::tolower(c); });
+    std::transform(exit_string.begin(), exit_string.end(), exit_string.begin(), [](unsigned char c) { return std::tolower(c); });
     return exit_string;
   }
 }; // namespace dbgen4

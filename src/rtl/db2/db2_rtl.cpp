@@ -110,7 +110,6 @@ namespace rtl
 
     log()->debug("ENV handle allocated: {}", data()->env_handle);
 
-    // 3. Alociraj DBC
     ret = SQLAllocHandle(SQL_HANDLE_DBC, data()->env_handle, &data()->conn_handle);
     if (! is_success(static_cast<db_sts>(ret)))
     {
@@ -119,8 +118,6 @@ namespace rtl
       return db_sts::connection_error;
     }
     log()->debug("Connection handle allocated: {}", data()->conn_handle);
-
-    // Dodana nastavitev za izklop Auto-commit-a (SQL_AUTOCOMMIT_OFF)
     ret = SQLSetConnectAttr(data()->conn_handle,
                             SQL_ATTR_AUTOCOMMIT,
                             (SQLPOINTER)SQL_AUTOCOMMIT_OFF, // NOLINT
@@ -181,7 +178,11 @@ namespace rtl
 
   bool db_db2::is_connected() const { return this->data()->conn_handle != 0; }
 
-  // Implementacija metode commit()
+  /**
+   * @brief commit transaction
+   *
+   * @return db_sts
+   */
   db_sts db_db2::commit()
   {
     if (data()->conn_handle == 0)
@@ -202,7 +203,7 @@ namespace rtl
   }
 
   /**
-   * @brief db rolback transaction
+   * @brief db rollback transaction
    *
    * @return db_sts
    */
@@ -324,7 +325,7 @@ namespace rtl
       if (is_success(static_cast<db_sts>(ret))) [[likely]]
       {
         col.index = i;
-        col.name  = dbgen4::lowercase(std::string(col_name.begin(), col_name.begin() + name_len));
+        col.name  = dbgen4::lowercase(std::string(col_name.begin(), col_name.begin() + name_len)); // NOLINT
         col.type  = static_cast<sql_type>(col.odbc_type);
         result.add_col_dscr(col);
       }
