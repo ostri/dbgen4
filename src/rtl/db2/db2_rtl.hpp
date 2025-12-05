@@ -146,7 +146,7 @@ namespace rtl
      * @brief Commits the current transaction.
      * @return db_sts Status code indicating the result of the commit operation.
      */
-    db_sts commit() override; // Zamenjano z override
+    db_sts commit() override;
     /**
      * @brief Roll back the current transaction
      * @return db_sts Status code indicating the result of the rollback operation
@@ -212,18 +212,9 @@ namespace rtl
     db_sts                        internal_connect(const std::string& connStr);
     db_sts                        internal_allocate_handles();
     [[nodiscard]] spdlog::logger* log() const;
-
-
-    // // Metoda za izvajanje SQL poizvedb, ki vračajo rezultate
-    // std::vector<std::vector<std::string>> executeQuery(const std::string& query);
-
-    // // Metoda za izvajanje SQL ukazov brez rezultatov
-    // void executeNonQuery(const std::string& sql);
-
     /// access to the database attributes
     [[nodiscard]] db_data_db2* data() const;
-
-    e_qry_metadata error_cleanup(SQLRETURN ret, const std::string& msg, db_sts err_code);
+    e_qry_metadata             error_cleanup(SQLRETURN ret, const std::string& msg, db_sts err_code);
   }; // db_db2;
 
 } // namespace rtl
