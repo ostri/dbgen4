@@ -28,6 +28,7 @@
   },
 /// clangd
   "clangd.arguments": [
+    "--log=verbose",
     "--background-index",
     "--pretty",
     "--header-insertion=iwyu",
