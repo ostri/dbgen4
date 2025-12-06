@@ -60,9 +60,9 @@ namespace dbgen4
         if (! root_[key] || root_[key].IsNull())
         {
           Error err{.message  = fmt::format("root: '{}' tag: '{}' not found", root_.Tag(), key),
-                    .line     = static_cast<int>(loc.line()),
-                    .column   = static_cast<int>(loc.column()),
-                    .filename = loc.file_name()};
+                    .line     = root_.Mark().line,
+                    .column   = root_.Mark().column,
+                    .filename = filename_};
           log()->trace(err.to_string());
           return std::unexpected(make_missing_key_error(key));
         }

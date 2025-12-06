@@ -3,7 +3,8 @@ namespace dbgen4
 {
   Error dbgen4::parse_yaml::make_missing_key_error(const std::string& key) const
   {
-    return Error{.message = "Missing required key: '" + key + "'", .filename = filename_};
+    auto m = root_.Mark();
+    return Error{.message = fmt::format("Missing required key: '{}'", key), .line = m.line, .column = m.column, .filename = filename_};
   }
 
   parse_yaml::parse_yaml(YAML::Node node, std::string name) // NOLINT
