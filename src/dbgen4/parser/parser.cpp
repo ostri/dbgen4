@@ -39,7 +39,11 @@ namespace dbgen4
   e_data_statements parser::parse_yaml_string(const str_t& yaml_str, db_type_enum db_type)
   {
     auto res = parse_yaml::load_from_string(yaml_str);
-    if (! res) return std::unexpected(exit_status_enum::yaml_syntax_error);
+    if (! res)
+    {
+      log()->debug("File {} syntax error.", this->filename());
+      return std::unexpected(exit_status_enum::yaml_syntax_error);
+    }
     return parse_yaml_file_json(res.value(), db_type);
   }
   /**
@@ -92,9 +96,15 @@ namespace dbgen4
     stmts.set_summary(n.get_or<std::string>("summary", ""));
     stmts.set_description(n.get_or<std::string>("description", ""));
     stmts.set_filename(filename_);
-    auto yaml_statements = n.get_sequence_of_maps("statements");
-    if (! yaml_statements) return std::unexpected(exit_status_enum::statements_attr_missing);
-    for (const auto& s : yaml_statements.value())
+    auto ys = n.get_seq_of_maps("statements");
+    if (! ys)
+    {
+      constexpr exit_status_enum err = exit_status_enum::statements_attr_missing;
+      auto msg = fmt::format(get_exit_code_str(err), ys.error().filename, ys.error().to_string(), ys.error().line, ys.error().column);
+      log()->error(msg);
+      return std::unexpected(err);
+    }
+    for (const auto& s : ys.value())
     { /// walk over all sql statement description
       auto id          = s.get<std::string>("id");
       auto result_size = s.get_or<size_t>("result-size", 1);
@@ -112,8 +122,8 @@ namespace dbgen4
           break; // we found it. let's finish
         };
       }
-      auto result_names = s.get_sequence_of_strings_or("result-names", {});
-      auto param_names  = s.get_sequence_of_strings_or("parameter-names", {});
+      auto result_names = s.get_seq_of_strings_or("result-names", {});
+      auto param_names  = s.get_seq_of_strings_or("parameter-names", {});
       if (! id)
       {
         log()->error(id.error().to_string());
