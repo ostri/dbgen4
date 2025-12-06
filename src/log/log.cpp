@@ -55,6 +55,20 @@ std::string log::level_to_string(spdlog::level::level_enum level)
   }
 }
 
+// Meyers' Singleton – thread-safe, lazy initialization
+class ::log& log::instance()
+{
+  static log singleton_;
+  if (singleton_.cfg_filename_.empty())
+  {
+    const auto* config_file = std::getenv("LOG_CONFIG"); // NOLINT(concurrency-mt-unsafe)
+    singleton_.init_from_json(config_file != nullptr ? config_file : "");
+    singleton_.setup_terminate_handler();
+    singleton_.setup_signal_handler();
+  }
+  return singleton_;
+}
+
 /* -------------------------------------------------------------
    Initialization
    ------------------------------------------------------------- */
@@ -71,8 +85,7 @@ void log::init_fallback()
            "./logs",
            spdlog::level::warn);
 
-  get()->warn("Fallback log {} created to provide at least basic logging.",
-              fs::absolute(fs::path(def_log_path)).string());
+  get()->warn("Fallback log {} created to provide at least basic logging.", fs::absolute(fs::path(def_log_path)).string());
 }
 
 void log::init_from_json(const std::string& config_path)
@@ -154,8 +167,7 @@ void log::init_raw(std::string_view          app_name,
   console_sink->set_level(console_lvl);
 
   auto log_filename = fmt::format("{}/{}.log", log_folder_abs, app_name);
-  auto file_sink =
-    std::make_shared<spdlog::sinks::daily_file_sink_mt>(log_filename, rotation_hour, rotation_minute, true, keep_days);
+  auto file_sink    = std::make_shared<spdlog::sinks::daily_file_sink_mt>(log_filename, rotation_hour, rotation_minute, true, keep_days);
   file_sink->set_level(file_lvl);
 
   std::vector<spdlog::sink_ptr> sinks{console_sink, file_sink};
@@ -163,13 +175,12 @@ void log::init_raw(std::string_view          app_name,
   if (m == mode::async)
   {
     spdlog::init_thread_pool(8192, 1); // NOLINT
-    logger_ = std::make_shared<spdlog::async_logger>(std::string(app_name),
-                                                     sinks.begin(),
-                                                     sinks.end(),
-                                                     spdlog::thread_pool(),
-                                                     spdlog::async_overflow_policy::overrun_oldest);
+    logger_ = std::make_shared<spdlog::async_logger>(
+      std::string(app_name), sinks.begin(), sinks.end(), spdlog::thread_pool(), spdlog::async_overflow_policy::overrun_oldest);
   }
-  else { logger_ = std::make_shared<spdlog::logger>(std::string(app_name), sinks.begin(), sinks.end()); }
+  else {
+    logger_ = std::make_shared<spdlog::logger>(std::string(app_name), sinks.begin(), sinks.end());
+  }
 
   spdlog::set_default_logger(logger_);
   spdlog::set_pattern(std::string(pattern));
@@ -309,7 +320,9 @@ void log::setup_terminate_handler()
           get()->critical("UNKNOWN EXCEPTION – terminating!");
         }
       }
-      else { get()->critical("std::terminate() called without exception"); }
+      else {
+        get()->critical("std::terminate() called without exception");
+      }
 
       std::ostringstream oss;
       oss << "BACKTRACE at terminate():\n";

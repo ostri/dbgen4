@@ -22,19 +22,7 @@ constexpr const char* def_log_path      = is_debug_build() ? "logs/fallback.debu
 class log
 {
 public:
-  // Meyers' Singleton – thread-safe, lazy initialization
-  static log& instance()
-  {
-    static log singleton_;
-    if (singleton_.cfg_filename_.empty())
-    {
-      const auto* config_file = std::getenv("LOG_CONFIG"); // NOLINT(concurrency-mt-unsafe)
-      singleton_.init_from_json(config_file != nullptr ? config_file : "");
-      singleton_.setup_terminate_handler();
-      singleton_.setup_signal_handler();
-    }
-    return singleton_;
-  }
+  static log& instance();
 
   enum class mode : uint8_t
   {
