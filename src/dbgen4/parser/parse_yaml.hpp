@@ -1,12 +1,13 @@
 #pragma once
 
-#include "log.hpp" // IWYU pragma: keep.
-#include <source_location>
-#include <spdlog/logger.h>
+#include "log.hpp"         // IWYU pragma: keep.
+#include <source_location> // IWYU pragma: keep.
+// #include <spdlog/logger.h>
 #include <yaml-cpp/yaml.h>
 #include <expected>
 #include <string>
 #include <vector>
+#include <expected>
 // #include <fstream>
 #include "fmt_structs.hpp"
 namespace dbgen4

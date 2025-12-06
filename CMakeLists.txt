@@ -134,8 +134,6 @@ add_library(log
     src/log/log_impl.cpp
     )
 target_include_directories(log
-    # PUBLIC ${CMAKE_SOURCE_DIR}/src/log
-    # PRIVATE ${CMAKE_SOURCE_DIR}/src/dbgen4/common
     PRIVATE ${LOG_INCLUDE_DIRS}
 )
 target_link_libraries(log PRIVATE spdlog::spdlog nlohmann_json::nlohmann_json)
@@ -166,13 +164,6 @@ set (RTL_INCLUDE_DIRS
 )
 add_library(db2_rtl STATIC ${SRC_RTL_FILES})
 target_include_directories(db2_rtl
-    # PUBLIC
-    #     ${CMAKE_SOURCE_DIR}/src/rtl
-    #     ${CMAKE_SOURCE_DIR}/src/rtl/db2
-    #     ${CMAKE_SOURCE_DIR}/src/log
-    #     ${CMAKE_SOURCE_DIR}/src/dbgen4/common
-    #   PRIVATE
-    #     $ENV{IBM_DB_INCLUDE}
     PRIVATE ${RTL_INCLUDE_DIRS}
 )
 target_link_libraries(db2_rtl PUBLIC DB2::DB2 PRIVATE log)
@@ -347,6 +338,15 @@ if((CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebIn
     enable_sanitizers_for_target(${PROJECT_NAME}-db2)
     enable_sanitizers_for_target(${SMOKE_TEST_TARGET_NAME})
 endif()
+
+# === common headers – interface library
+add_library(project_common INTERFACE)
+target_include_directories(project_common INTERFACE
+    ${CMAKE_SOURCE_DIR}/src/dbgen4/common
+    ${CMAKE_SOURCE_DIR}/src/log
+    ${CMAKE_SOURCE_DIR}/src/rtl
+    ${CMAKE_SOURCE_DIR}/src/rtl/db2
+)
 # ===================================================================
 # Unit tests with Catch2
 # ===================================================================
@@ -415,6 +415,7 @@ if(BUILD_TESTING)
         ${GEN_INCLUDE_DIRS}
         ${LOG_INCLUDE_DIRS}
         ${RTL_INCLUDE_DIRS}
+        ${GEN_INCLUDE_DIRS}
       SYSTEM PRIVATE
         "${catch2_SOURCE_DIR}/src"
     )

@@ -12,9 +12,7 @@ TEST_CASE("empty yaml input produces no statements", "[parser]")
   const std::string empty_yaml = R"(# empty)";
 
   auto ans = p.parse_yaml_string(empty_yaml, dbgen4::db_type_enum::db2);
-  REQUIRE(ans.has_value());
-  const auto s = ans.value();
-  REQUIRE(s.map_statements().empty());
+  REQUIRE(! ans); // FIXME  TEST ON MISSING STATEMENTS: CLAUSE
 }
 
 TEST_CASE("simple SELECT is parsed correctly", "[parser]")

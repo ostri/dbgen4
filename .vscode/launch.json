@@ -8,7 +8,7 @@
       "name": "Main test",
       "type": "lldb",
       "request": "launch",
-      "program": "${workspaceFolder}/build/dbgen4-db2",
+      "program": "${workspaceFolder}/build/debug/dbgen4-db2",
       "args": [
         "-v",
         "-n",
@@ -23,39 +23,39 @@
         "!123alfa",
         "../yaml/t1.yaml"
       ],
-      "cwd": "${workspaceFolder}/build",
+      "cwd": "${workspaceFolder}/build/debug",
     },
     {
       "name": "old help",
       "type": "lldb",
       "request": "launch",
-      "program": "${workspaceFolder}/build/dbgen4-db2",
+      "program": "${workspaceFolder}/build/debug/dbgen4-db2",
       "args": [
         "-h",
       ],
-      "cwd": "${workspaceFolder}/build",
+      "cwd": "${workspaceFolder}/build/debug",
     },
     {
       "name": "help 0",
       "type": "lldb",
       "request": "launch",
-      "program": "${workspaceFolder}/build/dbgen4-db2",
-      "cwd": "${workspaceFolder}/build", // Delovni imenik
+      "program": "${workspaceFolder}/build/debug/dbgen4-db2",
+      "cwd": "${workspaceFolder}/build/debug",
       "args": []
     },
     {
       "name": "test_t1",
       "type": "lldb",
       "request": "launch",
-      "program": "${workspaceFolder}/build/test_t1",
+      "program": "${workspaceFolder}/build/debug/test_t1",
       "args": [],
-      "cwd": "${workspaceFolder}/build",
+      "cwd": "${workspaceFolder}/build/debug",
     },
     {
       "name": "maria",
       "type": "lldb",
       "request": "launch",
-      "program": "${workspaceFolder}/build/dbgen4-db2",
+      "program": "${workspaceFolder}/build/debug/dbgen4-db2",
       "args": [
         "-v",
         "-t",
@@ -64,23 +64,15 @@
         "alfa",
         "../yaml/t1.yaml"
       ],
-      "cwd": "${workspaceFolder}/build",
+      "cwd": "${workspaceFolder}/build/debug",
     },
     {
       "name": "unit_tests",
       "type": "lldb",
       "request": "launch",
-      "program": "${workspaceFolder}/build/unit_tests",
-      "cwd": "${workspaceFolder}/build",
+      "program": "${workspaceFolder}/build/debug/unit_tests",
+      "cwd": "${workspaceFolder}/build/debug",
       "args": []
-    },
-    {
-      "name": "test_t1",
-      "type": "lldb",
-      "request": "launch",
-      "program": "${workspaceFolder}/build/test_t1",
-      "args": [],
-      "cwd": "${workspaceFolder}/build",
     },
   ]
 }

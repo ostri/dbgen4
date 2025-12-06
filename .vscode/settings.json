@@ -3,13 +3,6 @@
     "cmath": "cpp",
     "initializer_list": "cpp"
   },
-  /// cmake
-  //  "cmake.configureOnOpen": true, it is part of presets now
-  // "cmake.buildBeforeRun": true,
-  // "cmake.buildArgs": [
-  //   "--parallel 8"
-  // ],
-  //"cmake.buildDirectory": "${workspaceFolder}/build",
   "[cpp]": {
     "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd",
     "editor.tabSize": 2,
@@ -26,21 +19,21 @@
   },
   /// clangd
   "clangd.arguments": [
-    "--log=verbose",
+    "--log=error",
     "--background-index",
     "--pretty",
     "--header-insertion=iwyu",
     "--header-insertion-decorators=false", // no decorators around include
     "--completion-style=bundled",
+    "--compile-commands-dir==${workspaceFolderBuild",
     "--function-arg-placeholders=false",
     "--clang-tidy=false",
-    "--compile-commands-dir=${workspaceFolder}/build",
     "--all-scopes-completion",
     "--enable-config" // <<< To aktivira branje .clangd in .clang-tidy datotek
   ],
   "clangd.onConfigChanged": "restart",
   "clangd.checkUpdates": true,
-  "clangd.trace": "messages",
+  // "clangd.trace": "messages",
   "clangd.detectExtensionConflicts": true,
   "clangd.enableCodeCompletion": true,
   "C_Cpp.intelliSenseEngine": "disabled",
