@@ -36,23 +36,20 @@
       "cwd": "${workspaceFolder}/build",
     },
     {
-    "name": "help 0",
-    "type": "lldb",
-    "request": "launch",
-    "program": "${workspaceFolder}/build/dbgen4-db2",
-    "cwd": "${workspaceFolder}/build", // Delovni imenik
-    "args": [
-    ]
+      "name": "help 0",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/dbgen4-db2",
+      "cwd": "${workspaceFolder}/build", // Delovni imenik
+      "args": []
     },
     {
       "name": "test_t1",
       "type": "lldb",
       "request": "launch",
       "program": "${workspaceFolder}/build/test_t1",
-      "args": [
-      ],
+      "args": [],
       "cwd": "${workspaceFolder}/build",
-
     },
     {
       "name": "maria",
@@ -68,6 +65,22 @@
         "../yaml/t1.yaml"
       ],
       "cwd": "${workspaceFolder}/build",
-    }
+    },
+    {
+      "name": "unit_tests",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/unit_tests",
+      "cwd": "${workspaceFolder}/build",
+      "args": []
+    },
+    {
+      "name": "test_t1",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/test_t1",
+      "args": [],
+      "cwd": "${workspaceFolder}/build",
+    },
   ]
 }

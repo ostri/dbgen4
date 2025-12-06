@@ -53,7 +53,7 @@ namespace dbgen4
     case exit_status_enum::file_cant_be_open:         return "Document '{}' Unable to open YAML file '{}'";
     case exit_status_enum::yaml_syntax_error:         return "Document '{}' YAML syntax error '{}' line: {} column: {}";
     case exit_status_enum::inv_top_level_struct:      return "Document '{}' Invalid top level structure '{}' line: {} column: {}";
-    case exit_status_enum::statements_attr_missing:   return "Document '{}' Statements attribute is missing '{}' line: {} column: {}";
+    case exit_status_enum::statements_attr_missing:   return "Document '{}' 'Statements' attribute is missing err: {} line: {} column: {}";
     case exit_status_enum::inv_statement_syntax:      return "Document '{}' Invalid statement syntax '{}' line: {} column: {}";
     case exit_status_enum::stmt_unique_id_is_missing: return "Document '{}' Statement unique ID is missing '{}' line: {} column: {}";
     case exit_status_enum::duplicated_stmt_id:        return "Document '{}' Duplicate statement ID detected '{}' line: {} column: {}";

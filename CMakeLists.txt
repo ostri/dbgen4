@@ -1,6 +1,18 @@
 cmake_minimum_required(VERSION 3.16)
 project(dbgen4 VERSION 0.1.0 DESCRIPTION "database access code generator" LANGUAGES CXX)
 
+option(CLANGD_FRIENDLY_BUILD "Fast intellisense and no Catch2 warnings" OFF)
+
+if(CLANGD_FRIENDLY_BUILD)
+    set(ENABLE_SANITIZERS OFF CACHE BOOL "" FORCE)
+
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        add_compile_options(
+            -Wall -Wextra -Wpedantic -Wnarrowing -Wswitch-enum -Wswitch-default
+            -Wno-unused-value                  )
+    endif()
+endif()
+
 option(BUILD_TESTING "Build the testing tree." ON)
 include(CTest)
 enable_testing()
