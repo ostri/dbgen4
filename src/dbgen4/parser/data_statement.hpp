@@ -80,11 +80,11 @@ namespace dbgen4
         auto len = std::min(result_names_.size(), results_.size());
         for (auto cnt = 0UL; cnt < len; cnt++) results_[cnt].name = result_names_[cnt];
       }
-      log()->trace("{}", dump(2));
+      log_()->trace("{}", dump(2));
     }
   protected:
   private:
-    [[nodiscard]] spdlog::logger* log() const;
+    class log::log* log_() { return log::get(); }; /// Member variables
 
     str_t    id_;              ///< unique id of the data statement
     str_t    sql_;             ///< sql statement (generic or specific for RDBMS)

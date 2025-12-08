@@ -10,7 +10,7 @@ namespace dbgen4
   {
     str_t      left_padding(offs, ' ');
     const auto text_ident = 4 + offs;
-    /// walk over all statemnts and serialize them
+    /// walk over all statements and serialize them
     std::string stmt_str;
     for (const auto& [id, stmt] : map_statements_)
     { // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers)
@@ -22,7 +22,7 @@ namespace dbgen4
     auto msg             = fmt::format(R"(
   {0}Document description
   {0}  summary: {1}
-  {0}  dscription: {2}
+  {0}  description: {2}
   {0}  filename: {4}
   {0}  statements:{4}
   )",                                       /// this new line is on purpose to delimit sql statement from the metadata
@@ -39,7 +39,6 @@ namespace dbgen4
   str_t                       data_statements::description() const { return description_; }
   str_t                       data_statements::filename() const { return filename_; }
   const data_statement_map_t& data_statements::map_statements() const { return map_statements_; }
-  spdlog::logger*             data_statements::log() const { return log::get(); }
   /// setters
   void data_statements::set_summary(const str_t& summary) { summary_ = summary; }
   void data_statements::set_description(const str_t& description) { description_ = description; }
@@ -73,7 +72,7 @@ namespace dbgen4
   bool data_statements::add_statement(const data_statement& s)
   {
     auto [it, success] = map_statements_.emplace(s.id(), s);
-    if (! success) { log()->error("Statement id: {} is duplicated.", s.id()); }
+    if (! success) { log_()->error("Statement id: {} is duplicated.", s.id()); }
     return success;
   }
 }; // namespace dbgen4

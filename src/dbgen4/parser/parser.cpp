@@ -41,7 +41,7 @@ namespace dbgen4
     auto res = parse_yaml::load_from_string(yaml_str);
     if (! res)
     {
-      log()->debug("File {} syntax error.", this->filename());
+      log_()->debug("File {} syntax error.", this->filename());
       return std::unexpected(exit_status_enum::yaml_syntax_error);
     }
     return parse_yaml_file_json(res.value(), db_type);
@@ -64,13 +64,13 @@ namespace dbgen4
       auto res = db.get_sql_metadata(sql);
       if (! res)
       {
-        log()->error(
+        log_()->error(
           "Invalid sql '{}' status: {} mnemonic {}", sql, ME::enum_integer(res.error()), ME::enum_name<rtl::db_sts>(res.error()));
         return std::unexpected(exit_status_enum::sql_syntax_err);
       }
 
       /// all ok. Update the sql description with metadata
-      log()->trace("meta data: {}", res.value().dump());
+      log_()->trace("meta data: {}", res.value().dump());
       data_statement res_stmt(map_stmt_pair.second);
       res_stmt.set_results(res.value().columns());
       res_stmt.set_params(res.value().params());
@@ -78,7 +78,7 @@ namespace dbgen4
       res_stmts.add_statement_with_replace(res_stmt); /// we are replacing existing statement values (meta data added,
                                                       /// everything else the same)
     };
-    log()->info("{} sql statements processed", s.map_statements().size());
+    log_()->info("{} sql statements processed", s.map_statements().size());
     return res_stmts;
   }
 
@@ -101,7 +101,7 @@ namespace dbgen4
     {
       constexpr exit_status_enum err = exit_status_enum::statements_attr_missing;
       auto msg = fmt::format(get_exit_code_str(err), ys.error().filename, ys.error().to_string(), ys.error().line, ys.error().column);
-      log()->error(msg);
+      log_()->error(msg);
       return std::unexpected(err);
     }
     for (const auto& s : ys.value())
@@ -112,13 +112,13 @@ namespace dbgen4
       auto dscr        = s.get_or<std::string>("dscr", "");
       // must be first - sql value or empty after then specializations
       auto sql = s.get_or<std::string>(str_t(ME::enum_name(db_type_enum::sql)), "");
-      log()->trace("General sql '{0}'", sql);
+      log_()->trace("General sql '{0}'", sql);
       for (auto dbt : ME::enum_values<db_type_enum>())
       {
         if (db_type == dbt)
         {
           sql = s.get_or<std::string>(str_t(ME::enum_name(db_type)), sql);
-          log()->trace("Specialized {0} sql found {1}", ME::enum_name(dbt), sql);
+          log_()->trace("Specialized {0} sql found {1}", ME::enum_name(dbt), sql);
           break; // we found it. let's finish
         };
       }
@@ -126,12 +126,12 @@ namespace dbgen4
       auto param_names  = s.get_seq_of_strings_or("parameter-names", {});
       if (! id)
       {
-        log()->error(id.error().to_string());
+        log_()->error(id.error().to_string());
         return std::unexpected(exit_status_enum::stmt_unique_id_is_missing);
       };
       if (sql.empty())
       {
-        log()->error("SQL is missing. id: {}", id.value());
+        log_()->error("SQL is missing. id: {}", id.value());
         return std::unexpected(exit_status_enum::no_sql_stmt_found);
       }
       data_statement statement;
@@ -146,21 +146,15 @@ namespace dbgen4
       { /// duplicated statement id
         //       const auto msg = fmt::format("File: {} duplicate id {}", filename_, id.value());
 
-        log()->error(fmt::format(get_exit_code_str(exit_status_enum::duplicated_stmt_id),
-                                 filename_,
-                                 id.value(),
-                                 std::source_location::current().line(),
-                                 std::source_location::current().column()));
+        log_()->error(fmt::format(get_exit_code_str(exit_status_enum::duplicated_stmt_id),
+                                  filename_,
+                                  id.value(),
+                                  std::source_location::current().line(),
+                                  std::source_location::current().column()));
         return std::unexpected(exit_status_enum::duplicated_stmt_id);
       }
     };
     return stmts;
   }
-  /**
-   * @brief fetch pointer to logger
-   *
-   * @return spdlog::logger*
-   */
-  spdlog::logger* parser::log() const { return log::get(); }
 
 }; // namespace dbgen4

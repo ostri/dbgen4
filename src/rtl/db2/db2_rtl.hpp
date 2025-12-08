@@ -16,7 +16,7 @@ constexpr auto DATA_ALIGNMENT_16  = 16;
 #include <magic_enum.hpp>
 namespace ME = magic_enum; // NOLINT(misc-unused-alias-decls)
 
-namespace spd = spdlog; // NOLINT(misc-unused-alias-decls)
+// namespace spd = spdlog; // NOLINT(misc-unused-alias-decls)
 namespace rtl
 {
   // db2_rtl.hpp – namespace rtl
@@ -103,7 +103,7 @@ namespace rtl
     db_data_db2(db_data_db2&&)                 = delete;
     db_data_db2& operator=(db_data_db2&&)      = delete;
   private:
-    [[nodiscard]] spdlog::logger* log() const;
+    class log::log* log_() { return log::get(); }; /// Member variables
 
   }; //__attribute__((aligned(DATA_ALIGNMENT_64)));
 
@@ -209,9 +209,9 @@ namespace rtl
     void free_env_handle() const;  ///< free environment handle NOLINT
   private:
     ///
-    db_sts                        internal_connect(const std::string& connStr);
-    db_sts                        internal_allocate_handles();
-    [[nodiscard]] spdlog::logger* log() const;
+    db_sts                 internal_connect(const std::string& connStr);
+    db_sts                 internal_allocate_handles();
+    static class log::log* log_() { return log::get(); }; /// Member variables
     /// access to the database attributes
     [[nodiscard]] db_data_db2* data() const;
     e_qry_metadata             error_cleanup(SQLRETURN ret, const std::string& msg, db_sts err_code);

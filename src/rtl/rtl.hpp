@@ -3,8 +3,8 @@
 #include <cassert>
 #include <cstdint>
 #include <memory>
-// #include <spdlog/spdlog.h>
-#include "log.hpp"
+#include <span>
+#include "log.hpp" // IWYU pragma: keep
 
 // #include "log.hpp" // NOLINT(unused-includes)
 
@@ -82,10 +82,7 @@ namespace rtl
    * @param status The status code to check
    * @return true if the status indicates success (including success_with_info)
    */
-  constexpr bool is_success(db_sts status) noexcept
-  {
-    return status == db_sts::success || status == db_sts::success_with_info;
-  }
+  constexpr bool is_success(db_sts status) noexcept { return status == db_sts::success || status == db_sts::success_with_info; }
   /**
    * @brief Check if a db_status code indicates no data
    * @param status The status code to check
@@ -158,7 +155,7 @@ namespace rtl
     db_data_root(db_data_root&&)                 = delete;
     db_data_root& operator=(db_data_root&&)      = delete;
   private:
-    [[nodiscard]] spdlog::logger* log() const;
+    class log::log* log_() { return log::get(); }; /// Member variables
   };
   /**
    * @brief Root class for all database implementations
@@ -208,7 +205,7 @@ namespace rtl
     virtual db_sts                    commit();
     virtual db_sts                    rollback();
     [[nodiscard]] const db_data_root* data() const;
-    [[nodiscard]] spdlog::logger*     log() const;
+    class log::log*                   log_() { return log::get(); }; /// Member variables
   protected:
     /**
      * @brief Pointer to database-specific data implementation.
@@ -249,19 +246,15 @@ namespace rtl
       assert(len_vec.size() == data_vec.size()); //Both dimensions must be the same.
     // clang-format on
     if (value.size() > NetCapacity) [[unlikely]]
-      throw std::out_of_range(fmt::format(
-        "Value is too long. provided: {} maximum allowed {}", value.size(), NetCapacity));
+      throw std::out_of_range(fmt::format("Value is too long. provided: {} maximum allowed {}", value.size(), NetCapacity));
     if (data_vec.size() < row) [[unlikely]]
-      throw std::out_of_range(
-        fmt::format("Row is too long. provided: {} maximum allowed {}", row, data_vec.size()));
+      throw std::out_of_range(fmt::format("Row is too long. provided: {} maximum allowed {}", row, data_vec.size()));
 
     len_vec[row] = static_cast<int32_t>(value.size());
     auto& buf    = data_vec[row];
     value.copy(buf.data(), value.size(), 0);
-    if constexpr (std::is_same_v<CharT, char> || std::is_same_v<CharT, wchar_t>)
-      buf[value.size()] = CharT(0); // safety null
-    else
-    {
+    if constexpr (std::is_same_v<CharT, char> || std::is_same_v<CharT, wchar_t>) buf[value.size()] = CharT(0); // safety null
+    else {
       // Binary string - no need for trailing zero
     };
   }

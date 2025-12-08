@@ -8,7 +8,7 @@
  * @copyright Copyright (c) 2025
  *
  */
-#include "log.hpp" // NOLINT
+// #include "log.hpp" // NOLINT
 #include <cstdint>
 #include "rtl.hpp"
 
@@ -24,13 +24,8 @@ namespace rtl
                      const std::string& user,
                      const std::string& /*password*/)
   {
-    log()->error(
-      "Connection error - db2 method not implemented host: {} port {} db {} user {} pass {}",
-      host,
-      port,
-      database_name,
-      user,
-      "*****");
+    log_()->error(
+      "Connection error - db2 method not implemented host: {} port {} db {} user {} pass {}", host, port, database_name, user, "*****");
     return db_sts::connection_error;
   }
 
@@ -53,9 +48,9 @@ namespace rtl
 
   const db_data_root* db::data() const { return data_.get(); }
 
-  spdlog::logger* db::log() const { return log::get(); }
+  // spdlog::logger* db::log_() const { return log::get(); }
 
-  spdlog::logger* db_data_root::log() const { return log::get(); }
+  // spdlog::logger* db_data_root::log() const { return log::get(); }
 
 
 } // namespace rtl

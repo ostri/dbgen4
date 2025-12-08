@@ -79,7 +79,7 @@ namespace dbgen4
     e_void              register_callbacks();
     [[nodiscard]] str_t template_filename(inja_tpl_enum tpl_id) const;
   private:
-    spdlog::logger* log() { return log::get(); }; /// Member variables
+    class log::log* log_() { return log::get(); }; /// Member variables
     str_t           attr_storage_type(rtl::sql_type sql_type, const str_t& name);
     str_t           attr_getter_code(rtl::sql_type sql_type, const str_t& name);
     str_t           attr_setter_code(rtl::sql_type sql_type, const str_t& name);

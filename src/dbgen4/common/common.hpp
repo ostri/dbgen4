@@ -22,7 +22,7 @@ namespace dbgen4
   using cstr_t    = std::string_view;
   using vec_str_t = std::vector<str_t>;
   //  namespace ME    = magic_enum; // NOLINT(misc-unused-alias-decls)
-  namespace spd = spdlog; // NOLINT(misc-unused-alias-decls)
+  // namespace spd = spdlog; // NOLINT(misc-unused-alias-decls)
 
   /**
    * @brief enumeration of supported databases

@@ -23,7 +23,7 @@ namespace dbgen4
 
   appl::appl() = default;
 
-  appl::~appl() { log()->flush(); };
+  appl::~appl() { log_()->flush(); };
   /**
    * @brief method process one yaml file from parsing to code generation
    *
@@ -39,23 +39,23 @@ namespace dbgen4
     if (! r)
     {
       auto sts = ME::enum_integer(r.error());
-      log()->info("File '{}' parser status: {} db status {}", filename, magic_enum::enum_name(r.error()), sts);
+      log_()->info("File '{}' parser status: {} db status {}", filename, magic_enum::enum_name(r.error()), sts);
       return std::unexpected(r.error());
     }
     r = parser_.load_file_meta_data(r.value(), db); /// statements enriched with metadata
     if (! r)
     {
-      log()->info("File '{}' metadata load failed. status: {}", filename, ME::enum_name(r.error()));
+      log_()->info("File '{}' metadata load failed. status: {}", filename, ME::enum_name(r.error()));
       return std::unexpected(r.error());
     }
     auto res = gen.generate(r.value());
     if (! res)
     {
-      log()->info("File '{}' source code generation failed. status: {}", filename, ME::enum_name(res.error()));
+      log_()->info("File '{}' source code generation failed. status: {}", filename, ME::enum_name(res.error()));
       return std::unexpected(res.error());
     }
-    //    log()->info("Generated hpp file:\n{}", res.value());
-    log()->info("Data model generation from file '{}' successful", filename);
+    //    log_()->info("Generated hpp file:\n{}", res.value());
+    log_()->info("Data model generation from file '{}' successful", filename);
     return r.value();
   }
   /**
@@ -68,22 +68,22 @@ namespace dbgen4
    */
   exit_status_enum appl::exec(int argc, char** argv, char** env)
   {
-    log()->info("build type: {}", build_type_name());
+    log_()->info("build type: {}", build_type_name());
 
     parser p;
-    log()->info("=========== Application initialized ===========");
+    log_()->info("=========== Application initialized ===========");
     auto sts = p_.load_parameters(argc, argv, env);
-    log()->info("Command line parsing. status: '{}'", ME::enum_name(sts));
+    log_()->info("Command line parsing. status: '{}'", ME::enum_name(sts));
     if (sts != exit_status_enum::ok) return sts; // exit on help or error in parsing
     display_raw_command_line_log(argc, argv);
     try
     {
       rtl::db_db2 db; // access to the RDBMS
       auto        r = db.connect(p_.host(), p_.port(), p_.db_name(), p_.user(), p_.pass());
-      log()->info("Database connection status: {}", ME::enum_name<db_sts>(r));
+      log_()->info("Database connection status: {}", ME::enum_name<db_sts>(r));
       if (! rtl::is_success(r))
       {
-        log()->error("Unable to connect to database '{}'", p_.db_name());
+        log_()->error("Unable to connect to database '{}'", p_.db_name());
         return exit_status_enum::connection_error;
       }
       context ctx(p_); /// package cmd line parameters
@@ -101,42 +101,40 @@ namespace dbgen4
         auto res = process_one_file(db, gen);
         if (! res)
         {
-          log()->error("Error during processing file '{}' error {}", filename, ME::enum_name(res.error()));
+          log_()->error("Error during processing file '{}' error {}", filename, ME::enum_name(res.error()));
           sts = res.error();
           break;
         }
       }
-      log()->info("Application exit code '{}' '{}'", ME::enum_integer(sts), ME::enum_name(sts));
+      log_()->info("Application exit code '{}' '{}'", ME::enum_integer(sts), ME::enum_name(sts));
       db.rollback();
       db.disconnect();
       return sts;
     }
     catch (const CLI::CallForHelp& e)
     {
-      log()->debug("Help exit");
+      log_()->debug("Help exit");
       return exit_status_enum::ok;
     }
     catch (const std::runtime_error& e)
     {
-      log()->critical("Runtime error: '{}'", e.what());
+      log_()->critical("Runtime error: '{}'", e.what());
       return exit_status_enum::unhandled_exception;
     }
     catch (...)
     {
       const auto* const msg = "Unexpected error during application execution";
-      log()->error(msg);
+      log_()->error(msg);
       return exit_status_enum::unhandled_exception;
     };
   };
-
-  spdlog::logger* appl::log() { return log::get(); };
 
   void appl::display_raw_command_line_log(int argc, char** argv)
   {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     const vec_str_t vec(argv, argv + argc);
     auto            cmd_line = join(vec, " ");
-    log()->trace("command line: {}", cmd_line);
+    log_()->trace("command line: {}", cmd_line);
   }
 
 

@@ -2,6 +2,7 @@
 // #include "parser_errors.hpp"
 #include <algorithm>
 #include <fstream>
+#include <sstream>
 // #include <ranges>
 namespace dbgen4
 {
@@ -51,8 +52,9 @@ namespace dbgen4
   vec_str_t prefix_split(std::string_view input_sv, char delimiter, const std::string& prefix)
   {
     std::vector<std::string> result;
-    std::stringstream        ss{std::string(input_sv)};
-    std::string              segment;
+    std::stringstream        ss;
+    ss << input_sv;
+    std::string segment;
     while (std::getline(ss, segment, delimiter))
     {
       // Process the segment: adding the prefix

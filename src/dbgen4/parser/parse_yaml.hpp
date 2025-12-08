@@ -25,7 +25,7 @@ namespace dbgen4
      *
      * @return spdlog::logger*
      */
-    static spdlog::logger* log() { return log::get(); }
+    static class log::log* log_() { return log::get(); };
 
     [[nodiscard]] std::string to_string() const;
   } __attribute__((aligned(128))); // NOLINT
@@ -63,10 +63,10 @@ namespace dbgen4
                     .line     = root_.Mark().line,
                     .column   = root_.Mark().column,
                     .filename = filename_};
-          log()->trace(err.to_string());
+          log_()->trace(err.to_string());
           return std::unexpected(make_missing_key_error(key));
         }
-        log()->debug("tag '{}' found.", key);
+        log_()->debug("tag '{}' found.", key);
         return root_[key].as<T>();
       }
       catch (const YAML::Exception& e)
@@ -75,7 +75,7 @@ namespace dbgen4
                          .line     = e.mark.line,
                          .column   = e.mark.column,
                          .filename = filename_};
-        log()->error(err.to_string());
+        log_()->error(err.to_string());
         return std::unexpected(err);
       }
     }
@@ -86,7 +86,7 @@ namespace dbgen4
       auto res = get<T>(key);
       if (! res)
       {
-        log()->trace("root: '{0}' key '{1}' not found; using default. default:'{2}'", root_.Tag(), key, def);
+        log_()->trace("root: '{0}' key '{1}' not found; using default. default:'{2}'", root_.Tag(), key, def);
         return def;
       }
       return *res;
@@ -109,7 +109,8 @@ namespace dbgen4
     YAML::Node  root_;
     std::string filename_;
     /// private methods
-    static spdlog::logger* log() { return log::get(); }
-    Error                  make_missing_key_error(const std::string& key) const;
+    static class log::log* log_() { return log::get(); };
+    /// Member variables
+    Error make_missing_key_error(const std::string& key) const;
   };
 } // namespace dbgen4

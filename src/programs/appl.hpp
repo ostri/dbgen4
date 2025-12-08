@@ -21,8 +21,8 @@ namespace dbgen4
     appl&            operator=(const appl&) = delete;
     appl&            operator=(appl&&)      = delete;
     exit_status_enum exec(int argc, char** argv, char** env); /// execute application
-    spdlog::logger*  log();
   private:
+    static class log::log* log_() { return log::get(); };
     /// method logs raw command line
     void              display_raw_command_line_log(int argc, char** argv);
     e_data_statements process_one_file(rtl::db_db2& db, generator& gen);

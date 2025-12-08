@@ -64,12 +64,10 @@ namespace rtl
 
   db_data_db2::~db_data_db2()
   {
-    if (stmt_handle != 0) log()->critical("statement handle is not deallocated.");
-    if (conn_handle != 0) log()->critical("connection handle is not deallocated.");
-    if (env_handle != 0) log()->critical("environment handle is not deallocated.");
+    if (stmt_handle != 0) log_()->critical("statement handle is not deallocated.");
+    if (conn_handle != 0) log_()->critical("connection handle is not deallocated.");
+    if (env_handle != 0) log_()->critical("environment handle is not deallocated.");
   }
-
-  spdlog::logger* db_data_db2::log() const { return log::get(); }
 
   db_db2::db_db2() { this->data_ = std::make_unique<db_data_db2>(); }
   db_db2::~db_db2() { disconnect(); }
@@ -108,7 +106,7 @@ namespace rtl
       return db_sts::env_error;
     }
 
-    log()->debug("ENV handle allocated: {}", data()->env_handle);
+    log_()->debug("ENV handle allocated: {}", data()->env_handle);
 
     ret = SQLAllocHandle(SQL_HANDLE_DBC, data()->env_handle, &data()->conn_handle);
     if (! is_success(static_cast<db_sts>(ret)))
@@ -117,7 +115,7 @@ namespace rtl
       free_env_handle();
       return db_sts::connection_error;
     }
-    log()->debug("Connection handle allocated: {}", data()->conn_handle);
+    log_()->debug("Connection handle allocated: {}", data()->conn_handle);
     ret = SQLSetConnectAttr(data()->conn_handle,
                             SQL_ATTR_AUTOCOMMIT,
                             (SQLPOINTER)SQL_AUTOCOMMIT_OFF, // NOLINT
@@ -127,10 +125,9 @@ namespace rtl
       chk_error(ret, SQL_HANDLE_DBC, data()->conn_handle, "SQLSetConnectAttr(AUTOCOMMIT OFF)");
       return db_sts::config_error;
     }
-    log()->debug("Autocommit disabled.");
+    log_()->debug("Autocommit disabled.");
     return db_sts::success;
   }
-  spdlog::logger* db_db2::log() const { return log::get(); }
   ///
   db_sts db_db2::connect(const std::string& conn_str) { return internal_connect(conn_str); }
   db_sts db_db2::connect(const std::string& host, uint16_t port, const std::string& name, const std::string& user, const std::string& pass)
@@ -147,12 +144,12 @@ namespace rtl
       conn_str += !name.empty() ? fmt::format("DATABASE={}; ", name) : "";
       conn_str += !user.empty() ? fmt::format("UID={}; ",      user) : "";
       /// must be here. we don't want to show the password in log
-      log()->debug("connection string: '{}'", conn_str);
+      log_()->debug("connection string: '{}'", conn_str);
       conn_str += !pass.empty() ? fmt::format("PWD={}; ",      pass) : "";
       // clang-format on
 
       ret = internal_connect(conn_str);
-      log()->info("Connected to db: host:'{}:{}' db:'{}' as user '{}'", host, port, name, user);
+      log_()->info("Connected to db: host:'{}:{}' db:'{}' as user '{}'", host, port, name, user);
     }
     return ret;
   }
@@ -169,7 +166,7 @@ namespace rtl
       ret = SQLDisconnect(data()->conn_handle);
       if (! is_success(static_cast<db_sts>(ret))) chk_error(ret, SQL_HANDLE_DBC, data()->conn_handle, "disconnecting from DB2 database");
       free_conn_handle();
-      log()->info("Database disconnected");
+      log_()->info("Database disconnected");
     }
 
     if (data()->env_handle != 0) free_env_handle();
@@ -187,16 +184,16 @@ namespace rtl
   {
     if (data()->conn_handle == 0)
     {
-      log()->error("Attempted to commit on a disconnected database.");
+      log_()->error("Attempted to commit on a disconnected database.");
       return db_sts::connection_error;
     }
 
     SQLRETURN ret = SQLEndTran(SQL_HANDLE_DBC, data()->conn_handle, SQL_COMMIT);
     chk_error(ret, SQL_HANDLE_DBC, data()->conn_handle, "commit transaction");
 
-    if (is_success(static_cast<db_sts>(ret))) { log()->info("Transaction committed successfully."); }
+    if (is_success(static_cast<db_sts>(ret))) { log_()->info("Transaction committed successfully."); }
     else {
-      log()->error("Transaction commit failed.");
+      log_()->error("Transaction commit failed.");
     }
 
     return static_cast<db_sts>(ret);
@@ -211,16 +208,16 @@ namespace rtl
   {
     if (data()->conn_handle == 0)
     {
-      log()->error("Attempted to rollback on a disconnected database.");
+      log_()->error("Attempted to rollback on a disconnected database.");
       return db_sts::connection_error;
     }
 
     SQLRETURN ret = SQLEndTran(SQL_HANDLE_DBC, data()->conn_handle, SQL_ROLLBACK);
     chk_error(ret, SQL_HANDLE_DBC, data()->conn_handle, "rollback transaction");
 
-    if (is_success(static_cast<db_sts>(ret))) [[likely]] { log()->info("Transaction rolled back successfully."); }
+    if (is_success(static_cast<db_sts>(ret))) [[likely]] { log_()->info("Transaction rolled back successfully."); }
     else {
-      log()->error("Transaction rollback failed.");
+      log_()->error("Transaction rollback failed.");
     }
 
     return static_cast<db_sts>(ret);
@@ -258,7 +255,7 @@ namespace rtl
 
     if (data()->conn_handle == 0) [[unlikely]]
     {
-      log()->error("get_sql_metadata: No active database connection");
+      log_()->error("get_sql_metadata: No active database connection");
       return std::unexpected(db_sts::connection_error);
     }
 
@@ -284,7 +281,7 @@ namespace rtl
       auto msg = fmt::format("{} sql {}", "SQLNumResultCols", sql);
       return error_cleanup(ret, msg, db_sts::invalid_sql);
     }
-    log()->debug("Parameter set has {} parameters", num_params);
+    log_()->debug("Parameter set has {} parameters", num_params);
 
     for (SQLSMALLINT i = 1; i <= num_params; ++i)
     {
@@ -312,7 +309,7 @@ namespace rtl
       auto msg = fmt::format("{} sql {}", "SQLNumResultCols", sql);
       return error_cleanup(ret, msg, db_sts::invalid_sql);
     }
-    log()->debug("Result set has {} columns", num_columns);
+    log_()->debug("Result set has {} columns", num_columns);
     for (SQLSMALLINT i = 1; i <= num_columns; ++i)
     {
       meta_dscr                    col{};
@@ -471,7 +468,7 @@ namespace rtl
   // {
   //   if (! is_connected() || data()->stmt_handle == 0)
   //   {
-  //     log()->error("bind_col: No active connection or statement handle");
+  //     log_()->error("bind_col: No active connection or statement handle");
   //     return db_sts::invalid_handle;
   //   }
 
@@ -485,7 +482,7 @@ namespace rtl
   //     return static_cast<db_sts>(ret);
   //   }
 
-  //   log()->debug("Column {} bound successfully", column_number);
+  //   log_()->debug("Column {} bound successfully", column_number);
   //   return db_sts::success;
   // }
 
@@ -502,7 +499,7 @@ namespace rtl
   // {
   //   if (! is_connected() || data()->stmt_handle == 0)
   //   {
-  //     log()->error("bind_param: No active connection or statement handle");
+  //     log_()->error("bind_param: No active connection or statement handle");
   //     return db_sts::invalid_handle;
   //   }
 
@@ -521,7 +518,7 @@ namespace rtl
   //     return static_cast<db_sts>(ret);
   //   }
 
-  //   log()->debug("Parameter {} bound successfully", parameter_number);
+  //   log_()->debug("Parameter {} bound successfully", parameter_number);
   //   return db_sts::success;
   // }
 }; // namespace rtl

@@ -16,7 +16,8 @@ namespace dbgen4
     }
     [[nodiscard]] const cmd_line_params& cmd() const;
   private:
-    [[nodiscard]] spdlog::logger* log() const { return log::get(); }
+    class log::log* log_() { return log::get(); };
+    /// Member variables
     /// members
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     const cmd_line_params& cmd_; ///< reference to parameters

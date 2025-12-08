@@ -48,7 +48,7 @@ namespace dbgen4
   protected:
     void set_map(const data_statement_map_t& map);
   private:
-    [[nodiscard]] spdlog::logger* log() const;
+    class log::log* log_() { return log::get(); }; /// Member variables
 
     str_t                summary_;        ///< description about the purpose of this sql statements set
     str_t                description_;    ///< description of the usage of this sql statement set
