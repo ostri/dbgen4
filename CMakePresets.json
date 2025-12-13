@@ -1,78 +1,78 @@
 {
-    "version": 8,
-    "cmakeMinimumRequired": {
-        "major": 3,
-        "minor": 23,
-        "patch": 0
+  "version": 8,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 23,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "ninja-debug",
+      "displayName": "Debug",
+      "description": "Ninja + Debug + Sanitizers",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "ENABLE_SANITIZERS": "ON"
+      }
     },
-    "configurePresets": [
-        {
-            "name": "ninja-debug",
-            "displayName": "Debug",
-            "description": "Ninja + Debug + Sanitizers",
-            "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build/debug",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-                "ENABLE_SANITIZERS": "ON"
-            }
-        },
-        {
-            "name": "ninja-release",
-            "displayName": "Release",
-            "description": "Ninja + Release (fast, no sanitizers)",
-            "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build/release",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
-                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-                "ENABLE_SANITIZERS": "OFF"
-            }
-        },
-        {
-            "name": "ninja-relwithdebinfo",
-            "displayName": "RelWithDebInfo",
-            "description": "Optimized + debug info + sanitizers",
-            "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build/relwithdebinfo",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-                "ENABLE_SANITIZERS": "ON"
-            }
-        },
-        {
-            "name": "clangd",
-            "displayName": "Clangd clean and fast",
-            "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build-clangd",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-                "ENABLE_SANITIZERS": "OFF",
-                "CLANGD_FRIENDLY_BUILD": "ON"
-            }
-        }
-    ],
-    "buildPresets": [
-        {
-            "name": "debug",
-            "configurePreset": "ninja-debug",
-            "displayName": "Build (Debug)",
-            "jobs": 8
-        },
-        {
-            "name": "release",
-            "configurePreset": "ninja-release",
-            "displayName": "Build (Release)",
-            "jobs": 8
-        },
-        {
-            "name": "relwithdebinfo",
-            "configurePreset": "ninja-relwithdebinfo",
-            "displayName": "Build (RelWithDebInfo)",
-            "jobs": 8
-        }
-    ]
+    {
+      "name": "ninja-release",
+      "displayName": "Release",
+      "description": "Ninja + Release (fast, no sanitizers)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "ENABLE_SANITIZERS": "OFF"
+      }
+    },
+    {
+      "name": "ninja-relwithdebinfo",
+      "displayName": "RelWithDebInfo",
+      "description": "Optimized + debug info + sanitizers",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/relwithdebinfo",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "ENABLE_SANITIZERS": "ON"
+      }
+    },
+    {
+      "name": "clangd",
+      "displayName": "Clangd clean and fast",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-clangd",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "ENABLE_SANITIZERS": "OFF",
+        "CLANGD_FRIENDLY_BUILD": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "debug",
+      "configurePreset": "ninja-debug",
+      "displayName": "Build (Debug)",
+      "jobs": 8
+    },
+    {
+      "name": "release",
+      "configurePreset": "ninja-release",
+      "displayName": "Build (Release)",
+      "jobs": 8
+    },
+    {
+      "name": "relwithdebinfo",
+      "configurePreset": "ninja-relwithdebinfo",
+      "displayName": "Build (RelWithDebInfo)",
+      "jobs": 8
+    }
+  ]
 }

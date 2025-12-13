@@ -9,7 +9,7 @@ TEST_CASE("log subsystem initializes from config file", "[log][init]")
   auto* l = log::get(); // logger
   REQUIRE(l != nullptr);
 
-  SECTION("default log level in debug config is trace") { CHECK(l->level() == log::level_enum::trace); }
+  SECTION("default log level in debug config is trace") { CHECK(l->level() == log::level::trace); }
 
   SECTION("logging a message does not crash") { l->info("Catch2 unit test – logging works correctly"); }
 }

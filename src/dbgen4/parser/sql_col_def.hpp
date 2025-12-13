@@ -7,7 +7,7 @@
 namespace dbgen4
 {
   /**
-   * @brief data about one colum/parameter definition in sql statement
+   * @brief data about one column/parameter definition in sql statement
    *
    */
   class sql_col_def

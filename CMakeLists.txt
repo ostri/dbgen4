@@ -16,7 +16,6 @@ endif()
 option(BUILD_TESTING "Build the testing tree." ON)
 include(CTest)
 enable_testing()
-
 # ===================================================================
 # Force the same build tool and behavior as manual command line
 # ===================================================================

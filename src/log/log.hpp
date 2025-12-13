@@ -7,11 +7,6 @@
 
 #include "build_type.hpp"
 #include <fmt/format.h>
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/stdout_color_sinks.h>
-#include <spdlog/sinks/daily_file_sink.h>
-#include <spdlog/async.h>
-#include <nlohmann/json.hpp>
 #include <memory>
 #include <string_view>
 
@@ -22,7 +17,7 @@ constexpr const char* def_log_path      = is_debug_build() ? "logs/fallback.debu
 class log
 {
 public:
-  static log& instance();
+  static class log& instance();
 
   enum class mode : uint8_t
   {
@@ -31,69 +26,162 @@ public:
   };
 
   // Mnemonic level names
-  static constexpr auto trace    = spdlog::level::trace;
-  static constexpr auto debug    = spdlog::level::debug;
-  static constexpr auto info     = spdlog::level::info;
-  static constexpr auto warn     = spdlog::level::warn;
-  static constexpr auto err      = spdlog::level::err;
-  static constexpr auto critical = spdlog::level::critical;
-  static constexpr auto off      = spdlog::level::off;
+  enum class level : int
+  {
+    trace    = 0,
+    debug    = 1,
+    info     = 2,
+    warn     = 3,
+    error    = 4,
+    critical = 5,
+    off      = 6,
+  };
 
   void init_fallback();
   void init_from_json(const std::string& config_path = def_log_cfg_path);
 
-  void init_raw(std::string_view          app_name        = "app",
-                mode                      m               = mode::sync,
-                spdlog::level::level_enum console_lvl     = is_debug_build() ? info : warn,
-                spdlog::level::level_enum file_lvl        = is_debug_build() ? debug : trace,
-                int                       rotation_hour   = 2,
-                int                       rotation_minute = 0,
-                int                       keep_days       = keep_days_default,
-                std::string_view          pattern         = "[%Y-%m-%d %H:%M:%S.%e] [%n] [%l] [%t] %v",
-                std::string_view          log_folder      = "logs",
-                spdlog::level::level_enum flush_lvl       = spdlog::level::warn);
+  void init_raw(std::string_view app_name        = "app",
+                mode             m               = mode::sync,
+                enum level       console_lvl     = is_debug_build() ? level::info : level::warn,
+                enum level       lvl             = is_debug_build() ? level::debug : level::trace,
+                int              rotation_hour   = 2,
+                int              rotation_minute = 0,
+                int              keep_days       = keep_days_default,
+                std::string_view pattern         = "[%Y-%m-%d %H:%M:%S.%e] [%n] [%l] [%t] %v",
+                std::string_view log_folder      = "logs",
+                enum level       flush_lvl       = level::warn);
 
-  void set_console_level(spdlog::level::level_enum lvl);
-  void set_file_level(spdlog::level::level_enum lvl);
+  enum level level() const;
+  enum level console_level() const;
+  enum level file_level() const;
+  void       set_console_level(enum level l);
+  void       set_file_level(enum level l);
+  void       set_level(enum level l);
 
 
-  void log_exception_with_chain(const std::exception& e, spdlog::level::level_enum lvl = critical);
-  void log_current_exception_with_chain(spdlog::level::level_enum lvl = critical);
+  void log_exception_with_chain(const std::exception& e, enum level l = level::critical);
+  void log_current_exception_with_chain(enum level l = level::critical);
 
   void setup_terminate_handler();
   void setup_signal_handler();
+  void log_backtrace(const std::string& title);
+
 
   // Delete copy/move
-  log(const log&)                                = delete;
-  log& operator=(const log&)                     = delete;
-  log(log&&)                                     = delete;
-  log&                          operator=(log&&) = delete;
-  [[nodiscard]] spdlog::logger* get_internal() const { return spdlog::default_logger().get(); }
-  // Backward compatibility
-  static spdlog::logger* get() { return log::instance().get_internal(); }
+  log(const log&)                    = delete;
+  log& operator=(const log&)         = delete;
+  log(log&&)                         = delete;
+  log&              operator=(log&&) = delete;
+  static class log* get();
+
+  // clang-format off
+  template <typename... Args> void trace   (fmt::format_string<Args...> fmt, Args&&... args);
+  template <typename... Args> void debug   (fmt::format_string<Args...> fmt, Args&&... args);
+  template <typename... Args> void info    (fmt::format_string<Args...> fmt, Args&&... args);
+  template <typename... Args> void warn    (fmt::format_string<Args...> fmt, Args&&... args);
+  template <typename... Args> void error   (fmt::format_string<Args...> fmt, Args&&... args);
+  template <typename... Args> void critical(fmt::format_string<Args...> fmt, Args&&... args);
+  // clang-format on
+  void trace(std::string_view sv);
+  void debug(std::string_view sv);
+  void info(std::string_view sv);
+  void warn(std::string_view sv);
+  void error(std::string_view sv);
+  void critical(std::string_view sv);
+
+  void flush();
+  void flush_on(enum level l);
 private:
-  log()  = default; // creates fallback logger
-  ~log() = default;
-  // bool initialized_ = false; // full construction when singleton is already constructed
-
+  log();
+  ~log();
   // Helper functions
-  static spdlog::level::level_enum flush_level_from_string(const std::string& level);
-  static spdlog::level::level_enum level_from_string(const std::string& str);
-  static std::string               level_to_string(spdlog::level::level_enum level);
-
+  static enum level flush_level_from_string(const std::string& level);
   // Signal handler must be static to be passed to std::signal
   static void        signal_handler(int sig);
   static const char* get_signal_name(int sig);
   void               log_backtrace(const std::string& title) const;
   void               log_nested_chain(const std::exception& e, int depth);
 
-  // Member variables
-  // NOLINTNEXTLINE(fuchsia-statically-constructed-objects)
-  std::shared_ptr<spdlog::sinks::stdout_color_sink_mt> console_sink_;
-  // NOLINTNEXTLINE(fuchsia-statically-constructed-objects)
-  std::shared_ptr<spdlog::sinks::daily_file_sink_mt> file_sink_;
-  // NOLINTNEXTLINE(fuchsia-statically-constructed-objects)
-  std::shared_ptr<spdlog::logger> logger_;
-  // NOLINTNEXTLINE(fuchsia-statically-constructed-objects)
-  std::string cfg_filename_;
+  void _log(enum log::level l, std::string_view s);
+
+  class impl;
+  std::unique_ptr<impl> pimpl_;
 };
+
+template <typename... Args>
+inline void log::trace(fmt::format_string<Args...> fmt, Args&&... args)
+{
+  try
+  {
+    _log(level::trace, fmt::format(fmt, std::forward<Args>(args)...));
+  }
+  catch (...)
+  {
+  }
+}
+
+template <typename... Args>
+inline void log::debug(fmt::format_string<Args...> fmt, Args&&... args)
+{
+  try
+  {
+    _log(level::debug, fmt::format(fmt, std::forward<Args>(args)...));
+  }
+  catch (...)
+  {
+  }
+}
+
+template <typename... Args>
+inline void log::info(fmt::format_string<Args...> fmt, Args&&... args)
+{
+  try
+  {
+    _log(level::info, fmt::format(fmt, std::forward<Args>(args)...));
+  }
+  catch (...)
+  {
+  }
+}
+
+template <typename... Args>
+inline void log::warn(fmt::format_string<Args...> fmt, Args&&... args)
+{
+  try
+  {
+    _log(level::warn, fmt::format(fmt, std::forward<Args>(args)...));
+  }
+  catch (...)
+  {
+  }
+}
+
+template <typename... Args>
+inline void log::error(fmt::format_string<Args...> fmt, Args&&... args)
+{
+  try
+  {
+    _log(level::error, fmt::format(fmt, std::forward<Args>(args)...));
+  }
+  catch (...)
+  {
+  }
+}
+
+template <typename... Args>
+inline void log::critical(fmt::format_string<Args...> fmt, Args&&... args)
+{
+  try
+  {
+    _log(level::critical, fmt::format(fmt, std::forward<Args>(args)...));
+  }
+  catch (...)
+  {
+  }
+}
+inline void log::trace(std::string_view sv) { _log(level::trace, sv); }
+inline void log::debug(std::string_view sv) { _log(level::debug, sv); }
+inline void log::info(std::string_view sv) { _log(level::info, sv); }
+inline void log::warn(std::string_view sv) { _log(level::warn, sv); }
+inline void log::error(std::string_view sv) { _log(level::error, sv); }
+inline void log::critical(std::string_view sv) { _log(level::critical, sv); }

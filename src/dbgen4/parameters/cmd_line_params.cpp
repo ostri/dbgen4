@@ -194,9 +194,9 @@ namespace dbgen4
 
   void cmd_line_params::set_log_level(bool verbose) const
   {
-    if (is_debug_build()) { log_()->set_level(verbose ? log::level_enum::trace : log::level_enum::info); }
+    if (is_debug_build()) { log_()->set_level(verbose ? log::level::trace : log::level::info); }
     else {
-      log_()->set_level(verbose ? log::level_enum::info : log::level_enum::warn);
+      log_()->set_level(verbose ? log::level::info : log::level::warn);
     };
   }
 }; // namespace dbgen4
