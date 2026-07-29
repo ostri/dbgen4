@@ -126,6 +126,35 @@ namespace dbgen4
     return *res;
   }
 
+  /**
+   * @brief read a mapping of name to number, e.g. the field-len override
+   *
+   * A missing key is not an error - the caller falls back to its default. A
+   * malformed entry is skipped with a warning rather than failing the whole
+   * file, so one bad width does not stop code generation.
+   */
+  [[nodiscard]] std::map<std::string, size_t> parse_yaml::get_map_of_sizes_or(const std::string& key) const noexcept
+  {
+    std::map<std::string, size_t> result;
+    if (! is_map(key))
+    {
+      if (exists(key)) log_()->error("Key '{}' is not a map of name to length - ignored.", key);
+      return result;
+    }
+    for (const auto& item : root_[key])
+    {
+      try
+      {
+        result[item.first.as<std::string>()] = item.second.as<size_t>();
+      }
+      catch (const YAML::Exception& e)
+      {
+        log_()->error("Entry of '{}' is not a name to length pair: {}", key, e.msg);
+      }
+    }
+    return result;
+  }
+
   // nested maps
   [[nodiscard]] Result parse_yaml::get_map(const std::string& key) const
   {

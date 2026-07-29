@@ -32,6 +32,7 @@ namespace dbgen4
   str_t        cmd_line_params::pass() const { return pass_; }
   str_t        cmd_line_params::host() const { return host_; }
   size_t       cmd_line_params::port() const { return port_; }
+  size_t       cmd_line_params::max_field_len() const { return max_field_len_; }
   /**
    * @brief Method returns string that describes the object attribute values
    *
@@ -128,6 +129,12 @@ namespace dbgen4
     /// database user password
     app.add_option("-p,--password", pass_, "database user password")
       ->required();
+    /// fallback width for columns the database reports no length for
+    app.add_option("-l,--max-field-len", max_field_len_,
+                   "width assumed for columns with no declared length (text, json, bytea, ...). "
+                   "Override per column with 'field-len' in the yaml file.")
+      ->default_val(default_max_field_len)
+      ->check(CLI::PositiveNumber);
     /// output folder
     app.add_option("-o,--out-folder", out_folder_, "output folder for generated files.")
       ->default_val("./");

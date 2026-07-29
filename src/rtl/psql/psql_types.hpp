@@ -173,12 +173,14 @@ namespace rtl::psql
    * @param oid type OID
    * @param typmod type modifier as reported by PQfmod, -1 when there is none
    * @param size storage size as reported by PQfsize, -1 for variable length
-   * @return uint32_t width usable as a buffer dimension
+   * @return uint32_t declared width, or 0 when the type carries none
    */
   [[nodiscard]] constexpr uint32_t column_width(oid_t oid, int32_t typmod, int32_t size) noexcept
   {
     constexpr uint32_t varlena_header = 4;
-    constexpr uint32_t unbounded      = 65535; ///< fallback for text/json/bytea and friends
+    /// 0 means "the database declares no width" - the generator substitutes
+    /// its --max-field-len, or whatever the yaml file says for this column
+    constexpr uint32_t unbounded      = 0;
     constexpr uint32_t uuid_text_len  = 36;
     constexpr uint32_t numeric_len    = 64; ///< generous - numeric arrives as text
 

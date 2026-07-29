@@ -41,7 +41,7 @@ namespace dbgen4
       log_()->info("File '{}' parser status: {} db status {}", filename, magic_enum::enum_name(r.error()), sts);
       return std::unexpected(r.error());
     }
-    r = parser_.load_file_meta_data(r.value(), db); /// statements enriched with metadata
+    r = parser_.load_file_meta_data(r.value(), db, p_.max_field_len()); /// statements enriched with metadata
     if (! r)
     {
       log_()->info("File '{}' metadata load failed. status: {}", filename, ME::enum_name(r.error()));

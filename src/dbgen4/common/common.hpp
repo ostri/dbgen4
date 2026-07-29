@@ -36,6 +36,17 @@ namespace dbgen4
     db2     = 3  /// ibm db2
   };
 
+  /**
+   * @brief default width assumed for a column with no declared length
+   *
+   * Some types carry no length the database can report: PostgreSQL text, json,
+   * jsonb, bytea and xml, MariaDB TEXT and BLOB. Sizing their buffers at the
+   * protocol maximum would make a handful of columns cost megabytes, so the
+   * generator needs a figure to work with. Override globally with
+   * --max-field-len, or per column with 'field-len' in the yaml file.
+   */
+  constexpr size_t default_max_field_len = 4096;
+
   str_t            join(const vec_str_t& o, const str_t& delim = "\n");
   std::string_view trim_whitespace_view(std::string_view s);
 

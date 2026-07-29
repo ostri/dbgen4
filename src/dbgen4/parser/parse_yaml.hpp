@@ -7,6 +7,7 @@
 #include <expected>
 #include <string>
 #include <vector>
+#include <map>
 #include <expected>
 // #include <fstream>
 #include "fmt_structs.hpp"
@@ -105,6 +106,8 @@ namespace dbgen4
                                                               const std::vector<parse_yaml>& def = {}) const noexcept;
     [[nodiscard]] std::vector<std::string> get_seq_of_strings_or(const std::string&              key,
                                                                  const std::vector<std::string>& def = {}) const noexcept;
+    /// map of column name to a number, as used by 'field-len'
+    [[nodiscard]] std::map<std::string, size_t> get_map_of_sizes_or(const std::string& key) const noexcept;
   private:
     YAML::Node  root_;
     std::string filename_;

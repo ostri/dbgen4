@@ -35,7 +35,7 @@ namespace dbgen4
     /// @param filename path to the yaml file
     /// @return result of the operation, optional loaded data structure
     [[nodiscard]] e_data_statements parse_yaml_file(const str_t& filename, db_type_enum db_type);
-    [[nodiscard]] e_data_statements load_file_meta_data(const data_statements& s, rtl::db& db) const;
+    [[nodiscard]] e_data_statements load_file_meta_data(const data_statements& s, rtl::db& db, size_t max_field_len) const;
     [[nodiscard]] e_data_statements parse_yaml_string(const str_t& yaml_str, db_type_enum db_type);
     /// getters
     [[nodiscard]] str_t filename() const; ///< YAML filename

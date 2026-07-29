@@ -29,6 +29,8 @@ namespace dbgen4
     [[nodiscard]] str_t        pass() const;
     [[nodiscard]] str_t        host() const;
     [[nodiscard]] size_t       port() const;
+    /// width to assume for columns the database reports no declared length for
+    [[nodiscard]] size_t       max_field_len() const;
     /**
      * @brief dump the object content to the string
      *
@@ -50,6 +52,10 @@ namespace dbgen4
     size_t                 port_{};                     ///< port to which to connect
     str_t                  host_;                       ///< host to which connect
     vec_str_t              files_;                      //< set of files to be processed
+    /// Fallback width for types with no declared length - PostgreSQL text,
+    /// json, bytea, MariaDB TEXT/BLOB. Without it those columns would size
+    /// their buffers at the protocol maximum.
+    size_t max_field_len_{default_max_field_len};
 
   }; // namespace dbgen4
 

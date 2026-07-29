@@ -55,7 +55,7 @@ namespace dbgen4
    * @param db database connection
    * @return pars_result error code + updated statements structure
    */
-  e_data_statements parser::load_file_meta_data(const data_statements& s, rtl::db& db) const
+  e_data_statements parser::load_file_meta_data(const data_statements& s, rtl::db& db, size_t max_field_len) const
   {
     data_statements res_stmts{s}; // result statements with updated metadata
     for (const auto& map_stmt_pair : s.map_statements())
@@ -74,7 +74,8 @@ namespace dbgen4
       data_statement res_stmt(map_stmt_pair.second);
       res_stmt.set_results(res.value().columns());
       res_stmt.set_params(res.value().params());
-      res_stmt.push_column_names();                   // overwrite database column names with user defined (if they exist)
+      res_stmt.push_column_names();          // overwrite database column names with user defined (if they exist)
+      res_stmt.apply_field_len(max_field_len); // settle the width of columns the database gave none for
       res_stmts.add_statement_with_replace(res_stmt); /// we are replacing existing statement values (meta data added,
                                                       /// everything else the same)
     };
@@ -122,6 +123,7 @@ namespace dbgen4
           break; // we found it. let's finish
         };
       }
+      auto field_len    = s.get_map_of_sizes_or("field-len");
       auto result_names = s.get_seq_of_strings_or("result-names", {});
       auto param_names  = s.get_seq_of_strings_or("parameter-names", {});
       if (! id)
@@ -142,6 +144,7 @@ namespace dbgen4
       statement.set_par_buf_size(param_size);
       statement.set_param_names(param_names);
       statement.set_result_names(result_names);
+      statement.set_field_len(field_len);
       if (! stmts.add_statement(statement))
       { /// duplicated statement id
         //       const auto msg = fmt::format("File: {} duplicate id {}", filename_, id.value());

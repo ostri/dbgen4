@@ -16,6 +16,11 @@ statements:
         from test
         where
           col_smallint = $1
+    # PostgreSQL declares no width for text/json/bytea, so those fall back to
+    # --max-field-len. Narrow the ones we know stay small.
+    field-len:
+      col_text: 128
+      col_bytea: 32
   - id: sql_2
     sql: select col_smallint, col_integer, col_numeric from test
     result-names: [a, b, c, d] # more names than columns, on purpose
