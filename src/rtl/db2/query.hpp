@@ -9,6 +9,7 @@ namespace ME = magic_enum; // NOLINT(misc-unused-alias-decls)
 #include "result_root.hpp"
 #include "buffer_dscr.hpp"
 #include "db2_types.hpp"
+#include "db2_database.hpp"
 #include "log.hpp"
 // #include <span>
 #include <string>
@@ -22,12 +23,6 @@ namespace ME = magic_enum; // NOLINT(misc-unused-alias-decls)
 
 namespace rtl
 {
-  struct database // NOLINT
-  {
-    virtual ~database()                                     = default;
-    [[nodiscard]] virtual SQLHDBC   get_conn() const noexcept = 0;
-    [[nodiscard]] virtual class log::log* get_logger() const noexcept = 0;
-  } __attribute__((aligned(128))); // NOLINT
   // NOLINTNEXTLINE(performance-enum-size)
   enum class handle_type_enum : int16_t
   {
@@ -67,17 +62,18 @@ namespace rtl
 
     const database* db_   = nullptr;
     SQLHSTMT        stmt_ = SQL_NULL_HSTMT;
-    std::u8string   sql_;
+    std::string     sql_;
 
     [[no_unique_address]] std::conditional_t<has_params, std::shared_ptr<params>, std::monostate>   par_;
     [[no_unique_address]] std::conditional_t<has_results, std::shared_ptr<results>, std::monostate> res_;
 
     [[no_unique_address]] std::conditional_t<has_params, SQLULEN, std::monostate>  params_processed_ = {};
     [[no_unique_address]] std::conditional_t<has_results, SQLULEN, std::monostate> rows_fetched_     = {};
+    SQLLEN                                                                        affected_rows_    = 0;
   public:
-    explicit query(const database* db, std::u8string_view sql)
+    explicit query(const database* db, std::string_view sql)
     : db_(db)
-    , sql_(sql.data(), sql.size())
+    , sql_(sql)
     {
       if (db_ == nullptr) throw std::invalid_argument("db pointer cannot be null");
       if constexpr (has_params) par_ = std::make_shared<params>();
@@ -96,6 +92,9 @@ namespace rtl
 
     [[nodiscard]] bool is_prepared() const noexcept { return stmt_ != SQL_NULL_HSTMT; }
 
+    /// rows the last execute inserted, updated or deleted; -1 when unavailable
+    [[nodiscard]] int64_t affected_rows() const noexcept { return static_cast<int64_t>(affected_rows_); }
+
     [[nodiscard]] std::expected<void, odbc_error> prepare() noexcept
     {
       auto    logger = db_->get_logger();
@@ -107,15 +106,15 @@ namespace rtl
       if (! SQL_SUCCEEDED(ret)) return std::unexpected(odbc_error(ret, conn, handle_type_enum::conn));
       stmt_ = new_stmt;
 
-      logger->debug("Preparing SQL: {}", reinterpret_cast<const char*>(sql_.c_str())); // NOLINT
-      ret = SQLPrepare(stmt_, reinterpret_cast<SQLCHAR*>(const_cast<char8_t*>(sql_.c_str())), SQL_NTS); // NOLINT
+      logger->debug("Preparing SQL: {}", sql_);
+      ret = SQLPrepare(stmt_, reinterpret_cast<SQLCHAR*>(const_cast<char*>(sql_.c_str())), SQL_NTS); // NOLINT
       if (! SQL_SUCCEEDED(ret)) return std::unexpected(odbc_error(ret, stmt_, handle_type_enum::stmt));
 
       if constexpr (has_params)
       {
         constexpr auto param_const = params::buffer_description_const();
         auto           param_init  = par_->buffer_description_init();
-        for (int16_t i = 0; i < param_const.size(); ++i)
+        for (size_t i = 0; i < param_const.size(); ++i)
         {
           const auto& c = param_const[i];
           const auto& r = param_init[i];
@@ -127,9 +126,13 @@ namespace rtl
                                  c.column_size,
                                  c.decimal_digits,
                                  r.value_ptr,
-                                 0,
+                                 /// the driver needs the room it may write into. Ignored for the
+                                 /// fixed size C types, but a character or binary column bound with
+                                 /// 0 here comes back empty - stride is exactly the array's byte size
+                                 static_cast<SQLLEN>(r.stride),
                                  reinterpret_cast<SQLLEN*>(r.indicator_ptr)); // NOLINT - width checked in db2_types.hpp
-          if (! SQL_SUCCEEDED(ret)) return std::unexpected(odbc_error(ret, stmt_, handle_type_enum::stmt, i + 1)); // NOLINT
+          if (! SQL_SUCCEEDED(ret))
+            return std::unexpected(odbc_error(ret, stmt_, handle_type_enum::stmt, static_cast<SQLSMALLINT>(i + 1)));
         }
         SQLSetStmtAttr(stmt_,
                        SQL_ATTR_PARAMSET_SIZE,
@@ -147,7 +150,7 @@ namespace rtl
       {
         constexpr auto result_const = results::buffer_description_const();
         auto           result_init  = res_->buffer_description_init();
-        for (int16_t i = 0; i < result_const.size(); ++i)
+        for (size_t i = 0; i < result_const.size(); ++i)
         {
           const auto& c = result_const[i];
           const auto& r = result_init[i];
@@ -155,9 +158,10 @@ namespace rtl
                            static_cast<SQLUSMALLINT>(i) + 1,
                            db2::to_odbc_c(c.type),
                            r.value_ptr,
-                           0,
+                           static_cast<SQLLEN>(r.stride), // see the note on SQLBindParameter above
                            reinterpret_cast<SQLLEN*>(r.indicator_ptr)); // NOLINT - width checked in db2_types.hpp
-          if (! SQL_SUCCEEDED(ret)) return std::unexpected(odbc_error(ret, stmt_, handle_type_enum::stmt, i + 1)); // NOLINT
+          if (! SQL_SUCCEEDED(ret))
+            return std::unexpected(odbc_error(ret, stmt_, handle_type_enum::stmt, static_cast<SQLSMALLINT>(i + 1)));
         }
         SQLSetStmtAttr(stmt_,
                        SQL_ATTR_ROW_ARRAY_SIZE,
@@ -178,7 +182,12 @@ namespace rtl
       if constexpr (has_params) par_->clear_row_status();
 
       SQLRETURN ret = SQLExecute(stmt_);
-      if (! SQL_SUCCEEDED(ret) && ret != SQL_SUCCESS_WITH_INFO) return std::unexpected(odbc_error(ret, stmt_, handle_type_enum::stmt));
+      /// SQL_NO_DATA is not a failure: an update or delete that matched no row
+      /// did exactly what it was asked to. Callers that care ask affected_rows().
+      if (! SQL_SUCCEEDED(ret) && ret != SQL_NO_DATA) return std::unexpected(odbc_error(ret, stmt_, handle_type_enum::stmt));
+
+      affected_rows_ = 0;
+      if (SQLRowCount(stmt_, &affected_rows_) != SQL_SUCCESS) affected_rows_ = -1;
 
       std::string info;
       if constexpr (has_params)

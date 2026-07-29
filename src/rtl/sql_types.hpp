@@ -12,6 +12,8 @@
  * codes to sql_type and back (see db2/db2_types.hpp, psql/psql_types.hpp).
  */
 
+#include <algorithm>
+#include <cctype>
 #include <cstdint>
 #include <map>
 #include <string>
@@ -30,6 +32,21 @@ namespace rtl
 
   /// value of a length/indicator slot that marks a sql NULL
   constexpr int32_t null_data = -1;
+
+  /**
+   * @brief lowercase a string
+   *
+   * Column names arrive from the database in whatever case it stores them -
+   * DB2 folds to upper - and end up as C++ identifiers, so they are folded
+   * down here. Lives in rtl rather than in the generator: a backend must not
+   * have to depend on the generator to do its own job.
+   */
+  [[nodiscard]] inline std::string lowercase(std::string_view input)
+  {
+    std::string out(input);
+    std::ranges::transform(out, out.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return out;
+  }
 
   /**
    * @brief sql types known to the generator

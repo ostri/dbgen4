@@ -325,8 +325,10 @@ namespace dbgen4
     case rtl::sql_cat::c_string:
     case rtl::sql_cat::w_string:
     case rtl::sql_cat::b_string:
-      return fmt::format("{{ return {{{0}_.at(row).data(), l_{0} }};}}",
-                         name); // FIXME actual length not max length
+      /// the view has to span the value, not the whole array: the driver
+      /// reports how much it actually wrote in the length indicator, and a
+      /// view of l_<name> would carry whatever trailing bytes happen to be there
+      return fmt::format("{{ return {{{0}_.at(row).data(), {0}_length(row) }};}}", name);
     default: __builtin_unreachable();
     }
   }
@@ -544,6 +546,9 @@ namespace dbgen4
       json s;
       s["id"]           = stmt.id();
       s["sql"]          = prefix_text(stmt.sql(), 10);                             // no offset NOLINT
+      /// the statement verbatim, for the generated string_view - the pretty
+      /// printed one above is for the doc comment and cannot be executed
+      s["sql-literal"]  = str_t(trim_whitespace_view(stmt.sql()));
       s["dscr"]         = stmt.dscr().empty() ? "" : prefix_text(stmt.dscr(), 10); // NOLINT
       s["res-set-size"] = stmt.res_buf_size();
       s["par-set-size"] = stmt.par_buf_size();

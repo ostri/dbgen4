@@ -1,7 +1,7 @@
 // psql_rtl.cpp
 #include "psql_rtl.hpp"
 #include "rtl.hpp"
-#include <common.hpp> // dbgen4::lowercase
+#include <common.hpp> // rtl::lowercase
 #include <fmt/format.h>
 #include <memory>
 #include <string>
@@ -227,7 +227,7 @@ namespace rtl
 
       meta_dscr col{};
       col.index       = static_cast<int16_t>(i + 1);
-      col.name        = dbgen4::lowercase(PQfname(desc.get(), i));
+      col.name        = rtl::lowercase(PQfname(desc.get(), i));
       col.native_type = static_cast<int32_t>(oid);
       col.type        = psql::from_oid(oid);
       col.size        = psql::column_width(oid, typmod, size);

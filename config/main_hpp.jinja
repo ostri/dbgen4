@@ -26,6 +26,8 @@ namespace dbx
 ## endif
   namespace s_<<statement.id>>
   {
+    /// the statement these buffers belong to, ready to hand to rtl::query
+    inline constexpr std::string_view sql = R"SQL(<<statement.sql-literal>>)SQL";
 ##  if (statement.result|length) > 0
     ///////////////////////////////////////////////////////////////////////////
     /**

@@ -1,0 +1,48 @@
+summary: crud round trip against a live database
+description: |
+  Insert a row, read it back and compare, update it, read it back and compare
+  again, delete it and confirm it is gone.
+
+  Covers one column per storage category so far: integer (atomic), varchar
+  (c_string) and date (structure). It grows from here to the rest of the types.
+
+  The two dialects differ only in the placeholder style - DB2 writes ?,
+  PostgreSQL writes $1, $2 - which is exactly what the per database
+  specialisation of a statement is for.
+statements:
+  - id: ins
+    dscr: insert one row
+    param-size: 1
+    parameter-names: [id, name, created]
+    db2: |
+      insert into crud_test (id, name, created) values (?, ?, ?)
+    psql: |
+      insert into crud_test (id, name, created) values ($1, $2, $3)
+
+  - id: sel
+    dscr: read one row back by key
+    result-size: 1
+    param-size: 1
+    parameter-names: [id]
+    db2: |
+      select id, name, created from crud_test where id = ?
+    psql: |
+      select id, name, created from crud_test where id = $1
+
+  - id: upd
+    dscr: change the non key columns of one row
+    param-size: 1
+    parameter-names: [name, created, id]
+    db2: |
+      update crud_test set name = ?, created = ? where id = ?
+    psql: |
+      update crud_test set name = $1, created = $2 where id = $3
+
+  - id: del
+    dscr: remove one row
+    param-size: 1
+    parameter-names: [id]
+    db2: |
+      delete from crud_test where id = ?
+    psql: |
+      delete from crud_test where id = $1

@@ -4,8 +4,9 @@
 #include <string>
 #include <vector>
 #include "rtl.hpp"
-#include "db2_types.hpp" // IWYU pragma: export - brings in sqlcli1.h
-#include <common.hpp>
+#include "db2_types.hpp"    // IWYU pragma: export - brings in sqlcli1.h
+#include "db2_database.hpp" // IWYU pragma: export
+
 
 constexpr auto DATA_ALIGNMENT_128 = 128;
 constexpr auto DATA_ALIGNMENT_64  = 64;
@@ -38,7 +39,7 @@ namespace rtl
 
   }; //__attribute__((aligned(DATA_ALIGNMENT_64)));
 
-  class db_db2 : public db
+  class db_db2 : public db, public database
   {
   public:
     db_db2();
@@ -134,6 +135,10 @@ namespace rtl
                       int32_t  buffer_length,
                       int32_t* str_len_or_ind_ptr);
 
+
+    /// --- rtl::database, so that generated queries can run on this connection
+    [[nodiscard]] SQLHDBC         get_conn() const noexcept override;
+    [[nodiscard]] class log::log* get_logger() const noexcept override { return log::get(); }
 
     void free_stmt_handle() const; ///< release current statement handle NOLINT
     void free_conn_handle() const; ///< free connection handle NOLINT

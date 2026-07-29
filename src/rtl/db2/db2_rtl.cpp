@@ -340,7 +340,7 @@ namespace rtl
 
       meta_dscr col{};
       col.index       = i;
-      col.name        = dbgen4::lowercase(std::string(col_name.begin(), col_name.begin() + name_len)); // NOLINT
+      col.name        = rtl::lowercase(std::string(col_name.begin(), col_name.begin() + name_len)); // NOLINT
       col.native_type = native_type;
       col.type        = db2::from_odbc(native_type);
       col.size        = static_cast<uint32_t>(size);
@@ -457,6 +457,8 @@ namespace rtl
   // ------------------------------------------------------------------------
   // backend registration - see the declarations in rtl.hpp
   // ------------------------------------------------------------------------
+  SQLHDBC db_db2::get_conn() const noexcept { return data()->conn_handle; }
+
   std::unique_ptr<db> make_db() { return std::make_unique<db_db2>(); }
 
   std::string_view backend_name() noexcept { return "db2"; }

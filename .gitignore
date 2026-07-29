@@ -36,4 +36,4 @@ build
 externals
 .vscode/dbgen4.log
 # dbgen4 logs
-logs/dbgen4-db2_*.log
+logs/

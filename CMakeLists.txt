@@ -283,6 +283,14 @@ endif()
 # ===================================================================
 if(DB2_FOUND)
 
+# Where the tests that need a live DB2 should connect. Override at configure
+# time, e.g. -DDB2_TEST_PASS=...
+set(DB2_TEST_HOST "localhost"  CACHE STRING "host of the DB2 used by the tests")
+set(DB2_TEST_PORT "50000"      CACHE STRING "port of the DB2 used by the tests")
+set(DB2_TEST_DB   "test"       CACHE STRING "database name used by the tests")
+set(DB2_TEST_USER "ostri"      CACHE STRING "user for the test database")
+set(DB2_TEST_PASS "!123alfa"   CACHE STRING "password for the test database")
+
 if(NOT TARGET test_t1)
     set(SMOKE_TEST_TARGET_NAME test_t1)
 else()
@@ -328,7 +336,7 @@ add_custom_command(
             ${SOURCE_TEST_CPP} ${GEN_TEST_CPP}
     COMMAND ${CMAKE_BINARY_DIR}/${PROJECT_NAME}-db2
             -o ${GEN_OUTPUT_DIR}
-            -v -t db2 -n test -u ostri -p !123alfa
+            -v -t db2 -n ${DB2_TEST_DB} -u ${DB2_TEST_USER} -p ${DB2_TEST_PASS}
             ${TEST_YAML}
     COMMAND ${CMAKE_COMMAND} -E touch ${GEN_STAMP}
     DEPENDS
@@ -382,6 +390,54 @@ message(STATUS "Smoke test '${SMOKE_TEST_TARGET_NAME}' is ready.")
 if((CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo") AND ENABLE_SANITIZERS)
     enable_sanitizers_for_target(${PROJECT_NAME}-db2)
     enable_sanitizers_for_target(${SMOKE_TEST_TARGET_NAME})
+endif()
+
+# ===================================================================
+# crud round trip test
+#
+# Unlike the smoke test above, this one actually talks to the database
+# through the generated code: insert, read back and compare, update, read
+# back and compare, delete, confirm gone.
+# ===================================================================
+set(CRUD_YAML       ${CMAKE_SOURCE_DIR}/yaml/crud.yaml)
+set(CRUD_HPP        ${GEN_OUTPUT_DIR}/crud.hpp)
+set(CRUD_CPP        ${GEN_OUTPUT_DIR}/crud.cpp)
+set(CRUD_STAMP      ${GEN_OUTPUT_DIR}/crud.stamp)
+set(CRUD_TEST_SRC   ${CMAKE_SOURCE_DIR}/src/test/test_crud.cpp)
+
+add_custom_command(
+    OUTPUT ${CRUD_STAMP} ${CRUD_HPP} ${CRUD_CPP}
+    COMMAND ${CMAKE_BINARY_DIR}/${PROJECT_NAME}-db2
+            -o ${GEN_OUTPUT_DIR}
+            -t db2 -n ${DB2_TEST_DB} -u ${DB2_TEST_USER} -p ${DB2_TEST_PASS}
+            ${CRUD_YAML}
+    COMMAND ${CMAKE_COMMAND} -E touch ${CRUD_STAMP}
+    DEPENDS ${PROJECT_NAME}-db2 ${CRUD_YAML} ${HPP_TEMPLATE} ${CPP_TEMPLATE}
+    COMMENT "Generating crud test code from '${CRUD_YAML}'."
+    VERBATIM
+)
+add_custom_target(generate_crud_test DEPENDS ${CRUD_STAMP})
+
+add_executable(test_crud ${CRUD_CPP} ${CRUD_TEST_SRC})
+target_include_directories(test_crud PRIVATE ${GEN_OUTPUT_DIR} ${LOG_INCLUDE_DIRS} ${RTL_INCLUDE_DIRS}
+                           ${CMAKE_SOURCE_DIR}/src/rtl/db2 $ENV{IBM_DB_INCLUDE})
+target_link_libraries(test_crud PRIVATE db2_rtl log fmt::fmt spdlog::spdlog nlohmann_json::nlohmann_json stdc++exp)
+if(HAVE_SWITCH_DEFAULT_WARNING)
+    target_compile_options(test_crud PRIVATE -Wno-switch-default)
+endif()
+add_dependencies(test_crud generate_crud_test)
+
+if(BUILD_TESTING)
+    add_test(NAME test_crud
+             COMMAND test_crud ${DB2_TEST_HOST} ${DB2_TEST_PORT} ${DB2_TEST_DB} ${DB2_TEST_USER} ${DB2_TEST_PASS})
+    set_tests_properties(test_crud PROPERTIES
+        LABELS "crud;generated;live-db"
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    )
+endif()
+
+if((CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo") AND ENABLE_SANITIZERS)
+    enable_sanitizers_for_target(test_crud)
 endif()
 
 endif() # DB2_FOUND - smoke test
