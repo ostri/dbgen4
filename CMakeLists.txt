@@ -1,16 +1,10 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.25)
 project(dbgen4 VERSION 0.1.0 DESCRIPTION "database access code generator" LANGUAGES CXX)
 
 option(CLANGD_FRIENDLY_BUILD "Fast intellisense and no Catch2 warnings" OFF)
 
 if(CLANGD_FRIENDLY_BUILD)
     set(ENABLE_SANITIZERS OFF CACHE BOOL "" FORCE)
-
-    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-        add_compile_options(
-            -Wall -Wextra -Wpedantic -Wnarrowing -Wswitch-enum -Wswitch-default
-            -Wno-unused-value                  )
-    endif()
 endif()
 
 option(BUILD_TESTING "Build the testing tree." ON)
@@ -58,9 +52,28 @@ else()
     add_compile_definitions(NDEBUG)
 endif()
 
-# === Compiler Warnings ===
+# ===================================================================
+# Compiler Warnings
+#
+# Carried by an interface target rather than add_compile_options, because
+# add_compile_options is directory scoped: it reaches every dependency CPM
+# pulls into the build as well. -Werror on somebody else's code is how the
+# pile of -Wno-error=... workarounds for Catch2 came about. Every target of
+# ours links this; nothing else does.
+# ===================================================================
+add_library(dbgen4_warnings INTERFACE)
+
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    add_compile_options(-Wall -Wextra -Wpedantic -Werror -Wnarrowing -Wswitch-enum -Werror=switch-enum -Wswitch-default)
+    if(CLANGD_FRIENDLY_BUILD)
+        # clangd wants diagnostics, not a build that stops at the first one
+        target_compile_options(dbgen4_warnings INTERFACE
+            -Wall -Wextra -Wpedantic -Wnarrowing -Wswitch-enum -Wswitch-default
+            -Wno-unused-value)
+    else()
+        target_compile_options(dbgen4_warnings INTERFACE
+            -Wall -Wextra -Wpedantic -Werror -Wnarrowing
+            -Wswitch-enum -Werror=switch-enum -Wswitch-default)
+    endif()
     add_link_options(-fno-omit-frame-pointer)
 endif()
 
@@ -93,12 +106,99 @@ else()
     message(STATUS "Release/MinSizeRel build → sanitizers disabled")
 endif()
 
-# === Dependencies ===
-find_package(fmt REQUIRED)
-find_package(spdlog REQUIRED)
-find_package(nlohmann_json REQUIRED)
-find_package(yaml-cpp REQUIRED)
-find_package(valijson REQUIRED)
+# ===================================================================
+# Dependencies
+#
+# All of them come through CPM, pinned here rather than taken from whatever
+# the distribution happens to ship, so that this file is the whole answer to
+# "which versions does dbgen4 build against".
+#
+# CPM caches the downloaded sources in $CPM_SOURCE_CACHE when that is set -
+# worth exporting it, since every build directory (build/debug, build/release,
+# build-clangd) would otherwise fetch its own copy. See README.md.
+#
+# SYSTEM YES silences warnings from their headers; EXCLUDE_FROM_ALL keeps
+# their install and test targets out of ours.
+# ===================================================================
+
+# Several of these still declare cmake_minimum_required(VERSION 3.x) from
+# before CMake 4 dropped compatibility with it. This grants them the oldest
+# policy level CMake 4 still accepts, without pinning older releases.
+set(CMAKE_POLICY_VERSION_MINIMUM 3.10)
+
+include(cmake/CPM.cmake)
+
+CPMAddPackage(
+    NAME fmt
+    GITHUB_REPOSITORY fmtlib/fmt
+    GIT_TAG 11.2.0
+    SYSTEM YES
+    EXCLUDE_FROM_ALL YES
+)
+
+# SPDLOG_FMT_EXTERNAL has to agree between the spdlog we build here and
+# log_impl.cpp that consumes it - a mismatch is an ODR violation that shows up
+# as a link error at best. The matching definition is on the log target below.
+CPMAddPackage(
+    NAME spdlog
+    GITHUB_REPOSITORY gabime/spdlog
+    GIT_TAG v1.15.3
+    SYSTEM YES
+    EXCLUDE_FROM_ALL YES
+    OPTIONS
+        "SPDLOG_FMT_EXTERNAL ON"
+        "SPDLOG_BUILD_SHARED OFF"
+        "SPDLOG_INSTALL OFF"
+        "SPDLOG_BUILD_EXAMPLE OFF"
+        "SPDLOG_BUILD_TESTS OFF"
+)
+
+CPMAddPackage(
+    NAME nlohmann_json
+    GITHUB_REPOSITORY nlohmann/json
+    GIT_TAG v3.11.3
+    SYSTEM YES
+    EXCLUDE_FROM_ALL YES
+    OPTIONS "JSON_BuildTests OFF"
+)
+
+CPMAddPackage(
+    NAME yaml-cpp
+    GITHUB_REPOSITORY jbeder/yaml-cpp
+    GIT_TAG 0.8.0
+    SYSTEM YES
+    EXCLUDE_FROM_ALL YES
+    OPTIONS
+        "YAML_CPP_BUILD_TESTS OFF"
+        "YAML_CPP_BUILD_TOOLS OFF"
+        "YAML_CPP_INSTALL OFF"
+        "YAML_BUILD_SHARED_LIBS OFF"
+)
+
+CPMAddPackage(
+    NAME valijson
+    GITHUB_REPOSITORY tristanpenman/valijson
+    GIT_TAG v1.0.6
+    SYSTEM YES
+    EXCLUDE_FROM_ALL YES
+    OPTIONS
+        "valijson_BUILD_TESTS OFF"
+        "valijson_BUILD_EXAMPLES OFF"
+        "valijson_INSTALL_HEADERS OFF"
+)
+
+# Catch2 is only needed by the unit tests, but it belongs here with the rest
+# rather than buried in the test block - it is fetched the same way as everything
+# else, so the -Wno-error workarounds it used to need are gone.
+if(BUILD_TESTING)
+    CPMAddPackage(
+        NAME Catch2
+        GITHUB_REPOSITORY catchorg/Catch2
+        GIT_TAG v3.7.1
+        SYSTEM YES
+        EXCLUDE_FROM_ALL YES
+    )
+endif()
 
 # === Database backends ===
 # Each backend is optional: the generator is built once per backend that is
@@ -154,10 +254,17 @@ add_library(log
     src/log/log.cpp
     src/log/log_impl.cpp
     )
+# PUBLIC: log.hpp is the facade every other target includes, so its own headers
+# have to travel with it.
 target_include_directories(log
-    PRIVATE ${LOG_INCLUDE_DIRS}
+    PUBLIC ${LOG_INCLUDE_DIRS}
 )
-target_link_libraries(log PRIVATE spdlog::spdlog nlohmann_json::nlohmann_json)
+# fmt is PUBLIC because log.hpp includes <fmt/format.h>. spdlog and json stay
+# PRIVATE - only log_impl.cpp knows about them, which is the point of the facade.
+target_link_libraries(log
+  PUBLIC  fmt::fmt
+  PRIVATE spdlog::spdlog nlohmann_json::nlohmann_json dbgen4_warnings
+)
 target_compile_definitions(log
   PRIVATE
     SPDLOG_FMT_EXTERNAL
@@ -184,7 +291,7 @@ if(DB2_FOUND)
         ${CMAKE_SOURCE_DIR}/src/rtl/db2
         $ENV{IBM_DB_INCLUDE}
     )
-    target_link_libraries(db2_rtl PUBLIC DB2::DB2 PRIVATE log)
+    target_link_libraries(db2_rtl PUBLIC DB2::DB2 log PRIVATE dbgen4_warnings)
 endif()
 
 if(LIBPQ_FOUND)
@@ -197,7 +304,7 @@ if(LIBPQ_FOUND)
         ${RTL_INCLUDE_DIRS}
         ${CMAKE_SOURCE_DIR}/src/rtl/psql
     )
-    target_link_libraries(psql_rtl PUBLIC PkgConfig::LIBPQ PRIVATE log fmt::fmt)
+    target_link_libraries(psql_rtl PUBLIC PkgConfig::LIBPQ log PRIVATE dbgen4_warnings)
 endif()
 
 # === Main executable ===
@@ -237,13 +344,13 @@ function(add_generator_target backend rtl_library)
     target_include_directories(${target} PUBLIC ${GEN_INCLUDE_DIRS})
     target_link_libraries(${target} PRIVATE
         ${rtl_library}
-        fmt::fmt
         yaml-cpp::yaml-cpp
         spdlog::spdlog
         nlohmann_json::nlohmann_json
         valijson
         log
         stdc++exp
+        dbgen4_warnings
     )
 endfunction()
 
@@ -358,22 +465,18 @@ add_executable(${SMOKE_TEST_TARGET_NAME}
 #    ${GEN_SRC_FILES}
 )
 
-target_include_directories(${SMOKE_TEST_TARGET_NAME} PRIVATE ${GEN_OUTPUT_DIR} ${LOG_INCLUDE_DIRS} ${RTL_INCLUDE_DIRS})
+# log publishes its own include dirs now, so only the generated output and the
+# rtl vocabulary have to be named here
+target_include_directories(${SMOKE_TEST_TARGET_NAME} PRIVATE ${GEN_OUTPUT_DIR} ${RTL_INCLUDE_DIRS})
 target_link_libraries(${SMOKE_TEST_TARGET_NAME} PRIVATE
     db2_rtl
     log
-    fmt::fmt
     spdlog::spdlog
     nlohmann_json::nlohmann_json
     yaml-cpp::yaml-cpp
     valijson
+    dbgen4_warnings
 )
-include(CheckCXXCompilerFlag)
-check_cxx_compiler_flag(-Wswitch-default HAVE_SWITCH_DEFAULT_WARNING)
-if(HAVE_SWITCH_DEFAULT_WARNING)
-    target_compile_options(${SMOKE_TEST_TARGET_NAME} PRIVATE -Wno-switch-default)
-endif()
-
 add_dependencies(${SMOKE_TEST_TARGET_NAME} generate_smoke_test)
 
 if(BUILD_TESTING)
@@ -419,12 +522,9 @@ add_custom_command(
 add_custom_target(generate_crud_test DEPENDS ${CRUD_STAMP})
 
 add_executable(test_crud ${CRUD_CPP} ${CRUD_TEST_SRC})
-target_include_directories(test_crud PRIVATE ${GEN_OUTPUT_DIR} ${LOG_INCLUDE_DIRS} ${RTL_INCLUDE_DIRS}
+target_include_directories(test_crud PRIVATE ${GEN_OUTPUT_DIR} ${RTL_INCLUDE_DIRS}
                            ${CMAKE_SOURCE_DIR}/src/rtl/db2 $ENV{IBM_DB_INCLUDE})
-target_link_libraries(test_crud PRIVATE db2_rtl log fmt::fmt spdlog::spdlog nlohmann_json::nlohmann_json stdc++exp)
-if(HAVE_SWITCH_DEFAULT_WARNING)
-    target_compile_options(test_crud PRIVATE -Wno-switch-default)
-endif()
+target_link_libraries(test_crud PRIVATE db2_rtl log spdlog::spdlog nlohmann_json::nlohmann_json stdc++exp dbgen4_warnings)
 add_dependencies(test_crud generate_crud_test)
 
 if(BUILD_TESTING)
@@ -456,39 +556,18 @@ target_include_directories(project_common INTERFACE
 if(BUILD_TESTING)
     enable_testing()
 
-    include(FetchContent)
-
-    FetchContent_Declare(
-        Catch2
-        GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-        GIT_TAG        v3.7.1
-    )
-    FetchContent_MakeAvailable(Catch2)
-
-    # ──────────────────────────────
-    # 1. Disable clang-tidy for Catch2 only
-    # ──────────────────────────────
-    set_target_properties(Catch2 Catch2WithMain PROPERTIES CXX_CLANG_TIDY "")
-
-    if(TARGET Catch2 AND TARGET Catch2WithMain)
-        target_compile_options(Catch2 PRIVATE
-            -Wno-error=switch-enum
-            -Wno-error=switch-default
-            -Wno-switch-enum
-            -Wno-switch-default
-            -Wno-switch
-            -Wno-error=maybe-uninitialized
-            -Wno-maybe-uninitialized
-        )
-        target_compile_options(Catch2WithMain PRIVATE
-            -Wno-error=switch-enum
-            -Wno-error=switch-default
-            -Wno-switch-enum
-            -Wno-switch-default
-            -Wno-switch
-            -Wno-error=maybe-uninitialized
-            -Wno-maybe-uninitialized
-        )
+    # Catch2 itself comes from the dependency block above. It needs no warning
+    # suppressions any more: our flags live on dbgen4_warnings, which Catch2
+    # does not link.
+    #
+    # clang-tidy is the one thing still worth turning off for it, and only when
+    # something has actually turned clang-tidy on for the whole build.
+    if(DEFINED CMAKE_CXX_CLANG_TIDY)
+        foreach(catch_target Catch2 Catch2WithMain)
+            if(TARGET ${catch_target})
+                set_target_properties(${catch_target} PROPERTIES CXX_CLANG_TIDY "")
+            endif()
+        endforeach()
     endif()
 
     add_executable(unit_tests
@@ -513,43 +592,30 @@ if(BUILD_TESTING)
         Catch2::Catch2WithMain
         log
         ${UNIT_TEST_RTL}
-        fmt::fmt
         spdlog::spdlog
         nlohmann_json::nlohmann_json
         yaml-cpp::yaml-cpp
         valijson
         stdc++exp
+        dbgen4_warnings
     )
 
+    # Catch2::Catch2WithMain carries its own include directories - the manual
+    # ${catch2_SOURCE_DIR}/src entry that used to be here was redundant.
     target_include_directories(unit_tests
       PRIVATE
         ${GEN_INCLUDE_DIRS}
-        ${LOG_INCLUDE_DIRS}
         ${RTL_INCLUDE_DIRS}
-        ${GEN_INCLUDE_DIRS}
-      SYSTEM PRIVATE
-        "${catch2_SOURCE_DIR}/src"
     )
 
     target_compile_features(unit_tests PRIVATE cxx_std_23)
-
-    target_compile_options(unit_tests PRIVATE
-        -Wall
-        -Wextra
-        -Wpedantic
-        -Werror
-        -Wnarrowing
-        -Wswitch-enum
-        -Werror=switch-enum
-        -Wswitch-default
-        -Wno-readability-avoid-do-while # catch2  reserved words trigger this
-    )
 
     if(ENABLE_SANITIZERS AND (CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo"))
         enable_sanitizers_for_target(unit_tests)
     endif()
 
-    list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
+    # CPM exports Catch2_SOURCE_DIR; FetchContent used to export catch2_SOURCE_DIR
+    list(APPEND CMAKE_MODULE_PATH ${Catch2_SOURCE_DIR}/extras)
     include(Catch)
     catch_discover_tests(unit_tests PROPERTIES LABELS "unit")
 endif()

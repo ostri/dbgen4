@@ -2,43 +2,49 @@
 
 database access layer generator
 
-## build debepndencies
+## build
 
-### yaml-cpp
+   cmake --preset ninja-debug
+   cmake --build --preset debug -j8
+   ctest --test-dir build/debug -L unit --output-on-failure
 
-   sudo dnf install yaml-cpp-devel
+Presets: `ninja-debug`, `ninja-release`, `ninja-relwithdebinfo`, `clangd`.
 
-### cli11 comand line parsing library
+## build dependencies
 
-   sudo dnf install cli11-devel
+### C++ libraries
 
-### sanitation library
+fmt, spdlog, nlohmann_json, yaml-cpp, valijson and Catch2 are fetched and built
+by [CPM.cmake](cmake/CPM.cmake), pinned in [CMakeLists.txt](CMakeLists.txt). No
+system packages needed, and no `find_package` that silently picks up whatever
+the distribution ships.
+
+Export a source cache before the first configure, otherwise every build
+directory (`build/debug`, `build/release`, `build-clangd`) downloads its own copy:
+
+   export CPM_SOURCE_CACHE=$HOME/.cache/CPM
+
+Worth putting in `~/.bashrc`.
+
+### toolchain
+
+   sudo dnf install cmake ninja-build gcc-c++
+
+CMake 3.25 or newer (presets need it). Built with gcc 16 and C++23.
+
+### sanitizer runtime
 
    sudo dnf install libasan libubsan
 
-### magic enum
+On by default in Debug and RelWithDebInfo; `-DENABLE_SANITIZERS=OFF` to skip.
 
-  sudo dnf install magic_enum-devel
+### database backends
 
-### SPD log
+Each is optional, but at least one has to be present - the generator is built
+once per available backend, as `dbgen4-db2` and `dbgen4-psql`.
 
-   sudo dnf install spdlog-devel.x86_64 spdlog.x86_64
-
-### fmt library
-
-   sudo dnf install fmt.x86_64
-
-### ODBC drive instalation
-
-   sudo dnf install unixODBC-devel
-
-### nlohmann
-
-   sudo dnf install nlohmann-json-devel
-
-### valijson
-
-   sudo dnf install valijson-devel
+   sudo dnf install unixODBC-devel     # DB2 backend, plus the IBM CLI driver
+   sudo dnf install libpq-devel        # PostgreSQL backend
 
 ## database installations
 

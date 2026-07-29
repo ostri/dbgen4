@@ -32,6 +32,8 @@
 *.app
 
 build
+build-clangd
+_deps
 .cache
 externals
 .vscode/dbgen4.log

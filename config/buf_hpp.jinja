@@ -91,9 +91,11 @@
             case rtl::sql_cat::c_string:  {max = std::max(cstr_t("c_string").size(), max); break;}
             case rtl::sql_cat::w_string:  {max = std::max(cstr_t("w_string").size(), max); break;}
             case rtl::sql_cat::b_string:  {max = std::max(cstr_t("b_string").size(), max); break;}
-            {# default: // should be 'std::unreachable()', but it doesn't work in consteval
-                static_assert(std::is_constant_evaluated() && false, "Missing case for new sql_cat value!");
-                break; #}
+            /// A new sql_cat value is still caught: -Wswitch-enum reports an
+            /// unhandled enumerator whether or not a default is present. This
+            /// default only satisfies -Wswitch-default, so that generated code
+            /// compiles under the same warning set as the rest of the project.
+            default: {break;}
             // clang-format on
           }
         return max;
