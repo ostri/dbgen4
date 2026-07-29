@@ -1,5 +1,5 @@
 #include "generator.hpp"
-#include "cli_constants.hpp"
+#include "sql_types.hpp"
 #include "common.hpp"
 #include "context.hpp"
 #include "inja.hpp"
@@ -477,20 +477,22 @@ namespace dbgen4
    */
   json generator::attr_mappings(rtl::meta_dscr const& el)
   {
-    json tmp_col;
-    tmp_col["index"]         = el.index;
-    tmp_col["name"]          = el.name;
-    tmp_col["col-name"]      = fmt::format("\"{}\"", el.name);
-    tmp_col["base-type"]     = get_sql_mapping(el.type)->cpp_type_name;
-    tmp_col["type"]          = ME::enum_name(el.type);
-    tmp_col["c-type-name"]   = get_sql_mapping(el.type)->c_mnemonic;
-    tmp_col["sql-type-name"] = get_sql_mapping(el.type)->sql_mnemonic;
-    tmp_col["size"]          = el.size;
-    tmp_col["digits"]        = el.digits;
-    tmp_col["nullable"]      = el.nullable;
-    tmp_col["category"]      = ME::enum_name(get_sql_mapping(el.type)->category);
-    tmp_col["as-param"]      = get_sql_mapping(el.type)->par_type_name;
-    tmp_col["as-result"]     = get_sql_mapping(el.type)->ret_type_name;
+    const auto* dscr = rtl::get_sql_mapping(el.type);
+    json        tmp_col;
+    tmp_col["index"]     = el.index;
+    tmp_col["name"]      = el.name;
+    tmp_col["col-name"]  = fmt::format("\"{}\"", el.name);
+    tmp_col["base-type"] = dscr->cpp_type_name;
+    /// enumerator name of the neutral type - the template emits it as
+    /// rtl::sql_type::<<type>> and each backend translates it when binding
+    tmp_col["type"]      = ME::enum_name(el.type);
+    tmp_col["mnemonic"]  = dscr->mnemonic;
+    tmp_col["size"]      = el.size;
+    tmp_col["digits"]    = el.digits;
+    tmp_col["nullable"]  = el.nullable;
+    tmp_col["category"]  = ME::enum_name(dscr->category);
+    tmp_col["as-param"]  = dscr->par_type_name;
+    tmp_col["as-result"] = dscr->ret_type_name;
     tmp_col["storage"]       = attr_storage_type(el.type, el.name);
     tmp_col["storage-raw"]   = attr_storage_raw_type(el.type, el.size);
     tmp_col["getter-code"]   = attr_getter_code(el.type, el.name);
@@ -513,6 +515,10 @@ namespace dbgen4
     fs::path path(this->filename(gen_fn_tpl_names::hpp));
     auto     hpp_include  = path.filename().string();
     j["hpp-include-file"] = hpp_include;
+
+    /// generated code includes the runtime of the backend it will be linked
+    /// against - everything else in the generated header is backend neutral
+    j["rtl-include"] = fmt::format("{}_rtl.hpp", rtl::backend_name());
 
     j["summary"]     = s.summary();
     j["description"] = join(prefix_split(s.description(), '\n', " *  "), "\n");

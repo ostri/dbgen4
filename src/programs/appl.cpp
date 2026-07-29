@@ -14,7 +14,6 @@ namespace ME = magic_enum; // NOLINT(misc-unused-alias-decls)
 #include "common.hpp"
 // #include "pars_result.hpp"
 #include "parser_errors.hpp"
-#include "db2_rtl.hpp"
 #include "rtl.hpp"
 
 namespace dbgen4
@@ -32,7 +31,7 @@ namespace dbgen4
    * @return true all went ok
    * @return false there were errors / check the logs
    */
-  e_data_statements appl::process_one_file(rtl::db_db2& db, generator& gen)
+  e_data_statements appl::process_one_file(rtl::db& db, generator& gen)
   {
     auto filename = gen.yaml_fn();
     auto r        = parser_.parse_yaml_file(filename, gen.db_type());
@@ -78,8 +77,21 @@ namespace dbgen4
     display_raw_command_line_log(argc, argv);
     try
     {
-      rtl::db_db2 db; // access to the RDBMS
-      auto        r = db.connect(p_.host(), p_.port(), p_.db_name(), p_.user(), p_.pass());
+      /// access to the RDBMS - whichever backend this executable was linked with
+      auto  db_owner = rtl::make_db();
+      auto& db       = *db_owner;
+
+      /// the sql dialect picked from the yaml file and the backend that has to
+      /// describe those statements are separate choices - warn when they disagree
+      const auto dialect = ME::enum_name(p_.db_type());
+      if (p_.db_type() != db_type_enum::sql && dialect != rtl::backend_name())
+        log_()->warn("Requested sql dialect '{}' but this executable is built against the '{}' backend. "
+                     "Statements will be described by '{}'.",
+                     dialect,
+                     rtl::backend_name(),
+                     rtl::backend_name());
+
+      auto r = db.connect(p_.host(), p_.port(), p_.db_name(), p_.user(), p_.pass());
       log_()->info("Database connection status: {}", ME::enum_name<db_sts>(r));
       if (! rtl::is_success(r))
       {

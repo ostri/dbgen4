@@ -6,6 +6,7 @@
 #include "cmd_line_params.hpp"
 #include "common.hpp"
 #include "parser_errors.hpp"
+#include "rtl.hpp" // rtl::default_port()
 #include <fmt/format.h>
 #include "magic_enum_config.hpp" // IWYU pragma: keep.
 #include <magic_enum.hpp>
@@ -117,7 +118,7 @@ namespace dbgen4
       ->default_val("localhost");
     /// port
       app.add_option("--port", port_, "port of host where database resides")
-      ->default_val(50000); // NOLINT
+      ->default_val(rtl::default_port()); // depends on the backend linked in
     /// database name
     app.add_option("-n,--db-name", db_name_, "database name")
       ->required();

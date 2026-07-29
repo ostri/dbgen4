@@ -1,0 +1,29 @@
+summary: psql backend smoke test
+description: |
+  Exercises the PostgreSQL type OID mapping against db/psql/create_table_test.sql.
+  Note the placeholder style: PostgreSQL uses $1, $2 where DB2 uses ?.
+statements:
+  - id: sql_1
+    result-size: 5
+    param-size: 2
+    dscr: |
+      select every column of the test table, so that a describe walks the
+      whole of rtl::psql::from_oid()
+    sql: |
+      sql that should not be used in psql testing
+    psql: |
+      select *
+        from test
+        where
+          col_smallint = $1
+  - id: sql_2
+    sql: select col_smallint, col_integer, col_numeric from test
+    result-names: [a, b, c, d] # more names than columns, on purpose
+  - id: sql_3
+    dscr: insert to check parameter describing
+    sql: |
+      insert into test
+        (col_smallint, col_integer)
+        values
+        ($1, $2)
+    parameter-names: [a1]  # only one, on purpose

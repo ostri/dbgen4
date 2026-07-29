@@ -98,8 +98,30 @@ find_package(fmt REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(yaml-cpp REQUIRED)
-find_package(DB2 REQUIRED)
 find_package(valijson REQUIRED)
+
+# === Database backends ===
+# Each backend is optional: the generator is built once per backend that is
+# available, as dbgen4-<backend>. At least one is required.
+find_package(DB2)
+find_package(PkgConfig)
+if(PkgConfig_FOUND)
+    pkg_check_modules(LIBPQ IMPORTED_TARGET libpq)
+endif()
+
+if(DB2_FOUND)
+    message(STATUS "Backend db2:  enabled (${DB2_LIBRARIES})")
+else()
+    message(STATUS "Backend db2:  disabled - DB2 CLI not found")
+endif()
+if(LIBPQ_FOUND)
+    message(STATUS "Backend psql: enabled (libpq ${LIBPQ_VERSION})")
+else()
+    message(STATUS "Backend psql: disabled - libpq not found")
+endif()
+if(NOT DB2_FOUND AND NOT LIBPQ_FOUND)
+    message(FATAL_ERROR "No database backend found - install the DB2 CLI driver or libpq-devel.")
+endif()
 
 # # === inja dependency ===
 # set_source_files_properties(
@@ -143,29 +165,40 @@ target_compile_definitions(log
 )
 
 # === db2_rtl ===
-set(SRC_RTL_FILES
-  ${CMAKE_SOURCE_DIR}/src/rtl/rtl.cpp
-  ${CMAKE_SOURCE_DIR}/src/rtl/db2/db2_rtl.cpp
-  ${CMAKE_SOURCE_DIR}/src/rtl/db2/buffer_dscr.cpp
-  ${CMAKE_SOURCE_DIR}/src/rtl/db2/no_params.cpp
-  ${CMAKE_SOURCE_DIR}/src/rtl/db2/no_results.cpp
-  ${CMAKE_SOURCE_DIR}/src/rtl/db2/parameter_root.cpp
-  ${CMAKE_SOURCE_DIR}/src/rtl/db2/result_root.cpp
-  ${CMAKE_SOURCE_DIR}/src/rtl/db2/query.cpp
-
-)
+# Include dirs every backend needs: the neutral rtl vocabulary, the log facade
+# and the dbgen4 common helpers.
 set (RTL_INCLUDE_DIRS
   ${CMAKE_SOURCE_DIR}/src/rtl
-  ${CMAKE_SOURCE_DIR}/src/rtl/db2
   ${CMAKE_SOURCE_DIR}/src/log
   ${CMAKE_SOURCE_DIR}/src/dbgen4/common
-  $ENV{IBM_DB_INCLUDE}
 )
-add_library(db2_rtl STATIC ${SRC_RTL_FILES})
-target_include_directories(db2_rtl
-    PRIVATE ${RTL_INCLUDE_DIRS}
-)
-target_link_libraries(db2_rtl PUBLIC DB2::DB2 PRIVATE log)
+
+if(DB2_FOUND)
+    add_library(db2_rtl STATIC
+      ${CMAKE_SOURCE_DIR}/src/rtl/rtl.cpp
+      ${CMAKE_SOURCE_DIR}/src/rtl/db2/db2_rtl.cpp
+      ${CMAKE_SOURCE_DIR}/src/rtl/db2/query.cpp
+    )
+    target_include_directories(db2_rtl PUBLIC
+        ${RTL_INCLUDE_DIRS}
+        ${CMAKE_SOURCE_DIR}/src/rtl/db2
+        $ENV{IBM_DB_INCLUDE}
+    )
+    target_link_libraries(db2_rtl PUBLIC DB2::DB2 PRIVATE log)
+endif()
+
+if(LIBPQ_FOUND)
+    add_library(psql_rtl STATIC
+      ${CMAKE_SOURCE_DIR}/src/rtl/rtl.cpp
+      ${CMAKE_SOURCE_DIR}/src/rtl/psql/psql_rtl.cpp
+      ${CMAKE_SOURCE_DIR}/src/rtl/psql/query.cpp
+    )
+    target_include_directories(psql_rtl PUBLIC
+        ${RTL_INCLUDE_DIRS}
+        ${CMAKE_SOURCE_DIR}/src/rtl/psql
+    )
+    target_link_libraries(psql_rtl PUBLIC PkgConfig::LIBPQ PRIVATE log fmt::fmt)
+endif()
 
 # === Main executable ===
 set(GEN_SRC_FILES
@@ -180,7 +213,7 @@ set(GEN_SRC_FILES
      ${CMAKE_SOURCE_DIR}/src/dbgen4/common/build_type.cpp
      ${CMAKE_SOURCE_DIR}/src/dbgen4/common/parser_errors.cpp
      ${CMAKE_SOURCE_DIR}/src/dbgen4/common/common.cpp
-     ${CMAKE_SOURCE_DIR}/src/dbgen4/common/cli_constants.cpp
+     
      ${CMAKE_SOURCE_DIR}/src/dbgen4/gen/generator.cpp
      ${CMAKE_SOURCE_DIR}/src/programs/appl.cpp
 )
@@ -192,26 +225,34 @@ set(GEN_INCLUDE_DIRS
     ${CMAKE_SOURCE_DIR}/src/dbgen4/parameters
     ${CMAKE_SOURCE_DIR}/src/dbgen4/parser
     ${CMAKE_SOURCE_DIR}/src/rtl
-    ${CMAKE_SOURCE_DIR}/src/rtl/db2
     ${CMAKE_SOURCE_DIR}/src/inja
 )
-add_executable(${PROJECT_NAME}-db2 ${CMAKE_SOURCE_DIR}/src/dbgen4.cpp ${GEN_SRC_FILES})
-target_compile_definitions(${PROJECT_NAME}-db2 PRIVATE SPDLOG_COMPILED_LIB)
 
-target_include_directories(${PROJECT_NAME}-db2 PUBLIC
-    ${GEN_INCLUDE_DIRS}
-)
+# The generator sources are backend agnostic - the only thing that differs
+# between dbgen4-db2 and dbgen4-psql is which rtl library provides make_db().
+function(add_generator_target backend rtl_library)
+    set(target ${PROJECT_NAME}-${backend})
+    add_executable(${target} ${CMAKE_SOURCE_DIR}/src/dbgen4.cpp ${GEN_SRC_FILES})
+    target_compile_definitions(${target} PRIVATE SPDLOG_COMPILED_LIB)
+    target_include_directories(${target} PUBLIC ${GEN_INCLUDE_DIRS})
+    target_link_libraries(${target} PRIVATE
+        ${rtl_library}
+        fmt::fmt
+        yaml-cpp::yaml-cpp
+        spdlog::spdlog
+        nlohmann_json::nlohmann_json
+        valijson
+        log
+        stdc++exp
+    )
+endfunction()
 
-target_link_libraries(${PROJECT_NAME}-db2 PRIVATE
-    db2_rtl
-    fmt::fmt
-    yaml-cpp::yaml-cpp
-    spdlog::spdlog
-    nlohmann_json::nlohmann_json
-    valijson
-    log
-    stdc++exp
-)
+if(DB2_FOUND)
+    add_generator_target(db2 db2_rtl)
+endif()
+if(LIBPQ_FOUND)
+    add_generator_target(psql psql_rtl)
+endif()
 
 # === clang-tidy ===
 find_program(CLANG_TIDY_EXECUTABLE NAMES clang-tidy)
@@ -220,7 +261,7 @@ if(CLANG_TIDY_EXECUTABLE)
         COMMAND ${CLANG_TIDY_EXECUTABLE}
             -p ${CMAKE_BINARY_DIR}
             -config-file=${CMAKE_SOURCE_DIR}/.clang-tidy
-            ${GEN_SRC_FILES} ${SRC_RTL_FILES}
+            ${GEN_SRC_FILES}
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         COMMENT "Running clang-tidy"
     )
@@ -235,7 +276,12 @@ endif()
 # === generated code test ======================
 # ===================================================================
 # Smoke test
+#
+# Generates code from yaml/t1.yaml against a live database, compiles it and
+# runs it. Tied to db2 for now: the generated code links the ODBC runtime in
+# rtl/db2/query.hpp, which has no psql counterpart yet.
 # ===================================================================
+if(DB2_FOUND)
 
 if(NOT TARGET test_t1)
     set(SMOKE_TEST_TARGET_NAME test_t1)
@@ -338,6 +384,8 @@ if((CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebIn
     enable_sanitizers_for_target(${SMOKE_TEST_TARGET_NAME})
 endif()
 
+endif() # DB2_FOUND - smoke test
+
 # === common headers – interface library
 add_library(project_common INTERFACE)
 target_include_directories(project_common INTERFACE
@@ -397,10 +445,18 @@ if(BUILD_TESTING)
       CXX_CLANG_TIDY ""          # no clang-tidy for test cases (catch triggers false positives)
     )
 
+    # the unit tests exercise the generator, which needs make_db() from some
+    # backend - either will do, prefer db2 when both are present
+    if(DB2_FOUND)
+        set(UNIT_TEST_RTL db2_rtl)
+    else()
+        set(UNIT_TEST_RTL psql_rtl)
+    endif()
+
     target_link_libraries(unit_tests PRIVATE
         Catch2::Catch2WithMain
         log
-        db2_rtl
+        ${UNIT_TEST_RTL}
         fmt::fmt
         spdlog::spdlog
         nlohmann_json::nlohmann_json

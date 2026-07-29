@@ -15,7 +15,7 @@ namespace ME = magic_enum; // NOLINT(misc-unused-alias-decls)
 #include "common.hpp"
 #include "data_statement.hpp"
 #include "data_statements.hpp"
-#include "db2_rtl.hpp"
+#include "rtl.hpp"
 #include "parser_errors.hpp"
 #include "parser.hpp"
 
@@ -55,7 +55,7 @@ namespace dbgen4
    * @param db database connection
    * @return pars_result error code + updated statements structure
    */
-  e_data_statements parser::load_file_meta_data(const data_statements& s, rtl::db_db2& db) const
+  e_data_statements parser::load_file_meta_data(const data_statements& s, rtl::db& db) const
   {
     data_statements res_stmts{s}; // result statements with updated metadata
     for (const auto& map_stmt_pair : s.map_statements())

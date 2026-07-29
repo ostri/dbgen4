@@ -7,13 +7,13 @@ namespace ME = magic_enum; // NOLINT(misc-unused-alias-decls)
 #include "no_results.hpp"
 #include "parameter_root.hpp"
 #include "result_root.hpp"
-#include <sql.h>
-#include <sqlext.h>
+#include "buffer_dscr.hpp"
+#include "db2_types.hpp"
+#include "log.hpp"
 // #include <span>
 #include <string>
 #include <expected>
 #include <memory>
-#include <spdlog/spdlog.h>
 #include <type_traits>
 #include <format>
 // #include <algorithm>
@@ -24,9 +24,9 @@ namespace rtl
 {
   struct database // NOLINT
   {
-    virtual ~database()                                                               = default;
-    [[nodiscard]] virtual SQLHDBC                         get_conn() const noexcept   = 0;
-    [[nodiscard]] virtual std::shared_ptr<spdlog::logger> get_logger() const noexcept = 0;
+    virtual ~database()                                     = default;
+    [[nodiscard]] virtual SQLHDBC   get_conn() const noexcept = 0;
+    [[nodiscard]] virtual class log::log* get_logger() const noexcept = 0;
   } __attribute__((aligned(128))); // NOLINT
   // NOLINTNEXTLINE(performance-enum-size)
   enum class handle_type_enum : int16_t
@@ -122,13 +122,13 @@ namespace rtl
           ret           = SQLBindParameter(stmt_,
                                  static_cast<SQLUSMALLINT>(i) + 1,
                                  SQL_PARAM_INPUT,
-                                 c.value_type,
-                                 c.param_type,
+                                 db2::to_odbc_c(c.type),
+                                 db2::to_odbc(c.type),
                                  c.column_size,
                                  c.decimal_digits,
                                  r.value_ptr,
                                  0,
-                                 r.indicator_ptr);
+                                 reinterpret_cast<SQLLEN*>(r.indicator_ptr)); // NOLINT - width checked in db2_types.hpp
           if (! SQL_SUCCEEDED(ret)) return std::unexpected(odbc_error(ret, stmt_, handle_type_enum::stmt, i + 1)); // NOLINT
         }
         SQLSetStmtAttr(stmt_,
@@ -151,7 +151,12 @@ namespace rtl
         {
           const auto& c = result_const[i];
           const auto& r = result_init[i];
-          ret           = SQLBindCol(stmt_, static_cast<SQLUSMALLINT>(i) + 1, c.value_type, r.value_ptr, 0, r.indicator_ptr);
+          ret           = SQLBindCol(stmt_,
+                           static_cast<SQLUSMALLINT>(i) + 1,
+                           db2::to_odbc_c(c.type),
+                           r.value_ptr,
+                           0,
+                           reinterpret_cast<SQLLEN*>(r.indicator_ptr)); // NOLINT - width checked in db2_types.hpp
           if (! SQL_SUCCEEDED(ret)) return std::unexpected(odbc_error(ret, stmt_, handle_type_enum::stmt, i + 1)); // NOLINT
         }
         SQLSetStmtAttr(stmt_,

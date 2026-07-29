@@ -43,7 +43,7 @@
         constexpr static const buffer_dscr_const arr[] = {
           // clang-format off
 ##        for el in buf
-          {<< el.name | pad(17, "\"", "\",") >> rtl::sql_cat::<<el.category|pad(10, "",",")>> <<el.base-type|pad(24, "\"", "\", ")>><<el.c-type-name|pad(22, "",", ")>><<el.sql-type-name|pad(21, "",", ")>> <<el.size|lpad(6, "",", ")>><<el.digits|lpad(2)>>},
+          {<< el.name | pad(17, "\"", "\",") >> rtl::sql_cat::<<el.category|pad(10, "",",")>> <<el.base-type|pad(24, "\"", "\", ")>>rtl::sql_type::<<el.type|pad(26, "",", ")>><<el.size|lpad(6, "",", ")>><<el.digits|lpad(2)>>},
 ##        endfor
           // clang-format on
         };

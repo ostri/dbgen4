@@ -1,5 +1,5 @@
 #pragma once
-#include "cli_constants.hpp"
+#include "sql_types.hpp"
 #include "common.hpp"
 #include <cstdint>
 #include <vector>

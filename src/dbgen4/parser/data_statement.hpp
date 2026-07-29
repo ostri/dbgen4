@@ -1,7 +1,7 @@
 #pragma once
 
 #include "common.hpp"
-#include "db2_rtl.hpp"
+#include "rtl.hpp"
 // #include <map>
 
 namespace dbgen4

@@ -3,7 +3,7 @@
 #include "cmd_line_params.hpp"
 // #include "context.hpp"
 #include "data_statements.hpp"
-#include "db2_rtl.hpp"
+#include "rtl.hpp"
 #include "generator.hpp"
 #include "parser.hpp"
 #include "parser_errors.hpp"
@@ -25,7 +25,7 @@ namespace dbgen4
     static class log::log* log_() { return log::get(); };
     /// method logs raw command line
     void              display_raw_command_line_log(int argc, char** argv);
-    e_data_statements process_one_file(rtl::db_db2& db, generator& gen);
+    e_data_statements process_one_file(rtl::db& db, generator& gen);
     /// member(s)
     cmd_line_params p_;      /// comand line parameter structure
     parser          parser_; /// parser object

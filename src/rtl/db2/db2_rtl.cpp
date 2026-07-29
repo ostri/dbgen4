@@ -1,4 +1,3 @@
-#include "cli_constants.hpp"
 //  #include "common.hpp"
 //  #include "log.hpp"
 #include "db2_rtl.hpp"
@@ -285,20 +284,31 @@ namespace rtl
 
     for (SQLSMALLINT i = 1; i <= num_params; ++i)
     {
-      meta_dscr par{};
-      ret = SQLDescribeParam(data()->stmt_handle, i, &par.odbc_type, &par.size, &par.digits, &par.nullable);
+      // the driver writes through pointers of its own width - describe into
+      // native typed locals, then narrow deliberately into meta_dscr
+      SQLSMALLINT native_type = 0;
+      SQLULEN     size        = 0;
+      SQLSMALLINT digits      = 0;
+      SQLSMALLINT nullable    = 0;
 
-      if (is_success(static_cast<db_sts>(ret)))
+      ret = SQLDescribeParam(data()->stmt_handle, i, &native_type, &size, &digits, &nullable);
+      if (! is_success(static_cast<db_sts>(ret))) [[unlikely]]
       {
-        par.index = i;
-        par.name  = fmt::format("par_{}", i);
-        par.type  = static_cast<sql_type>(par.odbc_type);
-        result.add_par_dscr(par);
-      }
-      else [[unlikely]] {
         auto msg = fmt::format("SQLDescribeParam for parameter {}", i);
         return error_cleanup(ret, msg, db_sts::invalid_sql);
       }
+
+      meta_dscr par{};
+      par.index       = i;
+      par.name        = fmt::format("par_{}", i);
+      par.native_type = native_type;
+      par.type        = db2::from_odbc(native_type);
+      par.size        = static_cast<uint32_t>(size);
+      par.digits      = digits;
+      par.nullable    = nullable;
+      if (par.type == sql_type::unknown)
+        log_()->warn("Parameter {} has an unmapped db type code {}. Generated code will not compile.", i, native_type);
+      result.add_par_dscr(par);
     }
 
     // --- result-set columns ---
@@ -312,24 +322,33 @@ namespace rtl
     log_()->debug("Result set has {} columns", num_columns);
     for (SQLSMALLINT i = 1; i <= num_columns; ++i)
     {
-      meta_dscr                    col{};
       std::array<SQLCHAR, 128 + 1> col_name{}; // NOLINT
       SQLSMALLINT                  name_len = 0;
+      // describe into native typed locals - see the parameter loop above
+      SQLSMALLINT native_type = 0;
+      SQLULEN     size        = 0;
+      SQLSMALLINT digits      = 0;
+      SQLSMALLINT nullable    = 0;
 
       ret = SQLDescribeCol(
-        data()->stmt_handle, i, col_name.data(), col_name.size(), &name_len, &col.odbc_type, &col.size, &col.digits, &col.nullable);
-
-      if (is_success(static_cast<db_sts>(ret))) [[likely]]
+        data()->stmt_handle, i, col_name.data(), col_name.size(), &name_len, &native_type, &size, &digits, &nullable);
+      if (! is_success(static_cast<db_sts>(ret))) [[unlikely]]
       {
-        col.index = i;
-        col.name  = dbgen4::lowercase(std::string(col_name.begin(), col_name.begin() + name_len)); // NOLINT
-        col.type  = static_cast<sql_type>(col.odbc_type);
-        result.add_col_dscr(col);
-      }
-      else [[unlikely]] {
         auto msg = fmt::format("SQLDescribeCol for column {}", i);
         return error_cleanup(ret, msg, db_sts::invalid_sql);
       }
+
+      meta_dscr col{};
+      col.index       = i;
+      col.name        = dbgen4::lowercase(std::string(col_name.begin(), col_name.begin() + name_len)); // NOLINT
+      col.native_type = native_type;
+      col.type        = db2::from_odbc(native_type);
+      col.size        = static_cast<uint32_t>(size);
+      col.digits      = digits;
+      col.nullable    = nullable;
+      if (col.type == sql_type::unknown)
+        log_()->warn("Column '{}' has an unmapped db type code {}. Generated code will not compile.", col.name, native_type);
+      result.add_col_dscr(col);
     }
 
     // --- Cleanup ---
@@ -370,93 +389,6 @@ namespace rtl
     data()->env_handle     = 0;
 
     free_handle(h, h_type, info, err);
-  }
-
-
-  // db_sts qry_metadata::status() const { return status_; }
-
-  meta_vec qry_metadata::columns() const { return columns_; }
-
-  // void qry_metadata::set_columns(const meta_vec& columns) { columns_ = columns; }
-
-  meta_vec qry_metadata::params() const { return params_; }
-
-  // void qry_metadata::set_params(const meta_vec& params) { params_ = params; }
-
-  // std::string qry_metadata::dscr() const { return dscr_; }
-
-  // void qry_metadata::set_dscr(const std::string& dscr) { dscr_ = dscr; }
-
-  void qry_metadata::add_col_dscr(const meta_dscr& dscr) { columns_.push_back(dscr); }
-
-  void qry_metadata::add_par_dscr(const meta_dscr& dscr) { params_.push_back(dscr); }
-
-  // std::string qry_metadata::sql() const { return sql_; }
-
-  // qry_metadata::qry_metadata(std::string sql,
-
-  //                            meta_vec columns,
-  //                            meta_vec params)
-  // : sql_(std::move(sql))
-
-  // , columns_(std::move(columns))
-  // , params_(std::move(params))
-  // {
-  // }
-
-  // std::string qry_metadata::id() const { return id_; }
-
-  //  void qry_metadata::set_id(const std::string& id) { id_ = id; }
-
-  // void qry_metadata::set_status(const db_sts& status) { status_ = status; }
-
-  // void qry_metadata::set_sql(const std::string& sql) { sql_ = sql; }
-
-  // bool qry_metadata::is_success() const noexcept
-  // {
-  //   return ((db_sts::success == status_) || (db_sts::success_with_info == status_));
-  // }
-
-  std::string qry_metadata::dump_meta_vector(const char* fmt, const char* header, const meta_vec& v) const
-  {
-    if (! v.empty())
-    {
-      std::string msg = header;
-      for (auto col : v)
-      {
-        msg += fmt::format(fmt::runtime(fmt),
-                           col.index,
-                           col.name,
-                           ME::enum_name(col.type),
-                           get_sql_mapping(col.type)->c_mnemonic,
-                           col.odbc_type,
-                           col.size,
-                           col.digits,
-                           col.nullable != 0 ? "yes" : "no");
-      }
-      return msg;
-    }
-    return {};
-  }
-  std::string qry_metadata::dump() const
-  {
-    constexpr const char* fmt     = "      {:>3} {:<20} {:<18} {:<20} {:>9} {:>4} {:>6} {:^8}\n";
-    auto                  msg_hdr = fmt::format(fmt, "ndx", "column name", "col type", "cli id", "ODBC type", "size", "digits", "nullable");
-    auto                  col     = dump_meta_vector(fmt, msg_hdr.c_str(), columns_);
-    auto                  par     = dump_meta_vector(fmt, msg_hdr.c_str(), params_);
-    auto                  msg     = fmt::format(R"(
-     columns: {}
-{}
-    parameters: {}
-{}
-  )",
-                           //                           sql_,
-                           //                           ME::enum_name<db_sts>(status_),
-                           columns_.size(),
-                           col,
-                           params_.size(),
-                           par);
-    return msg;
   }
 
 
@@ -521,4 +453,14 @@ namespace rtl
   //   log_()->debug("Parameter {} bound successfully", parameter_number);
   //   return db_sts::success;
   // }
+
+  // ------------------------------------------------------------------------
+  // backend registration - see the declarations in rtl.hpp
+  // ------------------------------------------------------------------------
+  std::unique_ptr<db> make_db() { return std::make_unique<db_db2>(); }
+
+  std::string_view backend_name() noexcept { return "db2"; }
+
+  uint16_t default_port() noexcept { return 50000; }
+
 }; // namespace rtl

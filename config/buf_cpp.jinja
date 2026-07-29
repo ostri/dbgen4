@@ -5,11 +5,11 @@
 ##  endfor
     /// --- null getters --------------------------------------------------
 ##  for el in buf
-    bool <<class-name>>::is_<<el.name>>_null(size_t row) const {return SQL_NULL_DATA == len_<<el.name>>_.at(row);}
+    bool <<class-name>>::is_<<el.name>>_null(size_t row) const {return rtl::null_data == len_<<el.name>>_.at(row);}
 ##  endfor
     /// --- length getters ------------------------------------------------
 ##  for el in buf
-    size_t <<class-name>>::<<el.name>>_length(size_t row) const {auto l = len_<<el.name>>_.at(row); return (SQL_NULL_DATA != l)?l:0;}
+    size_t <<class-name>>::<<el.name>>_length(size_t row) const {auto l = len_<<el.name>>_.at(row); return (rtl::null_data != l)?l:0;}
 ##  endfor
     /// --- setters -------------------------------------------------------
 ##  for el in buf
@@ -17,7 +17,7 @@
 ##  endfor
     /// --- null setters --------------------------------------------------
 ##  for el in buf
-    void <<class-name>>::set_<<el.name>>_null(size_t row) { len_<<el.name>>_.at(row) = SQL_NULL_DATA;}
+    void <<class-name>>::set_<<el.name>>_null(size_t row) { len_<<el.name>>_.at(row) = rtl::null_data;}
 ##  endfor
     /// --- <<class-name>> types init array  --------------------------------------
     span_buffer_dscr_init <<class-name>>::buffer_description_init() noexcept
@@ -26,7 +26,7 @@
         static std::array<buffer_dscr_init, dim> arr =
         {{
 ##        for el in buf
-            { <<el.name>>_.data(), len_<<el.name>>_.data() },
+            { <<el.name>>_.data(), len_<<el.name>>_.data(), sizeof(<<el.name>>_[0]) },
 ##        endfor
         }};
         return arr;

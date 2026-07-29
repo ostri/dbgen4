@@ -2,9 +2,12 @@
 
 #include <cassert>
 #include <cstdint>
+#include <expected>
 #include <memory>
 #include <span>
-#include "log.hpp" // IWYU pragma: keep
+#include <string>
+#include "log.hpp"       // IWYU pragma: keep
+#include "sql_types.hpp" // IWYU pragma: export
 
 // #include "log.hpp" // NOLINT(unused-includes)
 
@@ -141,6 +144,30 @@ namespace rtl
   }
 
 
+  /**
+   * @brief Result of describing a SQL statement - metadata only, no rows
+   *
+   * Backend neutral: whatever the driver reports is already translated into
+   * rtl::sql_type by the backend before it lands here.
+   */
+  class qry_metadata
+  {
+  public:
+    qry_metadata() = default;
+    /// getters
+    [[nodiscard]] meta_vec    columns() const;
+    [[nodiscard]] meta_vec    params() const;
+    [[nodiscard]] std::string dump() const;
+    /// setters
+    void add_col_dscr(const meta_dscr& dscr);
+    void add_par_dscr(const meta_dscr& dscr);
+  private:
+    [[nodiscard]] std::string dump_meta_vector(const char* fmt, const char* header, const meta_vec& v) const;
+    meta_vec                  columns_; ///< Result-set column metadata
+    meta_vec                  params_;  ///< Input parameter metadata
+  };
+  using e_qry_metadata = std::expected<qry_metadata, db_sts>;
+
   /// Root class for all database data structures
   /// Provides common functionality and interface for database objects
   /// empty on purpose, to be extended for specific database data implementations
@@ -201,9 +228,20 @@ namespace rtl
      * @brief Checks if the database connection is currently established.
      * @return true if connected, false otherwise.
      */
-    [[nodiscard]] virtual bool        is_connected() const;
-    virtual db_sts                    commit();
-    virtual db_sts                    rollback();
+    [[nodiscard]] virtual bool is_connected() const;
+    virtual db_sts             commit();
+    virtual db_sts             rollback();
+    /**
+     * @brief Describe a SQL statement without executing it
+     *
+     * The generator relies on this to learn the shape of every statement in
+     * the yaml file. Each backend implements it with its own describe call
+     * (ODBC SQLDescribeCol/Param, libpq PQdescribePrepared, ...).
+     *
+     * @param sql statement, possibly carrying parameter placeholders
+     * @return e_qry_metadata column and parameter descriptions, or an error
+     */
+    virtual e_qry_metadata            get_sql_metadata(const std::string& sql);
     [[nodiscard]] const db_data_root* data() const;
     class log::log*                   log_() { return log::get(); }; /// Member variables
   protected:
@@ -220,6 +258,33 @@ namespace rtl
       std::unique_ptr<db_data_root> data_; //NOLINT(cppcoreguidelines-non-private-member-variables-in-classes)
     // clang-format on
   };
+  /**
+   * @brief create the database object of the backend that is linked in
+   *
+   * Declared here, defined by whichever backend library the executable links
+   * against (db2_rtl, psql_rtl, ...). This keeps rtl free of any knowledge of
+   * the concrete backends and spares the caller a #ifdef.
+   *
+   * @return std::unique_ptr<db> connected-to-nothing database object
+   */
+  [[nodiscard]] std::unique_ptr<db> make_db();
+
+  /**
+   * @brief name of the backend compiled into this executable, e.g. "db2"
+   *
+   * Used to warn when the requested sql dialect does not match the backend
+   * that can actually describe the statements.
+   */
+  [[nodiscard]] std::string_view backend_name() noexcept;
+
+  /**
+   * @brief port this backend's server listens on out of the box
+   *
+   * 50000 for DB2, 5432 for PostgreSQL - used as the command line default so
+   * that each executable does the expected thing without being told.
+   */
+  [[nodiscard]] uint16_t default_port() noexcept;
+
   /**
    * @brief Set the value to the n-th row
    *

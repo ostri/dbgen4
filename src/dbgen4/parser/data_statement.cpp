@@ -35,8 +35,8 @@ namespace dbgen4
                            col.index,
                            col.name,
                            ME::enum_name(col.type),
-                           get_sql_mapping(col.type)->c_mnemonic,
-                           col.odbc_type,
+                           rtl::get_sql_mapping(col.type)->mnemonic,
+                           col.native_type,
                            col.size,
                            col.digits,
                            col.nullable != 0 ? "yes" : "no");
