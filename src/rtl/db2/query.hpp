@@ -107,7 +107,7 @@ namespace rtl
       if (! SQL_SUCCEEDED(ret)) return std::unexpected(odbc_error(ret, conn, handle_type_enum::conn));
       stmt_ = new_stmt;
 
-      logger->debug("Preparing SQL: {}", sql_);
+      logger->debug("Preparing SQL: {}", reinterpret_cast<const char*>(sql_.c_str())); // NOLINT
       ret = SQLPrepare(stmt_, reinterpret_cast<SQLCHAR*>(const_cast<char8_t*>(sql_.c_str())), SQL_NTS); // NOLINT
       if (! SQL_SUCCEEDED(ret)) return std::unexpected(odbc_error(ret, stmt_, handle_type_enum::stmt));
 
@@ -204,60 +204,73 @@ namespace rtl
     [[nodiscard]] std::expected<bool, odbc_error> fetch() noexcept
     {
       if (! is_prepared()) return std::unexpected(odbc_error(SQL_ERROR, SQL_NULL_HANDLE, handle_type_enum::stmt));
+
+      /// the whole body has to live in the else branch - without it the code
+      /// below is still compiled for a result-less query, where rows_fetched_
+      /// and res_ are std::monostate
       if constexpr (! has_results) return false;
-
-      rows_fetched_ = 0;
-      SQLRETURN ret = SQLFetchScroll(stmt_, SQL_FETCH_NEXT, 0);
-      if (ret == SQL_NO_DATA)
+      else
       {
-        if constexpr (has_results) res_->set_occupied(0);
-        return false;
+        rows_fetched_ = 0;
+        SQLRETURN ret = SQLFetchScroll(stmt_, SQL_FETCH_NEXT, 0);
+        if (ret == SQL_NO_DATA)
+        {
+          res_->set_occupied(0);
+          return false;
+        }
+        if (! SQL_SUCCEEDED(ret)) return std::unexpected(odbc_error(ret, stmt_, handle_type_enum::stmt));
+
+        const auto   reported    = static_cast<size_t>(rows_fetched_);
+        const size_t max_allowed = results::batch_size;
+
+        if (reported > max_allowed)
+        {
+          const std::string error_msg = std::format("FATAL ODBC DRIVER ERROR: SQLFetchScroll reported {} rows, "
+                                                    "but batch_size is only {}. Buffer overflow detected. "
+                                                    "Data integrity compromised. Terminating application.",
+                                                    reported,
+                                                    max_allowed);
+          db_->get_logger()->critical("{}", error_msg);
+          return std::unexpected(odbc_error(SQL_ERROR, SQL_NULL_HANDLE, handle_type_enum::stmt));
+        }
+
+        res_->set_occupied(reported);
+        return reported > 0;
       }
-      if (! SQL_SUCCEEDED(ret)) return std::unexpected(odbc_error(ret, stmt_, handle_type_enum::stmt));
-
-      const auto   reported    = static_cast<size_t>(rows_fetched_);
-      const size_t max_allowed = results::batch_size;
-
-      if (reported > max_allowed)
-      {
-        const std::string error_msg = std::format("FATAL ODBC DRIVER ERROR: SQLFetchScroll reported {} rows, "
-                                                  "but batch_size is only {}. Buffer overflow detected. "
-                                                  "Data integrity compromised. Terminating application.",
-                                                  reported,
-                                                  max_allowed);
-        db_->get_logger()->critical("{}", error_msg);
-        return std::unexpected(odbc_error(SQL_ERROR, SQL_NULL_HANDLE, handle_type_enum::stmt));
-      }
-
-      if constexpr (has_results) res_->set_occupied(reported);
-      return reported > 0;
     }
 
+    /// A ternary cannot do this: both of its arms must have the same type, and
+    /// here one of them is std::monostate. The choice has to be made at compile
+    /// time with if constexpr, or the branch that does not apply is still type
+    /// checked and fails.
     [[nodiscard]] std::conditional_t<has_params, std::shared_ptr<params>, std::monostate> get_param() noexcept
     {
-      return has_params ? par_ : std::monostate{};
+      if constexpr (has_params) return par_;
+      else return std::monostate{};
     }
 
     [[nodiscard]] std::conditional_t<has_results, std::shared_ptr<const results>, std::monostate> get_result() const noexcept
-
     {
-      return has_results ? res_ : std::monostate{};
+      if constexpr (has_results) return res_;
+      else return std::monostate{};
     }
 
     [[nodiscard]] std::conditional_t<has_params, SQLULEN, std::monostate> params_processed() const noexcept
-
     {
-      return has_params ? params_processed_ : std::monostate{};
+      if constexpr (has_params) return params_processed_;
+      else return std::monostate{};
     }
 
     [[nodiscard]] std::conditional_t<has_results, SQLULEN, std::monostate> rows_fetched() const noexcept
     {
-      return has_results ? rows_fetched_ : std::monostate{};
+      if constexpr (has_results) return rows_fetched_;
+      else return std::monostate{};
     }
 
     [[nodiscard]] std::conditional_t<has_results, size_t, std::monostate> occupied_count() const noexcept
     {
-      return has_results ? res_->occupied() : std::monostate{};
+      if constexpr (has_results) return res_->occupied();
+      else return std::monostate{};
     }
 
     void reset(this query& self) noexcept

@@ -54,15 +54,17 @@ namespace rtl
   struct buffer_dscr_init
   {
     // NOLINTBEGIN(misc-non-private-member-variables-in-classes)
-    void*    value_ptr;     ///< first element of the value array
-    int32_t* indicator_ptr; ///< first element of the length/null indicator array
+    void*    value_ptr{};     ///< first element of the value array
+    int32_t* indicator_ptr{}; ///< first element of the length/null indicator array
     /// distance in bytes between two rows of value_ptr
     ///
     /// The ODBC backend never needs this - it hands the whole array to the
     /// driver, which strides it itself. libpq returns values one at a time,
     /// so its runtime has to walk the array by hand.
-    size_t stride;
+    size_t stride{};
     // NOLINTEND(misc-non-private-member-variables-in-classes)
+
+    constexpr buffer_dscr_init() noexcept = default;
 
     constexpr buffer_dscr_init(void* vp, int32_t* ip, size_t st) noexcept
     : value_ptr(vp)

@@ -19,17 +19,29 @@
 ##  for el in buf
     void <<class-name>>::set_<<el.name>>_null(size_t row) { len_<<el.name>>_.at(row) = rtl::null_data;}
 ##  endfor
-    /// --- <<class-name>> types init array  --------------------------------------
-    span_buffer_dscr_init <<class-name>>::buffer_description_init() noexcept
+## if is-param
+    /// --- mark every field of every row as sql NULL -----------------------------
+    void <<class-name>>::reset_all_null() noexcept
     {
-        static constexpr const auto dim = <<buf|length>>; // # of elements in buffer
-        static std::array<buffer_dscr_init, dim> arr =
+##      for el in buf
+      len_<<el.name>>_.fill(rtl::null_data);
+##      endfor
+      row_status_.fill(0);
+    }
+## endif
+    /// --- <<class-name>> types init array  --------------------------------------
+    span_buffer_dscr_init <<class-name>>::buffer_description_init()
+    {
+        /// filled into a member, never a function local static: the pointers
+        /// are into *this* object, and a static would hand every later
+        /// instance the buffers of whichever one called first
+        dscr_init_ =
         {{
 ##        for el in buf
             { <<el.name>>_.data(), len_<<el.name>>_.data(), sizeof(<<el.name>>_[0]) },
 ##        endfor
         }};
-        return arr;
+        return dscr_init_;
     };
     /// --- dump    ---------------------------------------------------------------
     [[nodiscard]]std::string <<class-name>>::dump(uint8_t offs) const

@@ -21,7 +21,9 @@ namespace rtl
 
     static constexpr auto buffer_description_const() noexcept { return span_buffer_dscr_const{}; }
 
-    [[nodiscard]] virtual span_buffer_dscr_init buffer_description_init() const = 0;
+    /// Not const on purpose: this hands out writable pointers into the buffer
+    /// so that the backend can fill it in.
+    [[nodiscard]] virtual span_buffer_dscr_init buffer_description_init() = 0;
 
     static constexpr size_t batch_size = 1;
     static constexpr bool   has_results() noexcept { return ! buffer_description_const().empty(); }

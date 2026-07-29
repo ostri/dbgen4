@@ -8,6 +8,6 @@ namespace rtl
   class no_results : public result_root
   {
   public:
-    [[nodiscard]] span_buffer_dscr_init buffer_description_init() const override { return {}; }
+    [[nodiscard]] span_buffer_dscr_init buffer_description_init() override { return {}; }
   };
 } // namespace rtl

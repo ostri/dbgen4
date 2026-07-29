@@ -1,13 +1,13 @@
-    class <<class-name>>
+    class <<class-name>> : public <<root-class>>
     {
       public:
         /// --- constructors and destructor -------------------------------------------
         <<class-name>>() = default;
-        ~<<class-name>>() = default;
+        ~<<class-name>>() override = default;
         <<class-name>>(const <<class-name>>& o) = default;
-        <<class-name>>(<<class-name>>&& o) = default;
+        <<class-name>>(<<class-name>>&& o) = delete;
         <<class-name>>& operator=(const <<class-name>>& o) = default;
-        <<class-name>>& operator=(<<class-name>>&& o) = default;
+        <<class-name>>& operator=(<<class-name>>&& o) = delete;
         /// --- buffer dimension ------------------------------------------------------
         static constexpr const size_t buf_dim = <<buf-size>>; //# of rows
         /// --- <<class-name>> buffer widths ------------------------------------------
@@ -49,6 +49,19 @@
         };
         return arr;
       }
+      /// --- static interface ------------------------------------------------------
+      /// These shadow the ones in <<root-class>> on purpose. Being static they
+      /// do not dispatch virtually - the runtime reaches them through its
+      /// template parameter, so it has to land on these and not on the empty
+      /// ones in the root. They must come after buffer_description_const(),
+      /// because a consteval function cannot be called before it is complete.
+      static constexpr size_t batch_size = buf_dim;
+      static constexpr bool   is_batch() noexcept { return batch_size > 1; }
+## if is-param
+      static constexpr bool   has_parameters() noexcept { return ! buffer_description_const().empty(); }
+## else
+      static constexpr bool   has_results() noexcept { return ! buffer_description_const().empty(); }
+## endif
       /// --- max column name width  ------------------------------------------------
       static consteval size_t max_column_name_len() noexcept
       {
@@ -86,7 +99,14 @@
         return max;
       }
       /// --- <<class-name>> types init array  --------------------------------------
-      span_buffer_dscr_init buffer_description_init() noexcept;
+      [[nodiscard]] span_buffer_dscr_init buffer_description_init() override;
+## if is-param
+      /// --- mark every field of every row as sql NULL -----------------------------
+      void reset_all_null() noexcept override;
+      /// --- per row status of a batch execute -------------------------------------
+      [[nodiscard]] std::span<uint16_t> get_row_status() noexcept override { return row_status_; }
+      void                                    clear_row_status() noexcept override { row_status_.fill(0); }
+## endif
       /// --- dump    ---------------------------------------------------------------
       [[nodiscard]]std::string dump(uint8_t offs=0) const;
     private:
@@ -100,4 +120,10 @@
 ##    for el in buf
       std::array<int32_t, buf_dim> len_<<el.name>>_{};
 ##    endfor
+## if is-param
+      /// ------ per row status, filled in by the driver on a batch execute ---------
+      std::array<uint16_t, buf_dim> row_status_{};
+## endif
+      /// ------ where buffer_description_init() publishes this object's buffers ----
+      std::array<buffer_dscr_init, <<buf|length>>> dscr_init_{};
   }; // class <<class-name>> // -----------------------------------------------------

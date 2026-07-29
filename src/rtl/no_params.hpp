@@ -9,7 +9,7 @@ namespace rtl
   class no_params : public parameter_root
   {
   public:
-    [[nodiscard]] span_buffer_dscr_init buffer_description_init() const override { return {}; }
+    [[nodiscard]] span_buffer_dscr_init buffer_description_init() override { return {}; }
     void                                reset_all_null() noexcept override { }
   };
 } // namespace rtl

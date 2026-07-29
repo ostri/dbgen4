@@ -418,10 +418,16 @@ namespace dbgen4
                           std::string class_name = args[1]->get<std::string>(); // name
                           auto        buf_size   = args[2]->get<int>();         // buffer size
 
+                          /// a parameter buffer and a result buffer derive from
+                          /// different roots and carry different members
+                          const bool is_param = (class_name == "p");
+
                           json data          = j_data_; //  main json
                           data["buf"]        = buf;
                           data["class-name"] = class_name;
                           data["buf-size"]   = buf_size;
+                          data["is-param"]   = is_param;
+                          data["root-class"] = is_param ? "rtl::parameter_root" : "rtl::result_root";
 
                           // only rendering of the preloaded template
                           return env_.render(templates_.at(inja_tpl_enum::buf_hpp), data);
@@ -442,9 +448,13 @@ namespace dbgen4
                           const json& buf        = *args[0];                    // data
                           auto        class_name = args[1]->get<std::string>(); // name
 
+                          const bool is_param = (class_name == "p");
+
                           json data          = j_data_; // main json
                           data["buf"]        = buf;
                           data["class-name"] = class_name;
+                          data["is-param"]   = is_param;
+                          data["root-class"] = is_param ? "rtl::parameter_root" : "rtl::result_root";
 
                           // only rendering of the preloaded template
                           return env_.render(templates_.at(inja_tpl_enum::buf_cpp), data);
