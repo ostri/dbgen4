@@ -269,6 +269,32 @@ target_compile_definitions(log
     SPDLOG_COMPILED_LIB
 )
 
+# === rtl_logger library ===
+# Candidate replacement for `log`, built the same way (PIMPL hides spdlog
+# behind logger_impl.hpp/cpp). Not yet linked into any consumer - built here
+# only so it compiles cleanly alongside everything else.
+set (RTL_LOGGER_INCLUDE_DIRS
+    ${CMAKE_SOURCE_DIR}/src/logger
+    ${CMAKE_SOURCE_DIR}/src/dbgen4/common
+)
+add_library(rtl_logger
+  STATIC
+    src/logger/logger.cpp
+    src/logger/logger_impl.cpp
+    )
+target_include_directories(rtl_logger
+    PUBLIC ${RTL_LOGGER_INCLUDE_DIRS}
+)
+target_link_libraries(rtl_logger
+  PUBLIC  fmt::fmt
+  PRIVATE spdlog::spdlog nlohmann_json::nlohmann_json dbgen4_warnings
+)
+target_compile_definitions(rtl_logger
+  PRIVATE
+    SPDLOG_FMT_EXTERNAL
+    SPDLOG_COMPILED_LIB
+)
+
 # === db2_rtl ===
 # Include dirs every backend needs: the neutral rtl vocabulary, the log facade
 # and the dbgen4 common helpers.
