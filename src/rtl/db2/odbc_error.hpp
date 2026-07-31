@@ -15,7 +15,7 @@
 
 namespace rtl
 {
-  enum class handle_type_enum : int16_t // NO LINT(performance-enum-size)
+  enum class handle_type_enum : int16_t // NOLINT(performance-enum-size)
   {
     env  = SQL_HANDLE_ENV, //< the environment handle
     conn = SQL_HANDLE_DBC, //< the connection handle

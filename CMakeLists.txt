@@ -361,13 +361,22 @@ if(LIBPQ_FOUND)
 endif()
 
 # === clang-tidy ===
+# Every .cpp/.hpp under src/ goes through this target, not just GEN_SRC_FILES -
+# that list is only the main executable's sources, so db2_rtl, psql_rtl and the
+# test sources were silently skipped before. GLOB_RECURSE is fine here: unlike
+# add_library/add_executable sources, tidy is a developer convenience target,
+# not something a stale file list can break the build over.
 find_program(CLANG_TIDY_EXECUTABLE NAMES clang-tidy)
 if(CLANG_TIDY_EXECUTABLE)
+    file(GLOB_RECURSE ALL_SRC_FILES
+        ${CMAKE_SOURCE_DIR}/src/*.cpp
+        ${CMAKE_SOURCE_DIR}/src/*.hpp
+    )
     add_custom_target(tidy
         COMMAND ${CLANG_TIDY_EXECUTABLE}
             -p ${CMAKE_BINARY_DIR}
             -config-file=${CMAKE_SOURCE_DIR}/.clang-tidy
-            ${GEN_SRC_FILES}
+            ${ALL_SRC_FILES}
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         COMMENT "Running clang-tidy"
     )
