@@ -3,7 +3,6 @@
 #include "magic_enum_config.hpp" // IWYU pragma: keep.
 #include <magic_enum.hpp>
 namespace ME = magic_enum; // NOLINT(misc-unused-alias-decls)
-#include <spdlog/logger.h>
 #include "cmd_line_params.hpp"
 namespace dbgen4
 {

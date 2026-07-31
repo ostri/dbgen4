@@ -13,7 +13,6 @@
 namespace ME = magic_enum; // NOLINT(misc-unused-alias-decls)
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
-#include <spdlog/logger.h>
 
 namespace dbgen4
 {

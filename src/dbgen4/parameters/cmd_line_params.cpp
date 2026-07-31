@@ -18,7 +18,6 @@ namespace ME = magic_enum; // NOLINT(misc-unused-alias-decls)
 #include "CLI/Formatter.hpp" // IWYU pragma: export
 #include <CLI/Error.hpp>
 #include <CLI/Validators.hpp>
-// #include <spdlog/common.h>
 
 namespace dbgen4
 {
