@@ -426,6 +426,20 @@ if(Doxygen_FOUND)
 endif()
 
 # === generated code test ======================
+# Shared between the db2-only smoke test below and the crud test targets
+# further down, which run for whichever backend or backends were found - so
+# these live above both rather than inside either's guard.
+set(GEN_OUTPUT_DIR      ${CMAKE_BINARY_DIR}/out)
+file(MAKE_DIRECTORY ${GEN_OUTPUT_DIR})
+set(CPP_TEMPLATE
+  ${CMAKE_BINARY_DIR}/template/main_cpp.jinja
+  ${CMAKE_BINARY_DIR}/template/buf_cpp.jinja
+  )
+set(HPP_TEMPLATE
+  ${CMAKE_BINARY_DIR}/template/main_hpp.jinja
+  ${CMAKE_BINARY_DIR}/template/buf_hpp.jinja
+  )
+
 # ===================================================================
 # Smoke test
 #
@@ -458,26 +472,14 @@ else()
 endif()
 
 set(TEST_YAML           ${CMAKE_SOURCE_DIR}/yaml/t1.yaml)
-set(GEN_OUTPUT_DIR      ${CMAKE_BINARY_DIR}/out)
 set(GEN_STAMP           ${GEN_OUTPUT_DIR}/generated.stamp)
-
-file(MAKE_DIRECTORY ${GEN_OUTPUT_DIR})
 
 set(GENERATED_HPP       ${GEN_OUTPUT_DIR}/t1.hpp)
 set(GENERATED_CPP       ${GEN_OUTPUT_DIR}/t1.cpp)
 set(SOURCE_TEST_CPP     ${CMAKE_SOURCE_DIR}/src/test/test_t1.cpp)
 set(GEN_TEST_CPP        ${GEN_OUTPUT_DIR}/test_t1.cpp)
 
-# Templates - if changed it must be regenerated
 set(MAIN_HPP        ${CMAKE_BINARY_DIR}/template/main_hpp.jinja)
-set(CPP_TEMPLATE
-  ${CMAKE_BINARY_DIR}/template/main_cpp.jinja
-  ${CMAKE_BINARY_DIR}/template/buf_cpp.jinja
-  )
-set(HPP_TEMPLATE
-  ${CMAKE_BINARY_DIR}/template/main_hpp.jinja
-  ${CMAKE_BINARY_DIR}/template/buf_hpp.jinja
-  )
 
 # Main program for smoke test
 if(NOT EXISTS ${SOURCE_TEST_CPP})
@@ -550,6 +552,8 @@ if((CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebIn
     enable_sanitizers_for_target(${SMOKE_TEST_TARGET_NAME})
 endif()
 
+endif() # DB2_FOUND - smoke test
+
 # ===================================================================
 # crud round trip test
 #
@@ -557,92 +561,129 @@ endif()
 # through the generated code: insert, read back and compare, update, read
 # back and compare, delete, confirm gone.
 #
-# Written against Catch2, so it needs BUILD_TESTING - which is what a test
-# ought to need anyway.
+# One function instantiated once per backend, since db2 and psql each need
+# their own generated crud.hpp/crud.cpp (backend specific placeholder style),
+# their own runtime library and their own test fixture (test_db.hpp resolved
+# through a per-backend include directory - see src/test/db2 and
+# src/test/psql). Everything else - target layout, ctest discovery, the
+# environment variable workaround below - is identical between the two, which
+# is what this function captures. Not nested inside DB2_FOUND: a psql-only
+# build (no DB2 CLI installed) must still get its crud test.
 # ===================================================================
-if(BUILD_TESTING)
+function(add_crud_test_target backend rtl_library test_db_include_dir)
+    set(extra_sources ${ARGN})
+    set(out_dir     ${GEN_OUTPUT_DIR}/${backend})
+    set(crud_yaml   ${CMAKE_SOURCE_DIR}/yaml/crud.yaml)
+    set(crud_hpp    ${out_dir}/crud.hpp)
+    set(crud_cpp    ${out_dir}/crud.cpp)
+    set(crud_stamp  ${out_dir}/crud.stamp)
+    set(target      test_crud_${backend})
+    string(TOUPPER ${backend} backend_upper)
+    set(test_db_env ${backend_upper}_TEST)
 
-set(CRUD_YAML       ${CMAKE_SOURCE_DIR}/yaml/crud.yaml)
-set(CRUD_HPP        ${GEN_OUTPUT_DIR}/crud.hpp)
-set(CRUD_CPP        ${GEN_OUTPUT_DIR}/crud.cpp)
-set(CRUD_STAMP      ${GEN_OUTPUT_DIR}/crud.stamp)
-# All three drive the same generated crud.hpp, so they share one binary and one
-# discovery pass rather than paying for a generation step each.
-set(CRUD_TEST_SRC   ${CMAKE_SOURCE_DIR}/src/test/test_crud.cpp
-                    ${CMAKE_SOURCE_DIR}/src/test/test_types.cpp
-                    ${CMAKE_SOURCE_DIR}/src/test/test_perf.cpp
-                    ${CMAKE_SOURCE_DIR}/src/test/test_bench.cpp)
+    file(MAKE_DIRECTORY ${out_dir})
 
-add_custom_command(
-    OUTPUT ${CRUD_STAMP} ${CRUD_HPP} ${CRUD_CPP}
-    COMMAND ${CMAKE_BINARY_DIR}/${PROJECT_NAME}-db2
-            -o ${GEN_OUTPUT_DIR}
-            -t db2 -n ${DB2_TEST_DB} -u ${DB2_TEST_USER} -p ${DB2_TEST_PASS}
-            ${CRUD_YAML}
-    COMMAND ${CMAKE_COMMAND} -E touch ${CRUD_STAMP}
-    DEPENDS ${PROJECT_NAME}-db2 ${CRUD_YAML} ${HPP_TEMPLATE} ${CPP_TEMPLATE}
-    COMMENT "Generating crud test code from '${CRUD_YAML}'."
-    VERBATIM
-)
-add_custom_target(generate_crud_test DEPENDS ${CRUD_STAMP})
+    add_custom_command(
+        OUTPUT ${crud_stamp} ${crud_hpp} ${crud_cpp}
+        COMMAND ${CMAKE_BINARY_DIR}/${PROJECT_NAME}-${backend}
+                -o ${out_dir}
+                -t ${backend} --host ${${test_db_env}_HOST} --port ${${test_db_env}_PORT}
+                -n ${${test_db_env}_DB} -u ${${test_db_env}_USER} -p ${${test_db_env}_PASS}
+                ${crud_yaml}
+        COMMAND ${CMAKE_COMMAND} -E touch ${crud_stamp}
+        DEPENDS ${PROJECT_NAME}-${backend} ${crud_yaml} ${HPP_TEMPLATE} ${CPP_TEMPLATE}
+        COMMENT "Generating crud test code (${backend}) from '${crud_yaml}'."
+        VERBATIM
+    )
+    add_custom_target(generate_crud_test_${backend} DEPENDS ${crud_stamp})
 
-add_executable(test_crud ${CRUD_CPP} ${CRUD_TEST_SRC})
-target_include_directories(test_crud PRIVATE ${GEN_OUTPUT_DIR} ${RTL_INCLUDE_DIRS}
-                           ${CMAKE_SOURCE_DIR}/src/rtl/db2 $ENV{IBM_DB_INCLUDE})
-target_link_libraries(test_crud PRIVATE Catch2::Catch2WithMain db2_rtl rtl_logger
-                      spdlog::spdlog nlohmann_json::nlohmann_json stdc++exp dbgen4_warnings)
-add_dependencies(test_crud generate_crud_test)
+    add_executable(${target} ${crud_cpp}
+        ${CMAKE_SOURCE_DIR}/src/test/test_crud.cpp
+        ${CMAKE_SOURCE_DIR}/src/test/test_types.cpp
+        ${extra_sources})
+    target_include_directories(${target} PRIVATE ${out_dir} ${RTL_INCLUDE_DIRS}
+                               ${CMAKE_SOURCE_DIR}/src/rtl/${backend} ${test_db_include_dir} $ENV{IBM_DB_INCLUDE})
+    target_link_libraries(${target} PRIVATE Catch2::Catch2WithMain ${rtl_library} rtl_logger
+                          spdlog::spdlog nlohmann_json::nlohmann_json stdc++exp dbgen4_warnings)
+    add_dependencies(${target} generate_crud_test_${backend})
 
-# Catch2 owns argv, so the connection details reach the test through the
-# environment instead of as positional arguments. Backend neutral names: the
-# same test source is meant to serve psql, fed from its own cache variables.
-set(CRUD_TEST_ENV
-    "DBGEN4_TEST_HOST=${DB2_TEST_HOST}"
-    "DBGEN4_TEST_PORT=${DB2_TEST_PORT}"
-    "DBGEN4_TEST_DB=${DB2_TEST_DB}"
-    "DBGEN4_TEST_USER=${DB2_TEST_USER}"
-    "DBGEN4_TEST_PASS=${DB2_TEST_PASS}"
-)
-# ENVIRONMENT is a test property, so the sanitizer options belong here to
-# actually reach the run - enable_sanitizers_for_target sets them on the target,
-# where ctest never looks at them.
-if(DEFINED SANITIZER_ENV)
-    list(APPEND CRUD_TEST_ENV ${SANITIZER_ENV})
+    # Catch2 owns argv, so the connection details reach the test through the
+    # environment instead of as positional arguments.
+    set(test_env
+        "DBGEN4_TEST_HOST=${${test_db_env}_HOST}"
+        "DBGEN4_TEST_PORT=${${test_db_env}_PORT}"
+        "DBGEN4_TEST_DB=${${test_db_env}_DB}"
+        "DBGEN4_TEST_USER=${${test_db_env}_USER}"
+        "DBGEN4_TEST_PASS=${${test_db_env}_PASS}"
+    )
+    # ENVIRONMENT is a test property, so the sanitizer options belong here to
+    # actually reach the run - enable_sanitizers_for_target sets them on the
+    # target, where ctest never looks at them.
+    if(DEFINED SANITIZER_ENV)
+        list(APPEND test_env ${SANITIZER_ENV})
+    endif()
+
+    # One ctest entry per TEST_CASE. Discovery runs the binary with --list-tests,
+    # which does not connect, so a database that is down costs a failing test
+    # rather than a failing configure.
+    #
+    # ENVIRONMENT is deliberately not passed through PROPERTIES here. catch_discover_tests
+    # forwards those to its discovery script as -D "TEST_PROPERTIES=...", and that round
+    # trip through a command line flattens a multi entry list: only the first variable
+    # survives, so LABELS and WORKING_DIRECTORY (one value each) arrive intact while the
+    # environment silently loses all but DBGEN4_TEST_HOST. That showed up as every live
+    # test failing to connect with the built in defaults while the same binary ran green
+    # by hand. Verified against Catch2 3.7.1; no amount of escaping at this call site
+    # fixes it, because the flattening happens before the value gets here.
+    # TEST_PREFIX matters beyond cosmetics here: db2 and psql share every
+    # TEST_CASE name in test_crud.cpp/test_types.cpp (that is the point - the
+    # same source runs against both), and CTest's set_tests_properties()
+    # matches by name across the whole suite. Without a prefix the two
+    # backends' tests collide under one name and the environment meant for
+    # one binary gets applied to the other.
+    catch_discover_tests(${target}
+        TEST_PREFIX "${backend}: "
+        PROPERTIES LABELS "crud;generated;live-db;${backend}"
+                   WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    )
+
+    # So the environment is set after discovery instead. ${${target}_TESTS} only
+    # exists while CTest reads the test file, which is exactly when this fragment
+    # is evaluated, and the list reaches set_tests_properties without crossing a
+    # command line.
+    file(GENERATE
+         OUTPUT "${CMAKE_BINARY_DIR}/${target}_env.cmake"
+         CONTENT "set_tests_properties(\${${target}_TESTS} PROPERTIES ENVIRONMENT \"${test_env}\")\n")
+    set_property(DIRECTORY APPEND PROPERTY TEST_INCLUDE_FILES
+                 "${CMAKE_BINARY_DIR}/${target}_env.cmake")
+
+    if((CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo") AND ENABLE_SANITIZERS)
+        enable_sanitizers_for_target(${target})
+    endif()
+endfunction()
+
+if(DB2_FOUND AND BUILD_TESTING)
+    add_crud_test_target(db2 db2_rtl ${CMAKE_SOURCE_DIR}/src/test/db2
+        ${CMAKE_SOURCE_DIR}/src/test/test_perf.cpp
+        ${CMAKE_SOURCE_DIR}/src/test/test_bench.cpp
+        ${CMAKE_SOURCE_DIR}/src/test/test_crud_batch.cpp)
 endif()
 
-# One ctest entry per TEST_CASE. Discovery runs the binary with --list-tests,
-# which does not connect, so a database that is down costs a failing test rather
-# than a failing configure.
-#
-# ENVIRONMENT is deliberately not passed through PROPERTIES here. catch_discover_tests
-# forwards those to its discovery script as -D "TEST_PROPERTIES=...", and that round
-# trip through a command line flattens a multi entry list: only the first variable
-# survives, so LABELS and WORKING_DIRECTORY (one value each) arrive intact while the
-# environment silently loses all but DBGEN4_TEST_HOST. That showed up as every live
-# test failing to connect with the built in defaults while the same binary ran green
-# by hand. Verified against Catch2 3.7.1; no amount of escaping at this call site
-# fixes it, because the flattening happens before the value gets here.
-catch_discover_tests(test_crud
-    PROPERTIES LABELS "crud;generated;live-db"
-               WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-)
+if(LIBPQ_FOUND AND BUILD_TESTING)
+    # Where the tests that need a live PostgreSQL should connect. Override at
+    # configure time, e.g. -DPSQL_TEST_PASS=... Mirrors DB2_TEST_* above - see
+    # README.md for how the dbgen4 role/database was set up.
+    set(PSQL_TEST_HOST "postgres.lan" CACHE STRING "host of the PostgreSQL used by the tests")
+    set(PSQL_TEST_PORT "5432"         CACHE STRING "port of the PostgreSQL used by the tests")
+    set(PSQL_TEST_DB   "dbgen4"       CACHE STRING "database name used by the tests")
+    set(PSQL_TEST_USER "dbgen4"       CACHE STRING "user for the test database")
+    set(PSQL_TEST_PASS "dbgen4"       CACHE STRING "password for the test database")
 
-# So the environment is set after discovery instead. ${test_crud_TESTS} only exists
-# while CTest reads the test file, which is exactly when this fragment is evaluated,
-# and the list reaches set_tests_properties without crossing a command line.
-file(GENERATE
-     OUTPUT "${CMAKE_BINARY_DIR}/crud_test_env.cmake"
-     CONTENT "set_tests_properties(\${test_crud_TESTS} PROPERTIES ENVIRONMENT \"${CRUD_TEST_ENV}\")\n")
-set_property(DIRECTORY APPEND PROPERTY TEST_INCLUDE_FILES
-             "${CMAKE_BINARY_DIR}/crud_test_env.cmake")
-
-if((CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo") AND ENABLE_SANITIZERS)
-    enable_sanitizers_for_target(test_crud)
+    # test_perf.cpp/test_bench.cpp/test_crud_batch.cpp are not passed here: they
+    # exercise multi-row batch execute, which the psql runtime's query<> does not
+    # implement yet - it sends only row 0 of the parameter buffer per execute().
+    add_crud_test_target(psql psql_rtl ${CMAKE_SOURCE_DIR}/src/test/psql)
 endif()
-
-endif() # BUILD_TESTING - crud test
-
-endif() # DB2_FOUND - smoke test
 
 # === common headers – interface library
 add_library(project_common INTERFACE)

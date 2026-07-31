@@ -12,7 +12,6 @@
  * survives a three column test and fails here.
  */
 #include "crud.hpp"
-#include "db2_rtl.hpp"
 #include "rtl.hpp"
 #include "rtl_fmt.hpp" // IWYU pragma: keep - formatters for rtl::date and friends
 #include "query.hpp"

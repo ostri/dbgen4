@@ -20,6 +20,7 @@
 #include "no_params.hpp"
 #include "no_results.hpp"
 #include "parameter_root.hpp"
+#include "psql_database.hpp" // IWYU pragma: export
 #include "psql_types.hpp"
 #include "result_root.hpp"
 #include "logger.hpp"
@@ -37,16 +38,6 @@
 
 namespace rtl
 {
-  /**
-   * @brief what a generated query needs from its database object
-   */
-  struct database // NOLINT
-  {
-    virtual ~database()                                              = default;
-    [[nodiscard]] virtual PGconn*            get_conn() const noexcept   = 0;
-    [[nodiscard]] virtual class rtl::logger* get_logger() const noexcept = 0;
-  };
-
   /**
    * @brief an error reported by the server or by libpq
    */
@@ -168,9 +159,10 @@ namespace rtl
     uint64_t bound_res_layout_ = 0;
 
     detail::result_holder rows_{nullptr};
-    size_t                next_row_    = 0; ///< how far fetch() has walked through rows_
-    size_t                total_rows_  = 0;
-    size_t                rows_fetched_ = 0;
+    size_t                next_row_      = 0; ///< how far fetch() has walked through rows_
+    size_t                total_rows_    = 0;
+    size_t                rows_fetched_  = 0;
+    int64_t               affected_rows_ = -1; ///< rows the last execute inserted, updated or deleted; -1 when unavailable
 
     [[no_unique_address]] std::conditional_t<has_params, std::shared_ptr<params>, std::monostate>   par_;
     [[no_unique_address]] std::conditional_t<has_results, std::shared_ptr<results>, std::monostate> res_;
@@ -199,7 +191,8 @@ namespace rtl
     query(query&&) noexcept        = default;
     query& operator=(query&&)      = delete;
 
-    [[nodiscard]] bool is_prepared() const noexcept { return prepared_; }
+    [[nodiscard]] bool    is_prepared() const noexcept { return prepared_; }
+    [[nodiscard]] int64_t affected_rows() const noexcept { return affected_rows_; }
 
     /**
      * @brief parse and plan the statement on the server
@@ -306,7 +299,15 @@ namespace rtl
 
       total_rows_ = (status == PGRES_TUPLES_OK) ? static_cast<size_t>(PQntuples(res.get())) : 0;
       next_row_   = 0;
-      rows_       = std::move(res);
+
+      /// PQcmdTuples() reports rows for INSERT/UPDATE/DELETE as a decimal string,
+      /// empty for statements it does not apply to (e.g. SELECT, where total_rows_
+      /// already says how many rows came back)
+      const char* tuples = PQcmdTuples(res.get());
+      affected_rows_     = -1;
+      if (tuples != nullptr && *tuples != '\0') detail::parse_int(tuples, affected_rows_);
+
+      rows_ = std::move(res);
 
       db_->get_logger()->info("Statement executed, {} rows available.", total_rows_);
       return {};
@@ -404,10 +405,11 @@ namespace rtl
     /// forget the current result set and rewind, keeping the statement prepared
     void reset() noexcept
     {
-      rows_         = detail::result_holder{nullptr};
-      next_row_     = 0;
-      total_rows_   = 0;
-      rows_fetched_ = 0;
+      rows_          = detail::result_holder{nullptr};
+      next_row_      = 0;
+      total_rows_    = 0;
+      rows_fetched_  = 0;
+      affected_rows_ = -1;
       if constexpr (has_params) par_->reset_all_null();
       if constexpr (has_results) res_->set_occupied(0);
     }

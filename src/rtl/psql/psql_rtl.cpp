@@ -50,6 +50,8 @@ namespace rtl
 
   db_data_psql* db_psql::data() const { return dynamic_cast<db_data_psql*>(data_.get()); }
 
+  PGconn* db_psql::get_conn() const noexcept { return data()->conn; }
+
   bool db_psql::is_connected() const
   {
     auto* d = data();

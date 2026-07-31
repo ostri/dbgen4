@@ -11,6 +11,7 @@
  */
 
 #include "rtl.hpp"
+#include "psql_database.hpp" // IWYU pragma: export
 #include "psql_types.hpp"
 #include <libpq-fe.h>
 #include <string>
@@ -36,7 +37,7 @@ namespace rtl
     static class rtl::logger* log_() { return rtl::logger::get(); };
   };
 
-  class db_psql final : public db
+  class db_psql final : public db, public database
   {
   public:
     db_psql();
@@ -65,6 +66,10 @@ namespace rtl
      * expected to carry a psql specific statement for anything with parameters.
      */
     e_qry_metadata get_sql_metadata(const std::string& sql) override;
+
+    /// --- rtl::database, so that generated queries can run on this connection
+    [[nodiscard]] PGconn*            get_conn() const noexcept override;
+    [[nodiscard]] class rtl::logger* get_logger() const noexcept override { return rtl::logger::get(); }
   private:
     static class rtl::logger* log_() { return rtl::logger::get(); };
     [[nodiscard]] db_data_psql* data() const;
