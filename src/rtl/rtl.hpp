@@ -6,10 +6,8 @@
 #include <memory>
 #include <span>
 #include <string>
-#include "log.hpp"       // IWYU pragma: keep
+#include "logger.hpp"    // IWYU pragma: keep
 #include "sql_types.hpp" // IWYU pragma: export
-
-// #include "log.hpp" // NOLINT(unused-includes)
 
 namespace rtl
 {
@@ -182,7 +180,7 @@ namespace rtl
     db_data_root(db_data_root&&)                 = delete;
     db_data_root& operator=(db_data_root&&)      = delete;
   private:
-    class log::log* log_() { return log::get(); }; /// Member variables
+    class rtl::logger* log_() { return rtl::logger::get(); }; /// Member variables
   };
   /**
    * @brief Root class for all database implementations
@@ -243,7 +241,7 @@ namespace rtl
      */
     virtual e_qry_metadata            get_sql_metadata(const std::string& sql);
     [[nodiscard]] const db_data_root* data() const;
-    class log::log*                   log_() { return log::get(); }; /// Member variables
+    class rtl::logger*                log_() { return rtl::logger::get(); }; /// Member variables
   protected:
     /**
      * @brief Pointer to database-specific data implementation.

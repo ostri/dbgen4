@@ -270,9 +270,9 @@ target_compile_definitions(log
 )
 
 # === rtl_logger library ===
-# Candidate replacement for `log`, built the same way (PIMPL hides spdlog
-# behind logger_impl.hpp/cpp). Not yet linked into any consumer - built here
-# only so it compiles cleanly alongside everything else.
+# Replaces `log` as the facade every backend and the generator link against.
+# Built the same way (PIMPL hides spdlog behind logger_impl.hpp/cpp). `log`
+# itself is kept only for its own unit test (src/test/log_test.cpp).
 set (RTL_LOGGER_INCLUDE_DIRS
     ${CMAKE_SOURCE_DIR}/src/logger
     ${CMAKE_SOURCE_DIR}/src/dbgen4/common
@@ -296,11 +296,11 @@ target_compile_definitions(rtl_logger
 )
 
 # === db2_rtl ===
-# Include dirs every backend needs: the neutral rtl vocabulary, the log facade
-# and the dbgen4 common helpers.
+# Include dirs every backend needs: the neutral rtl vocabulary, the logger
+# facade and the dbgen4 common helpers.
 set (RTL_INCLUDE_DIRS
   ${CMAKE_SOURCE_DIR}/src/rtl
-  ${CMAKE_SOURCE_DIR}/src/log
+  ${CMAKE_SOURCE_DIR}/src/logger
   ${CMAKE_SOURCE_DIR}/src/dbgen4/common
 )
 
@@ -317,7 +317,7 @@ if(DB2_FOUND)
         ${CMAKE_SOURCE_DIR}/src/rtl/db2
         $ENV{IBM_DB_INCLUDE}
     )
-    target_link_libraries(db2_rtl PUBLIC DB2::DB2 log PRIVATE dbgen4_warnings)
+    target_link_libraries(db2_rtl PUBLIC DB2::DB2 rtl_logger PRIVATE dbgen4_warnings)
 endif()
 
 if(LIBPQ_FOUND)
@@ -331,7 +331,7 @@ if(LIBPQ_FOUND)
         ${RTL_INCLUDE_DIRS}
         ${CMAKE_SOURCE_DIR}/src/rtl/psql
     )
-    target_link_libraries(psql_rtl PUBLIC PkgConfig::LIBPQ log PRIVATE dbgen4_warnings)
+    target_link_libraries(psql_rtl PUBLIC PkgConfig::LIBPQ rtl_logger PRIVATE dbgen4_warnings)
 endif()
 
 # === Main executable ===
@@ -352,7 +352,7 @@ set(GEN_SRC_FILES
      ${CMAKE_SOURCE_DIR}/src/programs/appl.cpp
 )
 set(GEN_INCLUDE_DIRS
-    ${CMAKE_SOURCE_DIR}/src/log
+    ${CMAKE_SOURCE_DIR}/src/logger
     ${CMAKE_SOURCE_DIR}/src/programs
     ${CMAKE_SOURCE_DIR}/src/dbgen4/common
     ${CMAKE_SOURCE_DIR}/src/dbgen4/gen
@@ -375,7 +375,7 @@ function(add_generator_target backend rtl_library)
         spdlog::spdlog
         nlohmann_json::nlohmann_json
         valijson
-        log
+        rtl_logger
         stdc++exp
         dbgen4_warnings
     )
@@ -517,13 +517,13 @@ add_executable(${SMOKE_TEST_TARGET_NAME}
 #    ${GEN_SRC_FILES}
 )
 
-# log publishes its own include dirs now, so only the generated output and the
-# rtl vocabulary have to be named here
+# rtl_logger publishes its own include dirs now, so only the generated output
+# and the rtl vocabulary have to be named here
 target_include_directories(${SMOKE_TEST_TARGET_NAME} PRIVATE ${GEN_OUTPUT_DIR} ${RTL_INCLUDE_DIRS})
 target_link_libraries(${SMOKE_TEST_TARGET_NAME} PRIVATE
     Catch2::Catch2WithMain
     db2_rtl
-    log
+    rtl_logger
     spdlog::spdlog
     nlohmann_json::nlohmann_json
     yaml-cpp::yaml-cpp
@@ -589,7 +589,7 @@ add_custom_target(generate_crud_test DEPENDS ${CRUD_STAMP})
 add_executable(test_crud ${CRUD_CPP} ${CRUD_TEST_SRC})
 target_include_directories(test_crud PRIVATE ${GEN_OUTPUT_DIR} ${RTL_INCLUDE_DIRS}
                            ${CMAKE_SOURCE_DIR}/src/rtl/db2 $ENV{IBM_DB_INCLUDE})
-target_link_libraries(test_crud PRIVATE Catch2::Catch2WithMain db2_rtl log
+target_link_libraries(test_crud PRIVATE Catch2::Catch2WithMain db2_rtl rtl_logger
                       spdlog::spdlog nlohmann_json::nlohmann_json stdc++exp dbgen4_warnings)
 add_dependencies(test_crud generate_crud_test)
 
@@ -649,6 +649,7 @@ add_library(project_common INTERFACE)
 target_include_directories(project_common INTERFACE
     ${CMAKE_SOURCE_DIR}/src/dbgen4/common
     ${CMAKE_SOURCE_DIR}/src/log
+    ${CMAKE_SOURCE_DIR}/src/logger
     ${CMAKE_SOURCE_DIR}/src/rtl
     ${CMAKE_SOURCE_DIR}/src/rtl/db2
 )
@@ -672,9 +673,15 @@ if(BUILD_TESTING)
         endforeach()
     endif()
 
+    # src/test/log_test.cpp is excluded here: it exercises the old `log` facade,
+    # which nothing in the application uses any more (see rtl_logger below).
+    # Linking both `log` and `rtl_logger` into one process means two independent
+    # spdlog instances fight over spdlog's single global thread pool in async
+    # mode (spdlog::init_thread_pool() from the second one orphans the first
+    # logger's pool, surfacing as "async log: thread pool doesn't exist anymore"
+    # at shutdown) - so the two facades are kept out of the same binary.
     add_executable(unit_tests
         src/test/main.cpp
-        src/test/log_test.cpp
         src/test/parser_test.cpp
         ${GEN_SRC_FILES}
     )
@@ -692,7 +699,7 @@ if(BUILD_TESTING)
 
     target_link_libraries(unit_tests PRIVATE
         Catch2::Catch2WithMain
-        log
+        rtl_logger
         ${UNIT_TEST_RTL}
         spdlog::spdlog
         nlohmann_json::nlohmann_json

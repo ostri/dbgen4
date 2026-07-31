@@ -10,7 +10,7 @@
  */
 
 #include "db2_types.hpp" // for SQLHDBC
-#include "log.hpp"
+#include "logger.hpp"
 
 namespace rtl
 {
@@ -23,7 +23,7 @@ namespace rtl
     database(database&&)                                             = delete;
     database& operator=(database&&)                                  = delete;
     /// the live connection handle a query allocates its statements on
-    [[nodiscard]] virtual SQLHDBC         get_conn() const noexcept   = 0;
-    [[nodiscard]] virtual class log::log* get_logger() const noexcept = 0;
+    [[nodiscard]] virtual SQLHDBC            get_conn() const noexcept   = 0;
+    [[nodiscard]] virtual class rtl::logger* get_logger() const noexcept = 0;
   };
 } // namespace rtl

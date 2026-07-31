@@ -11,7 +11,7 @@
  */
 #include "db2_rtl.hpp"
 #include "rtl.hpp"
-#include "log.hpp"
+#include "logger.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include <cstdint>
 #include <cstdlib>
@@ -87,7 +87,7 @@ public:
 
   live_db()
   {
-    log::get()->set_level(log::level::warn); // keep the test output readable
+    rtl::logger::get()->set_level(rtl::logger::level::warn); // keep the test output readable
 
     const auto host = test_db::env_or("DBGEN4_TEST_HOST", "localhost");
     const auto port =

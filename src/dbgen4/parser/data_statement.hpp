@@ -76,7 +76,7 @@ namespace dbgen4
     void apply_field_len(size_t fallback);
   protected:
   private:
-    class log::log* log_() { return log::get(); }; /// Member variables
+    class rtl::logger* log_() { return rtl::logger::get(); }; /// Member variables
 
     str_t    id_;              ///< unique id of the data statement
     str_t    sql_;             ///< sql statement (generic or specific for RDBMS)

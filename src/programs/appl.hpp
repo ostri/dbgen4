@@ -22,7 +22,7 @@ namespace dbgen4
     appl&            operator=(appl&&)      = delete;
     exit_status_enum exec(int argc, char** argv, char** env); /// execute application
   private:
-    static class log::log* log_() { return log::get(); };
+    static class rtl::logger* log_() { return rtl::logger::get(); };
     /// method logs raw command line
     void              display_raw_command_line_log(int argc, char** argv);
     e_data_statements process_one_file(rtl::db& db, generator& gen);

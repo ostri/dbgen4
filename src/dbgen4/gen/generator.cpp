@@ -48,7 +48,7 @@ namespace
     if (str.size() >= len) return str;
     std::string pad(len - str.size(), pad_char);
     auto        tmp = str + pad;
-    log::get()->trace(fmt::format("Padded value: '{}' len: {} pad_char: '{}' pad '{}'", tmp, len, pad_char, pad));
+    rtl::logger::get()->trace("Padded value: '{}' len: {} pad_char: '{}' pad '{}'", tmp, len, pad_char, pad);
     return tmp;
   }
   std::string lpad_impl(inja::Arguments& args)
@@ -72,7 +72,7 @@ namespace
     if (str.size() >= len) return str;
     std::string pad(len - str.size(), pad_char);
     auto        tmp = pad + str;
-    log::get()->trace(fmt::format("L Padded value: '{}' len: {} pad_char: '{}' pad '{}'", tmp, len, pad_char, pad));
+    rtl::logger::get()->trace("L Padded value: '{}' len: {} pad_char: '{}' pad '{}'", tmp, len, pad_char, pad);
     return tmp;
   }
 }; // anonymous namespace

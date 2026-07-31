@@ -35,7 +35,7 @@ namespace rtl
     db_data_db2(db_data_db2&&)                 = delete;
     db_data_db2& operator=(db_data_db2&&)      = delete;
   private:
-    class log::log* log_() { return log::get(); }; /// Member variables
+    class rtl::logger* log_() { return rtl::logger::get(); }; /// Member variables
 
   }; //__attribute__((aligned(DATA_ALIGNMENT_64)));
 
@@ -138,7 +138,7 @@ namespace rtl
 
     /// --- rtl::database, so that generated queries can run on this connection
     [[nodiscard]] SQLHDBC         get_conn() const noexcept override;
-    [[nodiscard]] class log::log* get_logger() const noexcept override { return log::get(); }
+    [[nodiscard]] class rtl::logger* get_logger() const noexcept override { return rtl::logger::get(); }
 
     void free_stmt_handle() const; ///< release current statement handle NOLINT
     void free_conn_handle() const; ///< free connection handle NOLINT
@@ -147,7 +147,7 @@ namespace rtl
     ///
     db_sts                 internal_connect(const std::string& connStr);
     db_sts                 internal_allocate_handles();
-    static class log::log* log_() { return log::get(); }; /// Member variables
+    static class rtl::logger* log_() { return rtl::logger::get(); }; /// Member variables
     /// access to the database attributes
     [[nodiscard]] db_data_db2* data() const;
     e_qry_metadata             error_cleanup(SQLRETURN ret, const std::string& msg, db_sts err_code);

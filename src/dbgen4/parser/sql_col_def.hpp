@@ -39,7 +39,7 @@ namespace dbgen4
     void is_nullable(bool nullable);
   protected:
     // NOLINTNE XTLINE(cert-err58-cpp)
-    inline static const auto log = log::get();
+    inline static const auto log = rtl::logger::get();
   private:
     uint16_t      position_{0};    ///< position of the column in the select list or parameter list
     str_t         name_;           ///< name of the column/parameter

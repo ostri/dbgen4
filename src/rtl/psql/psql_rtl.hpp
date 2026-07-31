@@ -33,7 +33,7 @@ namespace rtl
     db_data_psql(db_data_psql&&)                 = delete;
     db_data_psql& operator=(db_data_psql&&)      = delete;
   private:
-    static class log::log* log_() { return log::get(); };
+    static class rtl::logger* log_() { return rtl::logger::get(); };
   };
 
   class db_psql final : public db
@@ -66,7 +66,7 @@ namespace rtl
      */
     e_qry_metadata get_sql_metadata(const std::string& sql) override;
   private:
-    static class log::log* log_() { return log::get(); };
+    static class rtl::logger* log_() { return rtl::logger::get(); };
     [[nodiscard]] db_data_psql* data() const;
     /// run a statement that returns no rows (BEGIN/COMMIT/ROLLBACK)
     db_sts exec_command(const char* sql);

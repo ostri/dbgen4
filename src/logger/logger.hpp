@@ -4,9 +4,12 @@
  * @file
  * @brief Logging facade - no spdlog type or header ever appears here
  *
- * Candidate replacement for the top-level `log` class (src/log/log.hpp),
- * meant to eventually be wired into the generator and rtl. Lives beside the
- * old facade until that swap happens; not yet used by anything.
+ * Replaces the former top-level `log` class (src/log/log.hpp) throughout the
+ * application. debug()/trace() calls are compiled out entirely in release
+ * builds (if constexpr on is_debug_build(), same gating as fsp's fsp_logger)
+ * rather than just filtered at runtime - the call sites and the strings they
+ * would format never make it into the release binary. warn/info/error/critical
+ * always compile in and are filtered at runtime via the configured level.
  */
 
 #include "build_type.hpp"
@@ -52,7 +55,7 @@ namespace rtl
     void init_raw(std::string_view app_name        = "app",
                   mode             m                = mode::sync,
                   enum level       console_lvl      = is_debug_build() ? level::info : level::warn,
-                  enum level       lvl              = is_debug_build() ? level::debug : level::trace,
+                  enum level       lvl              = is_debug_build() ? level::trace : level::info,
                   int              rotation_hour    = 2,
                   int              rotation_minute  = 0,
                   int              keep_days        = logger_keep_days_default,
@@ -112,26 +115,32 @@ namespace rtl
   };
 
   template <typename... Args>
-  inline void logger::trace(fmt::format_string<Args...> fmt, Args&&... args)
+  inline void logger::trace([[maybe_unused]] fmt::format_string<Args...> fmt, [[maybe_unused]] Args&&... args)
   {
-    try
+    if constexpr (is_debug_build())
     {
-      _log(level::trace, fmt::format(fmt, std::forward<Args>(args)...));
-    }
-    catch (...) // NOLINT(bugprone-empty-catch)
-    {
+      try
+      {
+        _log(level::trace, fmt::format(fmt, std::forward<Args>(args)...));
+      }
+      catch (...) // NOLINT(bugprone-empty-catch)
+      {
+      }
     }
   }
 
   template <typename... Args>
-  inline void logger::debug(fmt::format_string<Args...> fmt, Args&&... args)
+  inline void logger::debug([[maybe_unused]] fmt::format_string<Args...> fmt, [[maybe_unused]] Args&&... args)
   {
-    try
+    if constexpr (is_debug_build())
     {
-      _log(level::debug, fmt::format(fmt, std::forward<Args>(args)...));
-    }
-    catch (...) // NOLINT(bugprone-empty-catch)
-    {
+      try
+      {
+        _log(level::debug, fmt::format(fmt, std::forward<Args>(args)...));
+      }
+      catch (...) // NOLINT(bugprone-empty-catch)
+      {
+      }
     }
   }
 
@@ -182,8 +191,14 @@ namespace rtl
     {
     }
   }
-  inline void logger::trace(std::string_view sv) { _log(level::trace, sv); }
-  inline void logger::debug(std::string_view sv) { _log(level::debug, sv); }
+  inline void logger::trace([[maybe_unused]] std::string_view sv)
+  {
+    if constexpr (is_debug_build()) _log(level::trace, sv);
+  }
+  inline void logger::debug([[maybe_unused]] std::string_view sv)
+  {
+    if constexpr (is_debug_build()) _log(level::debug, sv);
+  }
   inline void logger::info(std::string_view sv) { _log(level::info, sv); }
   inline void logger::warn(std::string_view sv) { _log(level::warn, sv); }
   inline void logger::error(std::string_view sv) { _log(level::error, sv); }

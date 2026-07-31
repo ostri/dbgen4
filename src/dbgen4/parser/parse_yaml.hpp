@@ -1,6 +1,6 @@
 #pragma once
 
-#include "log.hpp"         // IWYU pragma: keep.
+#include "logger.hpp"      // IWYU pragma: keep.
 #include <source_location> // IWYU pragma: keep.
 #include <yaml-cpp/yaml.h>
 #include <expected>
@@ -23,7 +23,7 @@ namespace dbgen4
      *
      * @return spdlog::logger*
      */
-    static class log::log* log_() { return log::get(); };
+    static class rtl::logger* log_() { return rtl::logger::get(); };
 
     [[nodiscard]] std::string to_string() const;
   } __attribute__((aligned(128))); // NOLINT
@@ -156,7 +156,7 @@ namespace dbgen4
     YAML::Node  root_;
     std::string filename_;
     /// private methods
-    static class log::log* log_() { return log::get(); };
+    static class rtl::logger* log_() { return rtl::logger::get(); };
     /// Member variables
     Error make_missing_key_error(const std::string& key) const;
   };

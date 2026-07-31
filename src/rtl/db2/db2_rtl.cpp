@@ -19,7 +19,7 @@ namespace
     constexpr const int sql_state_len = 5 + 1;
     constexpr const int msg_len       = 1024 + 1;
     auto                res           = SQL_SUCCESS;
-    log::get()->trace("{} status: {}", operation, ret);
+    rtl::logger::get()->trace("{} status: {}", operation, ret);
     if (! is_success(static_cast<rtl::db_sts>(ret)))
     {
       std::array<SQLCHAR, sql_state_len> sqlState{};
@@ -42,7 +42,7 @@ namespace
                               operation,
                               std::string(messageText.begin(), messageText.begin() + messageLength), // NOLINT
                               native_error);
-        log::get()->error(err_msg);
+        rtl::logger::get()->error(err_msg);
         rec_number++;
       };
     }
@@ -55,7 +55,7 @@ namespace
       auto tmp = fmt::format(fmt::runtime(err), h);
       if (! is_success(static_cast<rtl::db_sts>(ret))) chk_error(ret, h_type, h, tmp);
     }
-    log::get()->trace(fmt::runtime(info), h);
+    rtl::logger::get()->trace(fmt::runtime(info), h);
   }
 }; // namespace
 namespace rtl

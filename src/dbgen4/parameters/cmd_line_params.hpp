@@ -42,7 +42,7 @@ namespace dbgen4
     /// set log level based on verbose flag andtype of build
     void set_log_level(bool verbose) const;
   private:
-    static class log::log* log_() { return log::get(); };
+    static class rtl::logger* log_() { return rtl::logger::get(); };
     str_t                  db_name_;                    //< database name to connect to
     db_type_enum           db_type_{db_type_enum::sql}; //< database type
     str_t                  out_folder_;                 //< output folder for generated files

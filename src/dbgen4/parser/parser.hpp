@@ -46,7 +46,7 @@ namespace dbgen4
     [[nodiscard]] exit_status_enum  no_sql_found(e_data_statement& res) const;
     [[nodiscard]] e_data_statement  process_statement(const YAML::Node& yaml_stmt, const data_statements& s, db_type_enum db_type) const;
   private:
-    static class log::log* log_() { return log::get(); };
+    static class rtl::logger* log_() { return rtl::logger::get(); };
     /// Member variables
     /// @brief extracts sql statements from the yaml node to data_statement structure
     /// @param stmt yaml node representing single statement

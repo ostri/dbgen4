@@ -22,7 +22,7 @@
 #include "parameter_root.hpp"
 #include "psql_types.hpp"
 #include "result_root.hpp"
-#include "log.hpp"
+#include "logger.hpp"
 #include <libpq-fe.h>
 #include <charconv>
 #include <cstring>
@@ -43,8 +43,8 @@ namespace rtl
   struct database // NOLINT
   {
     virtual ~database()                                              = default;
-    [[nodiscard]] virtual PGconn*         get_conn() const noexcept   = 0;
-    [[nodiscard]] virtual class log::log* get_logger() const noexcept = 0;
+    [[nodiscard]] virtual PGconn*            get_conn() const noexcept   = 0;
+    [[nodiscard]] virtual class rtl::logger* get_logger() const noexcept = 0;
   };
 
   /**
