@@ -61,17 +61,19 @@ namespace dbgen4
 
     auto msg = fmt::format(R"(
   {0}id: '{1}'
-  {0}  description:    {2}
-  {0}  parameter-size: {3}
-  {0}  result-size     {4}
-  {0}  sql:         {5}
+  {0}  summary:      {2}
+  {0}  description:  {3}
+  {0}  par-buf-size: {4}
+  {0}  res-buf-size: {5}
+  {0}  sql:          {6}
 
-  {0}  result:  cnt:{6}
+  {0}  result:  cnt:{7}
   {0}
-  {0}  params:  cnt:{7}
+  {0}  params:  cnt:{8}
   {0})",
                            left_padding,    ///
                            id_,             /// unique id
+                           summary_,        /// one line summary
                            dscr_,           /// description
                            par_buf_size_,   /// parameter set size
                            res_buf_size_,   /// result set size
@@ -86,6 +88,7 @@ namespace dbgen4
 
   str_t           data_statement::id() const { return id_; }
   str_t           data_statement::sql() const { return sql_; }
+  str_t           data_statement::summary() const { return summary_; }
   str_t           data_statement::dscr() const { return dscr_; }
   meta_vec        data_statement::results() const { return results_; }
   meta_vec        data_statement::params() const { return params_; }
@@ -96,6 +99,7 @@ namespace dbgen4
   class log::log* log_() { return log::get(); }; /// Member variables
   void            data_statement::set_id(const str_t& id) { id_ = id; }
   void            data_statement::set_sql(const str_t& sql) { sql_ = trim_whitespace_view(sql); }
+  void            data_statement::set_summary(const str_t& summary) { summary_ = summary; }
   void            data_statement::set_dscr(const str_t& dscr) { dscr_ = dscr; }
   void            data_statement::set_results(meta_vec v) { results_ = std::move(v); }
   void            data_statement::set_params(meta_vec v) { params_ = std::move(v); }

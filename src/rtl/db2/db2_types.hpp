@@ -73,7 +73,7 @@ namespace rtl::db2
     {
     // --- atomic ---
     case SQL_INTEGER: return sql_type::integer;
-    case SQL_SMALLINT: return sql_type::smallInt;
+    case SQL_SMALLINT: return sql_type::smallint;
     case SQL_BIGINT: return sql_type::bigint;
     case SQL_TINYINT: return sql_type::tiny_int;
     case SQL_FLOAT: return sql_type::float_;
@@ -143,7 +143,7 @@ namespace rtl::db2
     {
     // --- atomic ---
     case sql_type::integer: return SQL_INTEGER;
-    case sql_type::smallInt: return SQL_SMALLINT;
+    case sql_type::smallint: return SQL_SMALLINT;
     case sql_type::bigint: return SQL_BIGINT;
     case sql_type::tiny_int: return SQL_TINYINT;
     case sql_type::float_: return SQL_FLOAT;
@@ -194,7 +194,16 @@ namespace rtl::db2
     case sql_type::interval_minute_to_second: return SQL_INTERVAL_MINUTE_TO_SECOND;
     // --- misc ---
     case sql_type::guid: return SQL_GUID;
-    case sql_type::unknown: return SQL_UNKNOWN_TYPE;
+    /// count_ is the table width, never a column's type; it lands here with
+    /// unknown because there is nothing else it could honestly map to.
+    ///
+    /// These repeat what default: does, and bugprone-branch-clone says so. They
+    /// stay because -Wswitch-enum is -Werror in this build and wants every
+    /// enumerator named outright - dropping them to satisfy the linter would
+    /// break the compile.
+    // NOLINTNEXTLINE(bugprone-branch-clone)
+    case sql_type::unknown:
+    case sql_type::count_: return SQL_UNKNOWN_TYPE;
     default: return SQL_UNKNOWN_TYPE;
     }
   }
@@ -215,7 +224,7 @@ namespace rtl::db2
     {
     // --- atomic ---
     case sql_type::integer: return SQL_C_SLONG;
-    case sql_type::smallInt: return SQL_C_SHORT;
+    case sql_type::smallint: return SQL_C_SHORT;
     case sql_type::bigint: return SQL_C_SBIGINT;
     case sql_type::tiny_int: return SQL_C_STINYINT;
     case sql_type::float_: return SQL_C_DOUBLE;
@@ -266,7 +275,11 @@ namespace rtl::db2
     case sql_type::interval_minute_to_second: return SQL_C_INTERVAL_MINUTE_TO_SECOND;
     // --- misc ---
     case sql_type::guid: return SQL_C_GUID;
-    case sql_type::unknown: return SQL_C_DEFAULT;
+    /// see to_odbc() - count_ is a sentinel, not a type, and these branches
+    /// duplicate default: on purpose so that -Wswitch-enum stays satisfied
+    // NOLINTNEXTLINE(bugprone-branch-clone)
+    case sql_type::unknown:
+    case sql_type::count_: return SQL_C_DEFAULT;
     default: return SQL_C_DEFAULT;
     }
   }

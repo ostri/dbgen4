@@ -4,8 +4,8 @@ description: |
   Note the placeholder style: PostgreSQL uses $1, $2 where DB2 uses ?.
 statements:
   - id: sql_1
-    result-size: 5
-    param-size: 2
+    res-buf-size: 5
+    par-buf-size: 2
     dscr: |
       select every column of the test table, so that a describe walks the
       whole of rtl::psql::from_oid()

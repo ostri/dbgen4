@@ -1,29 +1,37 @@
 summary: one line document summary
 description: |
-  longer description
-  that spans multiple
-  lines
+  document description
+  that can be multiline
 statements:
   # - krneki:
   #   sql: select * from test
   - id: sql_1
-    result-size: 5 # number of record allocated in result buffer
-    param-size: 2 # number of records allocated in param buffer
+    summary: one line summary of the sql_1 statement
     dscr: |
-      long
-      long
-      description of
-      the sql statement
-    sql: |
-      sql that should not be used in db2 testing
-    mariadb: |
-      sql specific for maria db n
-      ot used at this stage of the project
-    db2: |
+      multi line description
+      of the sql_1 statement
+    sql: |                     # general sql statement that can be used in all databases
       select *
         from test
         where
           col_smallint = ?
+    mariadb: |                 # sql statement specific for mariadb
+      select *
+        from test
+        where
+          col_smallint = ?
+    db2: |                     # sql statement specific for db2
+      select *
+        from test
+        where
+          col_smallint = ?
+    psql: |                    #sql statement specific for psql
+      select *
+        from test
+        where
+          col_smallint = $1
+    res-buf-size: 5            # number of record allocated in result buffer
+    par-buf-size: 2            # number of records allocated in param buffer
   - id: sql_2
     sql: select col_smallint, col_integer, col_decimal from test -- one liner sql
     result-names: [a, b, c, d] # to test the substitute names plus option when there are more names that is necessary

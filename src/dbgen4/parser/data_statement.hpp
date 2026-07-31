@@ -42,6 +42,7 @@ namespace dbgen4
      * @return str_t sql statement
      */
     [[nodiscard]] str_t    sql() const;
+    [[nodiscard]] str_t    summary() const;
     [[nodiscard]] str_t    dscr() const;
     std::string            dump_meta_vector(size_t offs, const char* fmt, const char* header, const meta_vec& v) const;
     [[nodiscard]] meta_vec results() const;
@@ -59,8 +60,9 @@ namespace dbgen4
     [[nodiscard]] std::string dump(size_t offs) const;
     /*! setters */
     void set_id(const str_t& id);     ///< set unique id of the statement
-    void set_sql(const str_t& sql);   ///< set sql for specific database type
-    void set_dscr(const str_t& dscr); ///< set description of the statement
+    void set_sql(const str_t& sql);         ///< set sql for specific database type
+    void set_summary(const str_t& summary); ///< set one line summary of the statement
+    void set_dscr(const str_t& dscr);       ///< set description of the statement
     void set_par_buf_size(size_t par_set_size);
     void set_res_buf_size(size_t res_set_size);
     void set_results(meta_vec v);
@@ -135,6 +137,7 @@ namespace dbgen4
 
     str_t    id_;              ///< unique id of the data statement
     str_t    sql_;             ///< sql statement (generic or specific for RDBMS)
+    str_t    summary_;         ///< one line summary of the statement
     str_t    dscr_;            ///< statement description
     size_t   par_buf_size_{1}; ///< how many parameter records we have in parameter buffer
     size_t   res_buf_size_{1}; ///< how many result records we have in result buffer

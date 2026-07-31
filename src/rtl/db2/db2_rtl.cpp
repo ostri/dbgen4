@@ -134,8 +134,21 @@ namespace rtl
     auto ret = internal_allocate_handles();
     if (ret == db_sts::success)
     {
+      /// PATCH2=15 forces the period as the decimal separator.
+      ///
+      /// Without it the driver formats DECIMAL and NUMERIC using the client's
+      /// LC_NUMERIC, so the same column reads back as "1234.56" under a C
+      /// locale and "1234,56" under sl_SI - a value that changes with the
+      /// environment of whoever runs the program. These types travel as text,
+      /// so that difference reaches the caller.
+      ///
+      /// SQL_ATTR_DECIMAL_SEP is the attribute that looks like it should do
+      /// this; the driver rejects it with HY024 whether it is given a string
+      /// or a character code. SQL_ATTR_PRESERVE_LOCALE is accepted and has no
+      /// effect on the output. PATCH2=15 is what actually works.
       std::string conn_str = "DRIVER={{IBM DB2 ODBC DRIVER}}; "
                              "PROTOCOL=TCPIP; "
+                             "PATCH2=15; "
                              "CURRENTFUNCTIONPATH=CURRENT PATH; ";
       // clang-format off
       conn_str += !host.empty() ? fmt::format("HOSTNAME={}; ", host) : "";
@@ -187,7 +200,7 @@ namespace rtl
       return db_sts::connection_error;
     }
 
-    SQLRETURN ret = SQLEndTran(SQL_HANDLE_DBC, data()->conn_handle, SQL_COMMIT);
+    const SQLRETURN ret = SQLEndTran(SQL_HANDLE_DBC, data()->conn_handle, SQL_COMMIT);
     chk_error(ret, SQL_HANDLE_DBC, data()->conn_handle, "commit transaction");
 
     if (is_success(static_cast<db_sts>(ret))) { log_()->info("Transaction committed successfully."); }
@@ -211,7 +224,7 @@ namespace rtl
       return db_sts::connection_error;
     }
 
-    SQLRETURN ret = SQLEndTran(SQL_HANDLE_DBC, data()->conn_handle, SQL_ROLLBACK);
+    const SQLRETURN ret = SQLEndTran(SQL_HANDLE_DBC, data()->conn_handle, SQL_ROLLBACK);
     chk_error(ret, SQL_HANDLE_DBC, data()->conn_handle, "rollback transaction");
 
     if (is_success(static_cast<db_sts>(ret))) [[likely]] { log_()->info("Transaction rolled back successfully."); }
@@ -463,6 +476,11 @@ namespace rtl
 
   std::string_view backend_name() noexcept { return "db2"; }
 
-  uint16_t default_port() noexcept { return 50000; }
+  /// the port a DB2 instance listens on unless it was configured otherwise
+  uint16_t default_port() noexcept
+  {
+    constexpr uint16_t db2_default_listener_port = 50000;
+    return db2_default_listener_port;
+  }
 
 }; // namespace rtl

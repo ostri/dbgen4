@@ -108,8 +108,11 @@ namespace dbgen4
     for (const auto& s : ys.value())
     { /// walk over all sql statement description
       auto id          = s.get<std::string>("id");
-      auto result_size = s.get_or<size_t>("result-size", 1);
-      auto param_size  = s.get_or<size_t>("param-size", 1);
+      /// absent means one row - the buffer a statement gets when the yaml says
+      /// nothing about batching
+      auto result_size = s.get_or<size_t>("res-buf-size", 1);
+      auto param_size  = s.get_or<size_t>("par-buf-size", 1);
+      auto summary     = s.get_or<std::string>("summary", "");
       auto dscr        = s.get_or<std::string>("dscr", "");
       // must be first - sql value or empty after then specializations
       auto sql = s.get_or<std::string>(str_t(ME::enum_name(db_type_enum::sql)), "");
@@ -139,6 +142,7 @@ namespace dbgen4
       data_statement statement;
       statement.set_id(id.value());
       statement.set_sql(sql);
+      statement.set_summary(summary);
       statement.set_dscr(dscr);
       statement.set_res_buf_size(result_size);
       statement.set_par_buf_size(param_size);

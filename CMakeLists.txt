@@ -1,12 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 project(dbgen4 VERSION 0.1.0 DESCRIPTION "database access code generator" LANGUAGES CXX)
 
-option(CLANGD_FRIENDLY_BUILD "Fast intellisense and no Catch2 warnings" OFF)
-
-if(CLANGD_FRIENDLY_BUILD)
-    set(ENABLE_SANITIZERS OFF CACHE BOOL "" FORCE)
-endif()
-
 option(BUILD_TESTING "Build the testing tree." ON)
 include(CTest)
 enable_testing()
@@ -43,8 +37,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-
-
 # Ensure NDEBUG is defined in Release
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_compile_definitions(_DEBUG)
@@ -64,17 +56,18 @@ endif()
 add_library(dbgen4_warnings INTERFACE)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    if(CLANGD_FRIENDLY_BUILD)
-        # clangd wants diagnostics, not a build that stops at the first one
-        target_compile_options(dbgen4_warnings INTERFACE
-            -Wall -Wextra -Wpedantic -Wnarrowing -Wswitch-enum -Wswitch-default
-            -Wno-unused-value)
-    else()
-        target_compile_options(dbgen4_warnings INTERFACE
-            -Wall -Wextra -Wpedantic -Werror -Wnarrowing
-            -Wswitch-enum -Werror=switch-enum -Wswitch-default)
-    endif()
+    target_compile_options(dbgen4_warnings INTERFACE
+        -Wall -Wextra -Wpedantic -Werror -Wnarrowing
+        -Wswitch-enum -Werror=switch-enum -Wswitch-default)
     add_link_options(-fno-omit-frame-pointer)
+endif()
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    # Catch2's INTERNAL_CATCH_UNIQUE_NAME expands to __COUNTER__, which clang
+    # reports under -Wpedantic as a C2y extension while gcc says nothing. It is
+    # a construct inside a third party macro that the build accepts either way,
+    # so it is silenced rather than allowed to fail -Werror on one compiler.
+    target_compile_options(dbgen4_warnings INTERFACE -Wno-c2y-extensions)
 endif()
 
 # ===================================================================
@@ -198,6 +191,11 @@ if(BUILD_TESTING)
         SYSTEM YES
         EXCLUDE_FROM_ALL YES
     )
+    # catch_discover_tests lives in Catch2's extras and every test target below
+    # uses it, so the module is pulled in here rather than beside one of them.
+    # CPM exports Catch2_SOURCE_DIR; FetchContent used to export catch2_SOURCE_DIR.
+    list(APPEND CMAKE_MODULE_PATH ${Catch2_SOURCE_DIR}/extras)
+    include(Catch)
 endif()
 
 # === Database backends ===
@@ -284,6 +282,7 @@ if(DB2_FOUND)
     add_library(db2_rtl STATIC
       ${CMAKE_SOURCE_DIR}/src/rtl/rtl.cpp
       ${CMAKE_SOURCE_DIR}/src/rtl/db2/db2_rtl.cpp
+      ${CMAKE_SOURCE_DIR}/src/rtl/db2/odbc_error.cpp
       ${CMAKE_SOURCE_DIR}/src/rtl/db2/query.cpp
     )
     target_include_directories(db2_rtl PUBLIC
@@ -320,7 +319,7 @@ set(GEN_SRC_FILES
      ${CMAKE_SOURCE_DIR}/src/dbgen4/common/build_type.cpp
      ${CMAKE_SOURCE_DIR}/src/dbgen4/common/parser_errors.cpp
      ${CMAKE_SOURCE_DIR}/src/dbgen4/common/common.cpp
-     
+
      ${CMAKE_SOURCE_DIR}/src/dbgen4/gen/generator.cpp
      ${CMAKE_SOURCE_DIR}/src/programs/appl.cpp
 )
@@ -392,11 +391,18 @@ if(DB2_FOUND)
 
 # Where the tests that need a live DB2 should connect. Override at configure
 # time, e.g. -DDB2_TEST_PASS=...
+#
+# A dedicated account rather than a developer's own login. DB2 authenticates
+# against the OS here, so using a personal account would mean the build carries
+# that person's login password in a cache variable, and every checkout would
+# need its own. dbgen4 owns its schema and holds DBADM on the test database, so
+# the tests can create, fill and drop their tables without touching anybody
+# else's. See README.md for how to set it up.
 set(DB2_TEST_HOST "localhost"  CACHE STRING "host of the DB2 used by the tests")
 set(DB2_TEST_PORT "50000"      CACHE STRING "port of the DB2 used by the tests")
 set(DB2_TEST_DB   "test"       CACHE STRING "database name used by the tests")
-set(DB2_TEST_USER "ostri"      CACHE STRING "user for the test database")
-set(DB2_TEST_PASS "!123alfa"   CACHE STRING "password for the test database")
+set(DB2_TEST_USER "dbgen4"     CACHE STRING "user for the test database")
+set(DB2_TEST_PASS "dbgen4"     CACHE STRING "password for the test database")
 
 if(NOT TARGET test_t1)
     set(SMOKE_TEST_TARGET_NAME test_t1)
@@ -469,6 +475,7 @@ add_executable(${SMOKE_TEST_TARGET_NAME}
 # rtl vocabulary have to be named here
 target_include_directories(${SMOKE_TEST_TARGET_NAME} PRIVATE ${GEN_OUTPUT_DIR} ${RTL_INCLUDE_DIRS})
 target_link_libraries(${SMOKE_TEST_TARGET_NAME} PRIVATE
+    Catch2::Catch2WithMain
     db2_rtl
     log
     spdlog::spdlog
@@ -480,10 +487,12 @@ target_link_libraries(${SMOKE_TEST_TARGET_NAME} PRIVATE
 add_dependencies(${SMOKE_TEST_TARGET_NAME} generate_smoke_test)
 
 if(BUILD_TESTING)
-    add_test(NAME ${SMOKE_TEST_TARGET_NAME} COMMAND ${SMOKE_TEST_TARGET_NAME})
-    set_tests_properties(${SMOKE_TEST_TARGET_NAME} PROPERTIES
-        LABELS "smoke;generated"
-        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    # One ctest entry per TEST_CASE rather than one for the binary, so a failure
+    # names the property that broke. Discovery only lists the cases, and these
+    # touch no database, so it is safe to do at build time.
+    catch_discover_tests(${SMOKE_TEST_TARGET_NAME}
+        PROPERTIES LABELS "smoke;generated"
+                   WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     )
 endif()
 
@@ -501,12 +510,22 @@ endif()
 # Unlike the smoke test above, this one actually talks to the database
 # through the generated code: insert, read back and compare, update, read
 # back and compare, delete, confirm gone.
+#
+# Written against Catch2, so it needs BUILD_TESTING - which is what a test
+# ought to need anyway.
 # ===================================================================
+if(BUILD_TESTING)
+
 set(CRUD_YAML       ${CMAKE_SOURCE_DIR}/yaml/crud.yaml)
 set(CRUD_HPP        ${GEN_OUTPUT_DIR}/crud.hpp)
 set(CRUD_CPP        ${GEN_OUTPUT_DIR}/crud.cpp)
 set(CRUD_STAMP      ${GEN_OUTPUT_DIR}/crud.stamp)
-set(CRUD_TEST_SRC   ${CMAKE_SOURCE_DIR}/src/test/test_crud.cpp)
+# All three drive the same generated crud.hpp, so they share one binary and one
+# discovery pass rather than paying for a generation step each.
+set(CRUD_TEST_SRC   ${CMAKE_SOURCE_DIR}/src/test/test_crud.cpp
+                    ${CMAKE_SOURCE_DIR}/src/test/test_types.cpp
+                    ${CMAKE_SOURCE_DIR}/src/test/test_perf.cpp
+                    ${CMAKE_SOURCE_DIR}/src/test/test_bench.cpp)
 
 add_custom_command(
     OUTPUT ${CRUD_STAMP} ${CRUD_HPP} ${CRUD_CPP}
@@ -524,21 +543,58 @@ add_custom_target(generate_crud_test DEPENDS ${CRUD_STAMP})
 add_executable(test_crud ${CRUD_CPP} ${CRUD_TEST_SRC})
 target_include_directories(test_crud PRIVATE ${GEN_OUTPUT_DIR} ${RTL_INCLUDE_DIRS}
                            ${CMAKE_SOURCE_DIR}/src/rtl/db2 $ENV{IBM_DB_INCLUDE})
-target_link_libraries(test_crud PRIVATE db2_rtl log spdlog::spdlog nlohmann_json::nlohmann_json stdc++exp dbgen4_warnings)
+target_link_libraries(test_crud PRIVATE Catch2::Catch2WithMain db2_rtl log
+                      spdlog::spdlog nlohmann_json::nlohmann_json stdc++exp dbgen4_warnings)
 add_dependencies(test_crud generate_crud_test)
 
-if(BUILD_TESTING)
-    add_test(NAME test_crud
-             COMMAND test_crud ${DB2_TEST_HOST} ${DB2_TEST_PORT} ${DB2_TEST_DB} ${DB2_TEST_USER} ${DB2_TEST_PASS})
-    set_tests_properties(test_crud PROPERTIES
-        LABELS "crud;generated;live-db"
-        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    )
+# Catch2 owns argv, so the connection details reach the test through the
+# environment instead of as positional arguments. Backend neutral names: the
+# same test source is meant to serve psql, fed from its own cache variables.
+set(CRUD_TEST_ENV
+    "DBGEN4_TEST_HOST=${DB2_TEST_HOST}"
+    "DBGEN4_TEST_PORT=${DB2_TEST_PORT}"
+    "DBGEN4_TEST_DB=${DB2_TEST_DB}"
+    "DBGEN4_TEST_USER=${DB2_TEST_USER}"
+    "DBGEN4_TEST_PASS=${DB2_TEST_PASS}"
+)
+# ENVIRONMENT is a test property, so the sanitizer options belong here to
+# actually reach the run - enable_sanitizers_for_target sets them on the target,
+# where ctest never looks at them.
+if(DEFINED SANITIZER_ENV)
+    list(APPEND CRUD_TEST_ENV ${SANITIZER_ENV})
 endif()
+
+# One ctest entry per TEST_CASE. Discovery runs the binary with --list-tests,
+# which does not connect, so a database that is down costs a failing test rather
+# than a failing configure.
+#
+# ENVIRONMENT is deliberately not passed through PROPERTIES here. catch_discover_tests
+# forwards those to its discovery script as -D "TEST_PROPERTIES=...", and that round
+# trip through a command line flattens a multi entry list: only the first variable
+# survives, so LABELS and WORKING_DIRECTORY (one value each) arrive intact while the
+# environment silently loses all but DBGEN4_TEST_HOST. That showed up as every live
+# test failing to connect with the built in defaults while the same binary ran green
+# by hand. Verified against Catch2 3.7.1; no amount of escaping at this call site
+# fixes it, because the flattening happens before the value gets here.
+catch_discover_tests(test_crud
+    PROPERTIES LABELS "crud;generated;live-db"
+               WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+)
+
+# So the environment is set after discovery instead. ${test_crud_TESTS} only exists
+# while CTest reads the test file, which is exactly when this fragment is evaluated,
+# and the list reaches set_tests_properties without crossing a command line.
+file(GENERATE
+     OUTPUT "${CMAKE_BINARY_DIR}/crud_test_env.cmake"
+     CONTENT "set_tests_properties(\${test_crud_TESTS} PROPERTIES ENVIRONMENT \"${CRUD_TEST_ENV}\")\n")
+set_property(DIRECTORY APPEND PROPERTY TEST_INCLUDE_FILES
+             "${CMAKE_BINARY_DIR}/crud_test_env.cmake")
 
 if((CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo") AND ENABLE_SANITIZERS)
     enable_sanitizers_for_target(test_crud)
 endif()
+
+endif() # BUILD_TESTING - crud test
 
 endif() # DB2_FOUND - smoke test
 
@@ -571,9 +627,9 @@ if(BUILD_TESTING)
     endif()
 
     add_executable(unit_tests
-        tests/main.cpp
-        tests/log_test.cpp
-        tests/parser_test.cpp
+        src/test/main.cpp
+        src/test/log_test.cpp
+        src/test/parser_test.cpp
         ${GEN_SRC_FILES}
     )
     set_target_properties(unit_tests PROPERTIES
@@ -614,9 +670,6 @@ if(BUILD_TESTING)
         enable_sanitizers_for_target(unit_tests)
     endif()
 
-    # CPM exports Catch2_SOURCE_DIR; FetchContent used to export catch2_SOURCE_DIR
-    list(APPEND CMAKE_MODULE_PATH ${Catch2_SOURCE_DIR}/extras)
-    include(Catch)
     catch_discover_tests(unit_tests PROPERTIES LABELS "unit")
 endif()
 # ===================================================================

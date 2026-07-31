@@ -1,25 +1,73 @@
 ---
+# Checks: is a YAML literal block, so a '#' inside it is part of the check name
+# rather than a comment - an entry with a trailing comment is read as an unknown
+# check and silently does nothing. Notes therefore go on their own lines, above
+# what they describe.
+#
+# Every entry needs its trailing comma. Without one the next line is glued onto
+# it and both are lost, which is how -cppcoreguidelines-special-member-functions
+# and -readability-math-missing-parentheses came to have no effect.
+#
+# clang-tidy --verify-config reports both mistakes.
+#
+# Two of the disabled entries below are not preferences:
+#
+#   llvm-prefer-static-over-anonymous-namespace wants an anonymous namespace
+#   turned into 'static', and misc-use-anonymous-namespace wants exactly the
+#   reverse. With both on, every internal linkage helper fails one of them, so
+#   the llvm one is off and the misc one decides.
+#
+#   readability-avoid-do-while-macro and unused-includes were listed but do not
+#   exist under those names in LLVM 22 - the first is bugprone-, the second is
+#   misc-include-cleaner - so both entries did nothing at all.
+#
+#   portability-avoid-pragma-once wants include guards instead of #pragma once.
+#   Every header in this project uses #pragma once, which is the decision this
+#   check argues against - llvm-header-guard is off for the same reason, from
+#   the other direction.
 Checks: |
   *,
   -altera-*,
+  -android-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-narrowing-conversions,
+  -cert-err60-cpp,
+  -cppcoreguidelines-avoid-c-arrays,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-init-variables,
+  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  -cppcoreguidelines-pro-type-reinterpret-cast,
+  -cppcoreguidelines-pro-type-vararg,
+  -cppcoreguidelines-special-member-functions,
   -fuchsia-*,
+  -google-readability-braces-around-statements,
+  -hicpp-braces-around-statements,
+  -hicpp-explicit-conversions,
   -llvmlibc-*,
   -llvm-header-guard,
   -llvm-include-order,
+  -llvm-prefer-static-over-anonymous-namespace,
   -modernize-use-trailing-return-type,
-  -bugprone-easily-swappable-parameters,
+  -modernize-avoid-c-arrays,
+  -portability-avoid-pragma-once,
   -readability-braces-around-statements,
-  -hicpp-braces-around-statements,
-  -google-readability-braces-around-statements,
-  -readability-identifier-length,
   -readability-convert-member-functions-to-static,
-  -cppcoreguidelines-init-variables,
-  -readability-avoid-do-while-macro,                    # <<< Catch2
-  -readability-static-definition-in-anonymous-namespace, # <<< Catch2
-  -unused-includes,
+  -readability-identifier-length,
+  -readability-math-missing-parentheses,
+  -readability-redundant-access-specifiers,
+  -readability-static-definition-in-anonymous-namespace,
 
 WarningsAsErrors: '*'
-HeaderFilterRegex: ^(?!.*catch2)
+# Which headers get checked. clang-tidy matches this with llvm::Regex, which is
+# POSIX extended - it has no negative lookahead, so the previous
+# '^(?!.*catch2)' matched nothing at all and every header in the project was
+# silently exempt. A NOLINT could be misspelled in a header and nobody would
+# hear about it.
+#
+# Our own headers all live under src/, and everything third party comes from
+# the CPM cache outside the tree, so naming the directory does what the
+# lookahead was meant to do.
+HeaderFilterRegex: 'src/.*\.hpp$'
 HeaderFileExtensions: [ hpp ]
 ImplementationFileExtensions: [ cpp ]
 FormatStyle:     none

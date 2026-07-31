@@ -80,6 +80,8 @@ namespace dbgen4
     [[nodiscard]] str_t template_filename(inja_tpl_enum tpl_id) const;
   private:
     class log::log* log_() { return log::get(); }; /// Member variables
+    /// strip the rtl:: qualification - namespace dbx aliases these types
+    static str_t    unqualified(rtl::cstr_t type_name);
     str_t           attr_storage_type(rtl::sql_type sql_type, const str_t& name);
     str_t           attr_getter_code(rtl::sql_type sql_type, const str_t& name);
     str_t           attr_setter_code(rtl::sql_type sql_type, const str_t& name);

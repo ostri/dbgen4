@@ -25,9 +25,16 @@
     "--header-insertion=iwyu",
     "--header-insertion-decorators=false", // no decorators around include
     "--completion-style=bundled",
-    "--compile-commands-dir==${workspaceFolderBuild",
+    // No --compile-commands-dir on purpose: clangd walks up from each source
+    // file and finds the compile_commands.json symlink in the repo root by
+    // itself. The flag takes a literal path - ${workspaceFolder} is not
+    // substituted here - so any value written by hand goes stale or is simply
+    // wrong, and clangd then falls back to guessed flags with no include paths.
     "--function-arg-placeholders=false",
-    "--clang-tidy=false",
+    // Runs the checks from .clang-tidy in the editor. It was false, which is
+    // why no clang-tidy diagnostic ever appeared in VS Code no matter what the
+    // config said - --enable-config below only makes clangd read the file.
+    "--clang-tidy=true",
     "--all-scopes-completion",
     "--enable-config" // <<< To aktivira branje .clangd in .clang-tidy datotek
   ],

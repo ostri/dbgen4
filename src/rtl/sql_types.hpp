@@ -13,9 +13,10 @@
  */
 
 #include <algorithm>
+#include <array>
 #include <cctype>
+#include <cstddef>
 #include <cstdint>
-#include <map>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -43,11 +44,14 @@ namespace rtl
    */
   [[nodiscard]] inline std::string lowercase(std::string_view input)
   {
-    std::string out(input);
-    std::ranges::transform(out, out.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    std::string out;
+    out.resize(input.size());
+    std::ranges::transform(input,
+                           out.begin(),
+                           [](unsigned char c) //
+                           { return static_cast<char>(std::tolower(c)); });
     return out;
   }
-
   /**
    * @brief sql types known to the generator
    *
@@ -60,7 +64,7 @@ namespace rtl
     unknown = 0,
     // atomic
     integer,
-    smallInt,
+    smallint,
     bigint,
     tiny_int,
     float_,
@@ -110,7 +114,11 @@ namespace rtl
     interval_hour_to_second,
     interval_minute_to_second,
     // misc
-    guid
+    guid,
+    /// not a type: one past the last, and so the width of any table keyed by
+    /// sql_type. Every enumerator above it has to stay dense and unnumbered
+    /// for that to hold - the static_assert below the table checks it does.
+    count_
   };
 
   /**
@@ -121,11 +129,11 @@ namespace rtl
    */
   enum class sql_cat : std::uint8_t
   {
-    atomic,    ///< scalar value stored by value
-    c_string,  ///< char array, null terminated
-    w_string,  ///< wchar_t array, null terminated
-    b_string,  ///< uint8_t array, no terminator
-    structure  ///< aggregate (date, time, timestamp, interval, guid)
+    atomic,   ///< scalar value stored by value
+    c_string, ///< char array, null terminated
+    w_string, ///< wchar_t array, null terminated
+    b_string, ///< uint8_t array, no terminator
+    structure ///< aggregate (date, time, timestamp, interval, guid)
   };
 
   // ------------------------------------------------------------------------
@@ -142,6 +150,19 @@ namespace rtl
     int16_t  year;
     uint16_t month;
     uint16_t day;
+
+    /**
+     * @brief compare two dates chronologically
+     *
+     * Defaulted, and that is enough: the members are declared most significant
+     * first, so the member wise comparison the compiler writes is calendar
+     * order. == and != come from the first line, < <= > >= from the second.
+     *
+     * Layout compatibility with DATE_STRUCT is unaffected - neither operator
+     * adds a member or a vtable, and db2_types.hpp still static_asserts it.
+     */
+    [[nodiscard]] bool operator==(const date&) const noexcept  = default;
+    [[nodiscard]] auto operator<=>(const date&) const noexcept = default;
   };
 
   struct time
@@ -218,61 +239,70 @@ namespace rtl
    */
   struct sql_mapping
   {
-    sql_type sql;           ///< primary key
-    cstr_t   mnemonic;      ///< readable name, ends up in generated comments
-    sql_cat  category;      ///< storage category
-    cstr_t   cpp_type_name; ///< storage type (element type for the string categories)
-    cstr_t   par_type_name; ///< type accepted by a generated setter
-    cstr_t   ret_type_name; ///< type returned by a generated getter
+    sql_type sql;      ///< primary key
+    cstr_t   mnemonic; ///< readable name, ends up in generated comments
+    sql_cat  category; ///< storage category
+
+    cstr_t cpp_type_name; ///< storage type (element type for the string categories)
+    cstr_t par_type_name; ///< type accepted by a generated setter
+    cstr_t ret_type_name; ///< type returned by a generated getter
   };
 
-  // clang-format off
+  /// how many entries a table keyed by sql_type needs
+  inline constexpr size_t sql_type_count = static_cast<size_t>(sql_type::count_);
+
+  using sql_mapping_table = std::array<sql_mapping, sql_type_count>;
+
   /**
-   * @brief the one and only sql type table
+   * @brief build the sql type table at compile time
+   *
+   * @return consteval
    */
-  [[nodiscard]] inline const std::map<sql_type, sql_mapping>& get_sql_to_cpp_map() noexcept
+  [[nodiscard]] consteval sql_mapping_table make_sql_to_cpp_table() noexcept
   {
-    static const auto map = []() -> std::map<sql_type, sql_mapping> {
-      std::map<sql_type, sql_mapping> m;
+    sql_mapping_table m{};
 
-      auto add = [&](sql_type s, cstr_t mn, sql_cat cat, cstr_t cpp_name, cstr_t par_name, cstr_t ret_name) {
-        m[s] = sql_mapping{.sql=s, .mnemonic=mn, .category=cat, .cpp_type_name=cpp_name, .par_type_name=par_name, .ret_type_name=ret_name};
-      };
-
+    auto add = [&m](sql_type s, cstr_t mn, sql_cat cat, cstr_t cpp_name, cstr_t par_name, cstr_t ret_name) constexpr
+    {
+      m.at(static_cast<size_t>(s)) = sql_mapping //
+        {.sql           = s,                     //
+         .mnemonic      = mn,
+         .category      = cat,
+         .cpp_type_name = cpp_name,
+         .par_type_name = par_name,
+         .ret_type_name = ret_name};
+    };
+    // clang-format off
       // === atomic ===
       add(sql_type::integer,    "integer",    sql_cat::atomic, "int32_t", "int32_t", "int32_t");
-      add(sql_type::smallInt,   "smallint",   sql_cat::atomic, "int16_t", "int16_t", "int16_t");
+      add(sql_type::smallint,   "smallint",   sql_cat::atomic, "int16_t", "int16_t", "int16_t");
       add(sql_type::bigint,     "bigint",     sql_cat::atomic, "int64_t", "int64_t", "int64_t");
       add(sql_type::tiny_int,   "tinyint",    sql_cat::atomic, "int8_t",  "int8_t",  "int8_t");
       add(sql_type::float_,     "float",      sql_cat::atomic, "double",  "double",  "double");
       add(sql_type::real,       "real",       sql_cat::atomic, "float",   "float",   "float");
       add(sql_type::double_,    "double",     sql_cat::atomic, "double",  "double",  "double");
       add(sql_type::bit,        "bit",        sql_cat::atomic, "bool",    "bool",    "bool");
-
       // === 8 bit strings ===
-      add(sql_type::char_,         "char",         sql_cat::c_string, "char", "cstr_t", "cstr_t");
-      add(sql_type::numeric,       "numeric",      sql_cat::c_string, "char", "cstr_t", "cstr_t");
-      add(sql_type::decimal,       "decimal",      sql_cat::c_string, "char", "cstr_t", "cstr_t");
-      add(sql_type::var_char,      "varchar",      sql_cat::c_string, "char", "cstr_t", "cstr_t");
-      add(sql_type::decfloat,      "decfloat",     sql_cat::c_string, "char", "cstr_t", "cstr_t");
-      add(sql_type::long_var_char, "longvarchar",  sql_cat::c_string, "char", "cstr_t", "cstr_t");
-      add(sql_type::clob,          "clob",         sql_cat::c_string, "char", "cstr_t", "cstr_t");
-      add(sql_type::xml,           "xml",          sql_cat::c_string, "char", "cstr_t", "cstr_t");
-
+      add(sql_type::char_,         "char",         sql_cat::c_string, "char", "rtl::cstr_t", "rtl::cstr_t");
+      add(sql_type::numeric,       "numeric",      sql_cat::c_string, "char", "rtl::cstr_t", "rtl::cstr_t");
+      add(sql_type::decimal,       "decimal",      sql_cat::c_string, "char", "rtl::cstr_t", "rtl::cstr_t");
+      add(sql_type::var_char,      "varchar",      sql_cat::c_string, "char", "rtl::cstr_t", "rtl::cstr_t");
+      add(sql_type::decfloat,      "decfloat",     sql_cat::c_string, "char", "rtl::cstr_t", "rtl::cstr_t");
+      add(sql_type::long_var_char, "longvarchar",  sql_cat::c_string, "char", "rtl::cstr_t", "rtl::cstr_t");
+      add(sql_type::clob,          "clob",         sql_cat::c_string, "char", "rtl::cstr_t", "rtl::cstr_t");
+      add(sql_type::xml,           "xml",          sql_cat::c_string, "char", "rtl::cstr_t", "rtl::cstr_t");
       // === 16 bit strings ===
-      add(sql_type::wchar,          "wchar",        sql_cat::w_string, "wchar_t", "wcstr_t", "wcstr_t");
-      add(sql_type::wvar_char,      "wvarchar",     sql_cat::w_string, "wchar_t", "wcstr_t", "wcstr_t");
-      add(sql_type::wlong_var_char, "wlongvarchar", sql_cat::w_string, "wchar_t", "wcstr_t", "wcstr_t");
-      add(sql_type::dbclob,         "dbclob",       sql_cat::w_string, "wchar_t", "wcstr_t", "wcstr_t");
-
+      add(sql_type::wchar,          "wchar",        sql_cat::w_string, "wchar_t", "rtl::wcstr_t", "rtl::wcstr_t");
+      add(sql_type::wvar_char,      "wvarchar",     sql_cat::w_string, "wchar_t", "rtl::wcstr_t", "rtl::wcstr_t");
+      add(sql_type::wlong_var_char, "wlongvarchar", sql_cat::w_string, "wchar_t", "rtl::wcstr_t", "rtl::wcstr_t");
+      add(sql_type::dbclob,         "dbclob",       sql_cat::w_string, "wchar_t", "rtl::wcstr_t", "rtl::wcstr_t");
       // === binary strings ===
-      add(sql_type::graphic,         "graphic",        sql_cat::b_string, "uint8_t", "bcstr_t", "bcstr_t");
-      add(sql_type::var_graphic,     "vargraphic",     sql_cat::b_string, "uint8_t", "bcstr_t", "bcstr_t");
-      add(sql_type::binary,          "binary",         sql_cat::b_string, "uint8_t", "bcstr_t", "bcstr_t");
-      add(sql_type::var_binary,      "varbinary",      sql_cat::b_string, "uint8_t", "bcstr_t", "bcstr_t");
-      add(sql_type::long_var_binary, "longvarbinary",  sql_cat::b_string, "uint8_t", "bcstr_t", "bcstr_t");
-      add(sql_type::blob,            "blob",           sql_cat::b_string, "uint8_t", "bcstr_t", "bcstr_t");
-
+      add(sql_type::graphic,         "graphic",        sql_cat::b_string, "uint8_t", "rtl::bcstr_t", "rtl::bcstr_t");
+      add(sql_type::var_graphic,     "vargraphic",     sql_cat::b_string, "uint8_t", "rtl::bcstr_t", "rtl::bcstr_t");
+      add(sql_type::binary,          "binary",         sql_cat::b_string, "uint8_t", "rtl::bcstr_t", "rtl::bcstr_t");
+      add(sql_type::var_binary,      "varbinary",      sql_cat::b_string, "uint8_t", "rtl::bcstr_t", "rtl::bcstr_t");
+      add(sql_type::long_var_binary, "longvarbinary",  sql_cat::b_string, "uint8_t", "rtl::bcstr_t", "rtl::bcstr_t");
+      add(sql_type::blob,            "blob",           sql_cat::b_string, "uint8_t", "rtl::bcstr_t", "rtl::bcstr_t");
       // === date / time ===
       add(sql_type::date,           "date",           sql_cat::structure, "rtl::date",      "rtl::date",      "rtl::date");
       add(sql_type::time,           "time",           sql_cat::structure, "rtl::time",      "rtl::time",      "rtl::time");
@@ -280,7 +310,6 @@ namespace rtl
       add(sql_type::type_date,      "type_date",      sql_cat::structure, "rtl::date",      "rtl::date",      "rtl::date");
       add(sql_type::type_time,      "type_time",      sql_cat::structure, "rtl::time",      "rtl::time",      "rtl::time");
       add(sql_type::type_timestamp, "type_timestamp", sql_cat::structure, "rtl::timestamp", "rtl::timestamp", "rtl::timestamp");
-
       // === intervals ===
       add(sql_type::interval_year,             "interval_year",             sql_cat::structure, "rtl::interval", "rtl::interval", "rtl::interval");
       add(sql_type::interval_month,            "interval_month",            sql_cat::structure, "rtl::interval", "rtl::interval", "rtl::interval");
@@ -295,35 +324,40 @@ namespace rtl
       add(sql_type::interval_hour_to_minute,   "interval_hour_to_minute",   sql_cat::structure, "rtl::interval", "rtl::interval", "rtl::interval");
       add(sql_type::interval_hour_to_second,   "interval_hour_to_second",   sql_cat::structure, "rtl::interval", "rtl::interval", "rtl::interval");
       add(sql_type::interval_minute_to_second, "interval_minute_to_second", sql_cat::structure, "rtl::interval", "rtl::interval", "rtl::interval");
-
       // === misc ===
       add(sql_type::guid,    "guid",    sql_cat::structure, "rtl::guid", "rtl::guid", "rtl::guid");
       add(sql_type::unknown, "unknown", sql_cat::structure, "void",      "void",      "void");
-
-      return m;
-    }();
-
-    return map;
+    // clang-format on
+    return m;
   }
-  // clang-format on
+
+  /**
+   * @brief the sql type table, built once at compile time
+   *
+   */
+  inline constexpr sql_mapping_table sql_to_cpp_table = make_sql_to_cpp_table();
+
+  /// Every enumerator has to be spelled out in the table above; a new sql_type
+  /// that nobody filled in would otherwise read back as a zeroed entry and
+  /// generate code for type `unknown` without a word of complaint.
+  static_assert(std::ranges::none_of(sql_to_cpp_table, [](const sql_mapping& m) { return m.mnemonic.empty(); }),
+                "sql_to_cpp_table has a hole - every sql_type needs an add() line");
 
   /**
    * @brief look up the mapping of a sql type
    *
-   * Never returns nullptr - an unmapped type falls back to sql_type::unknown,
-   * which is always present in the table.
+   * Never returns nullptr - a type outside the table falls back to
+   * sql_type::unknown, which is always present.
    *
    * @param type sql type to look up
    * @return const sql_mapping* mapping, never nullptr
    */
-  [[nodiscard]] inline const sql_mapping* get_sql_mapping(sql_type type) noexcept
+  [[nodiscard]] constexpr const sql_mapping* get_sql_mapping(sql_type type) noexcept
   {
-    const auto& map = get_sql_to_cpp_map();
-    auto        it  = map.find(type);
-    if (it != map.end()) return &it->second;
-    return &map.at(sql_type::unknown);
+    const auto idx = static_cast<size_t>(type);
+    if (idx < sql_type_count) return &sql_to_cpp_table.at(idx);
+    return &sql_to_cpp_table.at(static_cast<size_t>(sql_type::unknown));
   }
-
   /**
    * @brief description of one result column or one statement parameter
    *
@@ -340,5 +374,4 @@ namespace rtl
     int16_t     nullable;    ///< 0 no nulls, 1 nullable, 2 unknown
   };
   using meta_vec = std::vector<meta_dscr>;
-
 } // namespace rtl

@@ -1,40 +1,22 @@
 ##  if (buf|length) > 0
-    /// --- getters -------------------------------------------------------
+/** <<pad("--- construction ", 69, "", "", "-")>> */
+    <<class-name>>::<<class-name>>(size_t rows) { set_buffer_size(rows); }
+    /** <<pad("--- buffer dimension ", 69, "", "", "-")>> */
+    void <<class-name>>::resize_storage(size_t rows)
+    {
 ##  for el in buf
-    <<el.as-param>> <<class-name>>::<<el.name>>(size_t row) const <<el.getter-code>>
-##  endfor
-    /// --- null getters --------------------------------------------------
-##  for el in buf
-    bool <<class-name>>::is_<<el.name>>_null(size_t row) const {return rtl::null_data == len_<<el.name>>_.at(row);}
-##  endfor
-    /// --- length getters ------------------------------------------------
-##  for el in buf
-    size_t <<class-name>>::<<el.name>>_length(size_t row) const {auto l = len_<<el.name>>_.at(row); return (rtl::null_data != l)?l:0;}
-##  endfor
-    /// --- setters -------------------------------------------------------
-##  for el in buf
-    void <<class-name>>::set_<<el.name>>(const <<el.as-param>>& v, size_t row) <<el.setter-code>>
-##  endfor
-    /// --- null setters --------------------------------------------------
-##  for el in buf
-    void <<class-name>>::set_<<el.name>>_null(size_t row) { len_<<el.name>>_.at(row) = rtl::null_data;}
+      <<el.name>>_.assign(rows, {});
+      len_<<el.name>>_.assign(rows, 0);
 ##  endfor
 ## if is-param
-    /// --- mark every field of every row as sql NULL -----------------------------
-    void <<class-name>>::reset_all_null() noexcept
-    {
-##      for el in buf
-      len_<<el.name>>_.fill(rtl::null_data);
-##      endfor
-      row_status_.fill(0);
-    }
+      row_status_.assign(rows, 0);
 ## endif
-    /// --- <<class-name>> types init array  --------------------------------------
-    span_buffer_dscr_init <<class-name>>::buffer_description_init()
+      /** the vectors have just moved - republish the pointers into them */
+      static_cast<void>(buffer_description_init());
+    }
+    /** <<pad("--- "+class-name+" types init array ", 69, "", "", "-")>> */
+    rtl::span_buffer_dscr_init <<class-name>>::buffer_description_init()
     {
-        /// filled into a member, never a function local static: the pointers
-        /// are into *this* object, and a static would hand every later
-        /// instance the buffers of whichever one called first
         dscr_init_ =
         {{
 ##        for el in buf
@@ -43,7 +25,17 @@
         }};
         return dscr_init_;
     };
-    /// --- dump    ---------------------------------------------------------------
+## if is-param
+    /** <<pad("--- mark every field of every row as sql NULL ", 69, "", "", "-")>> */
+    void <<class-name>>::reset_all_null() noexcept
+    {
+##      for el in buf
+      std::ranges::fill(len_<<el.name>>_, rtl::null_data);
+##      endfor
+      std::ranges::fill(row_status_, 0);
+    }
+## endif
+    /** <<pad("--- dump ", 69, "", "", "-")>> */
     [[nodiscard]]std::string <<class-name>>::dump(uint8_t offs) const
     {
       constexpr const char* fmt = R"FMT(
@@ -51,12 +43,14 @@
 {1}  {<< 5+loop.index*4 >>:{2}} cat: {<< 5+loop.index*4+1 >>:{3}} type: {<< 5+loop.index*4+2 >>:{4}} value: '{<< 5+loop.index*4+3 >>}'{% endfor %})FMT";
       std::string offs_str(offs*2UL, '.');
       std::string s;
-      {%for el in buf%}std::string str_<< el.name >>;
-      {%endfor%}
-      for (auto n=0UL; n < buf_dim; n++)
+##    for el in buf
+      std::string str_<< el.name >>;
+##    endfor
+      for (auto n=0UL; n < buffer_size(); n++)
       {
-        {%for el in buf%}str_<< el.name >> = fmt::format("{}", <<el.dump-value>>);
-        {%endfor%}
+##      for el in buf
+        str_<< el.name >> = fmt::format("{}", <<el.dump-value>>);
+##      endfor
         s +=  fmt::format(fmt, n, offs_str, max_column_name_len(), max_category_name_len(), max_column_type_name_len(), {%for el in buf%}"<< el.name >>", "<< el.category >>",
         "<< el.storage-raw >>", (is_<< el.name  >>_null(n) ? "NULL" : str_<< el.name >>){% if el != last(buf) %}, {% endif %}{%endfor%});
         }

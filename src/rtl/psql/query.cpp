@@ -1,6 +1,9 @@
 // query.cpp - text conversions for the psql runtime
 #include "query.hpp"
-#include "rtl_fmt.hpp" // formatter for rtl::guid
+/// formatter for rtl::guid, reached only through fmt::format's template
+/// machinery in format_guid(). include-cleaner cannot see that path and calls
+/// the header unused - removing it does not compile, so the pragma stays.
+#include "rtl_fmt.hpp" // IWYU pragma: keep
 #include <algorithm>
 #include <array>
 #include <cstdio>
@@ -110,8 +113,7 @@ namespace rtl::detail
     /// any trailing time zone offset is dropped - rtl::timestamp has nowhere
     /// to keep it, so a timestamptz arrives already converted to the session
     /// time zone by the server
-    out = rtl::timestamp{
-      .year = static_cast<int16_t>(y), .month = mo, .day = d, .hour = hh, .minute = mm, .second = ss, .fraction = ns};
+    out = rtl::timestamp{.year = static_cast<int16_t>(y), .month = mo, .day = d, .hour = hh, .minute = mm, .second = ss, .fraction = ns};
     return true;
   }
 
@@ -137,8 +139,8 @@ namespace rtl::detail
     if (b != bytes.size()) return false;
 
     // NOLINTBEGIN(readability-magic-numbers,cppcoreguidelines-pro-bounds-constant-array-index)
-    out.data1 = (static_cast<uint32_t>(bytes[0]) << 24) | (static_cast<uint32_t>(bytes[1]) << 16)
-              | (static_cast<uint32_t>(bytes[2]) << 8) | bytes[3];
+    out.data1 =
+      (static_cast<uint32_t>(bytes[0]) << 24) | (static_cast<uint32_t>(bytes[1]) << 16) | (static_cast<uint32_t>(bytes[2]) << 8) | bytes[3];
     out.data2 = static_cast<uint16_t>((bytes[4] << 8) | bytes[5]);
     out.data3 = static_cast<uint16_t>((bytes[6] << 8) | bytes[7]);
     for (size_t i = 0; i < 8; ++i) out.data4[i] = bytes[8 + i];
@@ -198,7 +200,7 @@ namespace rtl::detail
       /// enumerators can reach an atomic slot, and -Wswitch-enum would demand
       /// a case for all forty odd of them
       const auto t = dscr.type;
-      if (t == sql_type::smallInt) return parse_int(text, *static_cast<int16_t*>(slot));
+      if (t == sql_type::smallint) return parse_int(text, *static_cast<int16_t*>(slot));
       if (t == sql_type::integer) return parse_int(text, *static_cast<int32_t*>(slot));
       if (t == sql_type::bigint) return parse_int(text, *static_cast<int64_t*>(slot));
       if (t == sql_type::tiny_int) return parse_int(text, *static_cast<int8_t*>(slot));
@@ -220,8 +222,8 @@ namespace rtl::detail
       const size_t capacity = dscr.column_size;
       const size_t n        = std::min(text.size(), capacity);
       std::memcpy(dst, text.data(), n);
-      dst[n]                   = '\0';           // NOLINT
-      init.indicator_ptr[row]  = static_cast<int32_t>(n); // NOLINT
+      dst[n]                  = '\0';                    // NOLINT
+      init.indicator_ptr[row] = static_cast<int32_t>(n); // NOLINT
       return true;
     }
     case sql_cat::b_string:
@@ -263,7 +265,7 @@ namespace rtl::detail
     case sql_cat::atomic:
     {
       const auto t = dscr.type;
-      if (t == sql_type::smallInt) return fmt::format("{}", *static_cast<const int16_t*>(slot));
+      if (t == sql_type::smallint) return fmt::format("{}", *static_cast<const int16_t*>(slot));
       if (t == sql_type::integer) return fmt::format("{}", *static_cast<const int32_t*>(slot));
       if (t == sql_type::bigint) return fmt::format("{}", *static_cast<const int64_t*>(slot));
       if (t == sql_type::tiny_int) return fmt::format("{}", *static_cast<const int8_t*>(slot));

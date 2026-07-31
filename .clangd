@@ -1,2 +1,10 @@
 CompileFlags:
-  Add: [-Wno-unused-value]
+  Add:
+    - -Wno-unused-value
+    # The build is gcc; clangd is clang. Catch2's INTERNAL_CATCH_UNIQUE_NAME
+    # expands to __COUNTER__, which clang 22 flags under -Wpedantic as a C2y
+    # extension while gcc 16 says nothing. Combined with the -Werror in the
+    # compile command that turns every TEST_CASE red in the editor, for a
+    # construct inside a third party macro that the build accepts. Editor only:
+    # the compile flags in CMakeLists.txt are untouched.
+    - -Wno-c2y-extensions

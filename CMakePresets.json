@@ -9,7 +9,7 @@
     {
       "name": "ninja-debug",
       "displayName": "Debug",
-      "description": "Ninja + Debug + Sanitizers",
+      "description": "Ninja + Debug + Sanitizers. Compiler is not pinned - CXX=clang++ selects clang for a fresh tree.",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/debug",
       "cacheVariables": {
@@ -31,27 +31,15 @@
       }
     },
     {
-      "name": "ninja-relwithdebinfo",
-      "displayName": "RelWithDebInfo",
-      "description": "Optimized + debug info + sanitizers",
+      "name": "ninja-profile",
+      "displayName": "Profile",
+      "description": "Optimized with debug info, for profiling the rtl and the generated code. Placeholder - no profiler flags wired up yet.",
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/relwithdebinfo",
+      "binaryDir": "${sourceDir}/build/profile",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "ENABLE_SANITIZERS": "ON"
-      }
-    },
-    {
-      "name": "clangd",
-      "displayName": "Clangd clean and fast",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build-clangd",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "ENABLE_SANITIZERS": "OFF",
-        "CLANGD_FRIENDLY_BUILD": "ON"
+        "ENABLE_SANITIZERS": "OFF"
       }
     }
   ],
@@ -69,9 +57,9 @@
       "jobs": 8
     },
     {
-      "name": "relwithdebinfo",
-      "configurePreset": "ninja-relwithdebinfo",
-      "displayName": "Build (RelWithDebInfo)",
+      "name": "profile",
+      "configurePreset": "ninja-profile",
+      "displayName": "Build (Profile)",
       "jobs": 8
     }
   ]

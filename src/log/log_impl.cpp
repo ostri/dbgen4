@@ -169,7 +169,7 @@ void log::impl::setup_signal_handler()
 {
   const std::array<int, 5> signals = {SIGSEGV, SIGABRT, SIGFPE, SIGILL, SIGTERM};
   // NOLINTNEXTLINE(cert-err33-c)
-  for (int sig : signals) { std::signal(sig, log::impl::signal_handler); }
+  for (const int sig : signals) { std::signal(sig, log::impl::signal_handler); }
 }
 
 void log::impl::signal_handler(int sig)
@@ -256,7 +256,7 @@ void log::impl::init_from_json(const std::string& config_path)
     auto rot_m       = j.value("rotation_minute", 0);
     auto keep_days   = j.value("keep_days", keep_days_default);
     auto pattern     = j.value("pattern", "[%Y-%m-%d %H:%M:%S.%e] [%n] [%l] [%t] %v");
-    auto log_folder  = j.value("log-folder", "./logs");
+    auto log_folder  = j.value("log_folder", "./logs");
     auto flush_str   = j.value("flush_on", "warn");
     auto flush_lvl   = level_from_string(flush_str);
 

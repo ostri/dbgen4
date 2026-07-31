@@ -50,6 +50,8 @@ namespace dbgen4
   str_t            join(const vec_str_t& o, const str_t& delim = "\n");
   std::string_view trim_whitespace_view(std::string_view s);
 
+  std::string_view trim_trailing_whitespace_view(std::string_view s);
+
   /// Splits the input string by a single character delimiter,
   /// and prefixes each resulting token with the provided string.
 

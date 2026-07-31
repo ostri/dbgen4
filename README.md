@@ -8,7 +8,150 @@ database access layer generator
    cmake --build --preset debug -j8
    ctest --test-dir build/debug -L unit --output-on-failure
 
-Presets: `ninja-debug`, `ninja-release`, `ninja-relwithdebinfo`, `clangd`.
+Presets: `ninja-debug`, `ninja-release`, `ninja-profile`. The last one is a
+placeholder for profiling the runtime and the generated code - it configures
+`RelWithDebInfo` without sanitizers, but no profiler flags are wired up yet.
+
+The presets do not pin a compiler. The project has to build under both gcc and
+clang, so pick one through the environment rather than through a preset:
+
+   cmake --preset ninja-debug                 # system default (gcc)
+   CXX=clang++ cmake -S . -B build/clang -G Ninja -DCMAKE_BUILD_TYPE=Debug
+
+A build tree remembers its compiler once configured, so switching means a fresh
+directory, not a reconfigure of the old one.
+
+## testing
+
+All test sources live in [src/test/](src/test/). They build into three
+binaries:
+
+| binary | source | needs a database |
+| --- | --- | --- |
+| `unit_tests` | `main.cpp`, `parser_test.cpp`, `log_test.cpp` | no |
+| `test_t1` | `test_t1.cpp` | no |
+| `test_crud` | `test_crud.cpp`, `test_types.cpp`, `test_perf.cpp`, `test_bench.cpp` | yes |
+
+`test_db.hpp` holds the connection fixture the database tests share.
+
+### running
+
+    ctest --test-dir build/debug                       # everything
+    ctest --test-dir build/debug --output-on-failure   # with output when one fails
+    ctest --test-dir build/debug -j8                   # in parallel
+
+By label:
+
+    ctest --test-dir build/debug -L unit      # parser and log, no database
+    ctest --test-dir build/debug -L smoke     # generated buffers, no database
+    ctest --test-dir build/debug -L crud      # round trips against a live database
+    ctest --test-dir build/debug -L live-db   # same set, by what they need
+
+One test by name (a regular expression):
+
+    ctest --test-dir build/debug -R "batch of a hundred" --output-on-failure
+    ctest --test-dir build/debug -N            # list without running
+
+### running a test binary directly
+
+ctest passes the connection details in the environment. Running a binary by
+hand means supplying them, otherwise the built in defaults apply
+(`localhost:50000`, database `test`, user `dbgen4`, password `dbgen4`):
+
+    DBGEN4_TEST_HOST=localhost DBGEN4_TEST_PORT=50000 DBGEN4_TEST_DB=test \
+    DBGEN4_TEST_USER=dbgen4 DBGEN4_TEST_PASS=dbgen4 \
+      ./build/debug/test_crud "crud round trip through the generated buffers"
+
+Useful Catch2 flags: `--list-tests` for the names, `-s` to show successful
+assertions as well (this is how the benchmarks print their timings), `-?` for
+the rest. Note that a test name containing a comma has to be selected by tag
+rather than by name - Catch2 reads the comma as a filter separator.
+
+### the database account the tests use
+
+The DB2 tests connect as a dedicated `dbgen4` account rather than as whoever is
+logged in. DB2 authenticates against the operating system, so a database user
+here is an OS user, and putting a developer's own login password into a CMake
+cache variable would make the build personal to one machine.
+
+One script sets up both the account and the tables it owns:
+
+    ./db/db2/create_test_user.sh
+
+It creates the OS user `dbgen4` (password `dbgen4`), grants it DBADM on the
+`test` database, and creates `crud_test`, `types_test`, `perf_test` and `test`
+in its own schema. Everything the tests create, fill and truncate therefore
+belongs to `dbgen4` - no other schema is touched. Both password and username are
+deliberately trivial: the account only ever talks to a local development
+database.
+
+Override at configure time if your setup differs:
+
+    cmake --preset ninja-debug -DDB2_TEST_USER=someone -DDB2_TEST_PASS=secret
+
+### the tables the database tests need
+
+`create_test_user.sh` creates all of them. The individual definitions, for
+reference or for a database set up by hand:
+
+    db/db2/create_table_crud.sql     # crud_test  - the round trip test
+    db/db2/create_table_types.sql    # types_test - one column per sql type
+    db/db2/create_table_perf.sql     # perf_test  - the batch and benchmark tests
+
+with PostgreSQL counterparts under `db/psql/`.
+
+### benchmarks
+
+`test_bench.cpp` holds two throughput benchmarks. They are tagged
+`[.benchmark]`, which means Catch2 does not run them unless they are asked for
+by tag - they move a million rows with the default settings, and `ctest` should
+not pay for that.
+
+    ./build/release/test_crud "[.benchmark]" -s
+
+`-s` matters: the timings are reported through `WARN`, which is only printed
+when successful assertions are shown.
+
+Three environment variables tune them:
+
+| variable | default | meaning |
+| --- | --- | --- |
+| `DBGEN4_BUFFER_SIZE` | 4000 | rows per execute, and rows per fetch |
+| `DBGEN4_ITERATIONS` | 250 | how many executes the insert performs |
+| `DBGEN4_COMMIT_EVERY` | 1 | executes between commits |
+
+Anything unusable - unset, empty, zero, not a number - falls back to the
+default rather than failing the run.
+
+The **insert** benchmark writes `DBGEN4_BUFFER_SIZE` rows per execute,
+`DBGEN4_ITERATIONS` times (a million rows by default), and reports the total
+alongside the time spent filling the buffer, executing, and committing. The
+**select** benchmark then reads the whole table back through a buffer of the
+same size, fetching until the result set is exhausted, and checks that every
+row arrived exactly once in key order.
+
+`DBGEN4_COMMIT_EVERY` defaults to a commit after every block. A single
+transaction over the whole run does not fit: a million rows of `perf_test`
+needs roughly 270 MB of transaction log, and DB2 rolls the transaction back
+with SQL0964 once the log fills. Committing per block is what bulk loading does
+in practice, and it bounds how much work a failure discards. Raise it to
+measure what a less frequent commit buys - the timing report breaks the commit
+out separately.
+
+The development database was configured for this with
+
+    db2 UPDATE DB CFG FOR test USING LOGFILSIZ 16384 LOGPRIMARY 10 LOGSECOND 6
+
+which is 16 files of 64 MB, about 1 GB in all (it was 100 MB). The change needs
+the database deactivated and reactivated before it takes effect.
+
+A smaller run, for a quick check:
+
+    DBGEN4_BUFFER_SIZE=100 DBGEN4_ITERATIONS=3 ./build/debug/test_crud "[.benchmark]" -s
+
+Timings are reported, never asserted on: a wall clock threshold would fail on a
+loaded machine or a slow link without saying anything about whether the code is
+correct. The row counts and the ordering *are* asserted.
 
 ## build dependencies
 
@@ -20,7 +163,7 @@ system packages needed, and no `find_package` that silently picks up whatever
 the distribution ships.
 
 Export a source cache before the first configure, otherwise every build
-directory (`build/debug`, `build/release`, `build-clangd`) downloads its own copy:
+directory (`build/debug`, `build/release`, `build/profile`) downloads its own copy:
 
    export CPM_SOURCE_CACHE=$HOME/.cache/CPM
 

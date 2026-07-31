@@ -12,7 +12,7 @@ description: |
 statements:
   - id: ins
     dscr: insert one row
-    param-size: 1
+    par-buf-size: 1
     parameter-names: [id, name, created]
     db2: |
       insert into crud_test (id, name, created) values (?, ?, ?)
@@ -21,17 +21,30 @@ statements:
 
   - id: sel
     dscr: read one row back by key
-    result-size: 1
-    param-size: 1
+    res-buf-size: 1
+    par-buf-size: 1
     parameter-names: [id]
     db2: |
       select id, name, created from crud_test where id = ?
     psql: |
       select id, name, created from crud_test where id = $1
 
+  - id: sel_range
+    dscr: read a whole batch back in key order
+    # The sizes here are only the defaults of the generated class templates.
+    # A caller that wants a different window says r<3> and gets it without
+    # regenerating - which is exactly what the batch test does.
+    res-buf-size: 3
+    par-buf-size: 1
+    parameter-names: [id_from, id_to]
+    db2: |
+      select id, name, created from crud_test where id between ? and ? order by id
+    psql: |
+      select id, name, created from crud_test where id between $1 and $2 order by id
+
   - id: upd
     dscr: change the non key columns of one row
-    param-size: 1
+    par-buf-size: 1
     parameter-names: [name, created, id]
     db2: |
       update crud_test set name = ?, created = ? where id = ?
@@ -40,9 +53,118 @@ statements:
 
   - id: del
     dscr: remove one row
-    param-size: 1
+    par-buf-size: 1
     parameter-names: [id]
     db2: |
       delete from crud_test where id = ?
     psql: |
       delete from crud_test where id = $1
+
+  # ---------------------------------------------------------------------------
+  # all types round trip - one column per sql type the generator maps today
+  # ---------------------------------------------------------------------------
+  - id: types_del
+    summary: empty the all types table
+    par-buf-size: 1
+    db2: |
+      delete from types_test
+    psql: |
+      delete from types_test
+
+  - id: types_ins
+    summary: insert one row covering every supported type
+    par-buf-size: 1
+    parameter-names: [id, col_smallint, col_bigint, col_real, col_double, col_boolean,
+                      col_decimal, col_char, col_varchar, col_clob,
+                      col_binary, col_varbinary, col_blob,
+                      col_date, col_time, col_timestamp]
+    db2: |
+      insert into types_test
+        (id, col_smallint, col_bigint, col_real, col_double, col_boolean,
+         col_decimal, col_char, col_varchar, col_clob,
+         col_binary, col_varbinary, col_blob,
+         col_date, col_time, col_timestamp)
+        values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    psql: |
+      insert into types_test
+        (id, col_smallint, col_bigint, col_real, col_double, col_boolean,
+         col_decimal, col_char, col_varchar, col_clob,
+         col_binary, col_varbinary, col_blob,
+         col_date, col_time, col_timestamp)
+        values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+
+  - id: types_sel
+    summary: read the all types row back by key
+    res-buf-size: 1
+    par-buf-size: 1
+    parameter-names: [id]
+    db2: |
+      select id, col_smallint, col_bigint, col_real, col_double, col_boolean,
+             col_decimal, col_char, col_varchar, col_clob,
+             col_binary, col_varbinary, col_blob,
+             col_date, col_time, col_timestamp
+        from types_test where id = ?
+    psql: |
+      select id, col_smallint, col_bigint, col_real, col_double, col_boolean,
+             col_decimal, col_char, col_varchar, col_clob,
+             col_binary, col_varbinary, col_blob,
+             col_date, col_time, col_timestamp
+        from types_test where id = $1
+
+  # ---------------------------------------------------------------------------
+  # batch insert and buffered select - how many rows move per execute
+  # ---------------------------------------------------------------------------
+  - id: perf_del
+    summary: empty the perf table
+    par-buf-size: 1
+    db2: |
+      delete from perf_test
+    psql: |
+      delete from perf_test
+
+  - id: perf_ins
+    summary: insert one row of the perf table
+    # The batch test resizes this buffer at run time - the default is only
+    # what a caller gets when it says nothing.
+    par-buf-size: 1
+    parameter-names: [id, name, created]
+    db2: |
+      insert into perf_test (id, name, created) values (?, ?, ?)
+    psql: |
+      insert into perf_test (id, name, created) values ($1, $2, $3)
+
+  - id: perf_sel_all
+    summary: read the perf table in key order
+    res-buf-size: 1
+    db2: |
+      select id, name, created from perf_test order by id
+    psql: |
+      select id, name, created from perf_test order by id
+
+  - id: perf_count
+    summary: how many rows the perf table holds
+    res-buf-size: 1
+    result-names: [cnt]
+    db2: |
+      select count(*) from perf_test
+    psql: |
+      select count(*) from perf_test
+
+  - id: perf_upd_even
+    summary: move every even numbered row to a fixed date
+    par-buf-size: 1
+    parameter-names: [created]
+    db2: |
+      update perf_test set created = ? where mod(id, 2) = 0
+    psql: |
+      update perf_test set created = $1 where mod(id, 2) = 0
+
+  - id: perf_sel_one
+    summary: read one perf row back by key
+    res-buf-size: 1
+    par-buf-size: 1
+    parameter-names: [id]
+    db2: |
+      select id, name, created from perf_test where id = ?
+    psql: |
+      select id, name, created from perf_test where id = $1

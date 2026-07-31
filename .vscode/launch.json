@@ -18,9 +18,9 @@
         "-t",
         "db2",
         "-u",
-        "ostri",
+        "dbgen4",
         "-p",
-        "!123alfa",
+        "dbgen4",
         "../yaml/t1.yaml"
       ],
       "cwd": "${workspaceFolder}/build/debug",

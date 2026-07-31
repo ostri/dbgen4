@@ -1,131 +1,167 @@
-    class <<class-name>> : public <<root-class>>
+class <<class-name>> : public <<root-class>>
     {
       public:
-        /// --- constructors and destructor -------------------------------------------
-        <<class-name>>() = default;
+        /** <<pad("--- buffer dimension ", 69, "", "", "-")>> */
+        static constexpr size_t default_buffer_size = <<buf-size>>;
+        /** <<pad("--- number of columns in this buffer ", 69, "", "", "-")>> */
+        static constexpr size_t column_count = <<buf|length>>;
+        /** <<pad("--- constructors and destructor ", 69, "", "", "-")>> */
+        explicit <<class-name>>(size_t rows = default_buffer_size);
         ~<<class-name>>() override = default;
         <<class-name>>(const <<class-name>>& o) = default;
         <<class-name>>(<<class-name>>&& o) = delete;
         <<class-name>>& operator=(const <<class-name>>& o) = default;
         <<class-name>>& operator=(<<class-name>>&& o) = delete;
-        /// --- buffer dimension ------------------------------------------------------
-        static constexpr const size_t buf_dim = <<buf-size>>; //# of rows
-        /// --- <<class-name>> buffer widths ------------------------------------------
-        /// ------ char values length without trailing zero ---------------------------
-        /// ------ atomic and structures size in bytes --------------------------------
+        /** <<pad("--- buffer size ", 69, "", "", "-")>> */
+        [[nodiscard]] size_t buffer_size() const noexcept override;
+      protected:
+        void resize_storage(size_t rows) override;
+      public:
+        /** <<pad("--- "+class-name+" buffer widths ", 69, "", "", "-")>> */
+        /** <<pad("--- char values length without trailing zero ", 69, "", "", "-")>> */
+        /** <<pad("--- atomic and structures size in bytes ", 69, "", "", "-")>> */
 ##    for el in buf
         static constexpr const size_t l_<<el.name>> = <<el.size>>;
 ##    endfor
-        /// --- getters ---------------------------------------------------------------
+        /** <<pad("--- getters ", 69, "", "", "-")>> */
 ##    for el in buf
         [[nodiscard]]<<el.as-result>> <<el.name>>(size_t row=0) const;
 ##    endfor
-        /// --- null getters ----------------------------------------------------------
+        /** <<pad("--- null getters ", 69, "", "", "-")>> */
 ##    for el in buf
         [[nodiscard]]bool is_<<el.name>>_null(size_t row=0) const;
 ##    endfor
-        /// --- length getters --------------------------------------------------------
+        /** <<pad("--- length getters ", 69, "", "", "-")>> */
 ##    for el in buf
         [[nodiscard]]size_t <<el.name>>_length(size_t row=0) const;
 ##    endfor
-        /// --- setters ---------------------------------------------------------------
+        /** <<pad("--- setters ", 69, "", "", "-")>> */
 ##    for el in buf
         void set_<<el.name>>(const <<el.as-param>>& v, size_t row=0);
 ##    endfor
-        /// --- null setters ----------------------------------------------------------
+        /** <<pad("--- null setters ", 69, "", "", "-")>> */
 ##    for el in buf
         void set_<<el.name>>_null(size_t row=0);
 ##    endfor
-      /// --- <<class-name>> types constant array  ----------------------------------
-      static consteval span_buffer_dscr_const buffer_description_const() noexcept
-      {
-        // constexpr const auto max_column_no = <<buf|length>>; // # of elements in buffer
-        constexpr static const buffer_dscr_const arr[] = {
-          // clang-format off
-##        for el in buf
-          {<< el.name | pad(17, "\"", "\",") >> rtl::sql_cat::<<el.category|pad(10, "",",")>> <<el.base-type|pad(24, "\"", "\", ")>>rtl::sql_type::<<el.type|pad(26, "",", ")>><<el.size|lpad(6, "",", ")>><<el.digits|lpad(2)>>},
-##        endfor
-          // clang-format on
-        };
-        return arr;
-      }
-      /// --- static interface ------------------------------------------------------
-      /// These shadow the ones in <<root-class>> on purpose. Being static they
-      /// do not dispatch virtually - the runtime reaches them through its
-      /// template parameter, so it has to land on these and not on the empty
-      /// ones in the root. They must come after buffer_description_const(),
-      /// because a consteval function cannot be called before it is complete.
-      static constexpr size_t batch_size = buf_dim;
-      static constexpr bool   is_batch() noexcept { return batch_size > 1; }
+        /** <<pad("--- "+class-name+" types constant array ", 69, "", "", "-")>> */
+        static constexpr rtl::span_buffer_dscr_const buffer_description_const() noexcept;
+        /** <<pad("--- static interface ", 69, "", "", "-")>> */
 ## if is-param
-      static constexpr bool   has_parameters() noexcept { return ! buffer_description_const().empty(); }
+        static constexpr bool   has_parameters() noexcept;
 ## else
-      static constexpr bool   has_results() noexcept { return ! buffer_description_const().empty(); }
+        static constexpr bool   has_results() noexcept;
 ## endif
-      /// --- max column name width  ------------------------------------------------
-      static consteval size_t max_column_name_len() noexcept
-      {
-        size_t max = 0;
-        for (const auto& el: buffer_description_const())
-          max = std::max(el.name.size(), max);
-        return max;
-      }
-      /// --- max attribute type name width  ----------------------------------------
-      static consteval size_t max_column_type_name_len() noexcept
-      {
-        size_t max = 0;
-        for (const auto& el: buffer_description_const())
-          max = std::max(el.base_type.size(), max);
-        return max;
-      }
-      /// --- <<class-name>> max category name width  -------------------------------
-      static constexpr size_t max_category_name_len() noexcept
-      {
-        size_t max = 0;
-        for (const auto& el: buffer_description_const())
-          switch(el.category)
-          {
-            // clang-format off
-            case rtl::sql_cat::atomic:    {max = std::max(cstr_t("atomic").size(), max); break;}
-            case rtl::sql_cat::structure: {max = std::max(cstr_t("structure").size(), max); break;}
-            case rtl::sql_cat::c_string:  {max = std::max(cstr_t("c_string").size(), max); break;}
-            case rtl::sql_cat::w_string:  {max = std::max(cstr_t("w_string").size(), max); break;}
-            case rtl::sql_cat::b_string:  {max = std::max(cstr_t("b_string").size(), max); break;}
-            /// A new sql_cat value is still caught: -Wswitch-enum reports an
-            /// unhandled enumerator whether or not a default is present. This
-            /// default only satisfies -Wswitch-default, so that generated code
-            /// compiles under the same warning set as the rest of the project.
-            default: {break;}
-            // clang-format on
-          }
-        return max;
-      }
-      /// --- <<class-name>> types init array  --------------------------------------
-      [[nodiscard]] span_buffer_dscr_init buffer_description_init() override;
+        /** <<pad("--- max column name width ", 69, "", "", "-")>> */
+        static consteval size_t max_column_name_len() noexcept;
+        /** <<pad("--- max attribute type name width ", 69, "", "", "-")>> */
+        static consteval size_t max_column_type_name_len() noexcept;
+        /** <<pad("--- "+class-name+" max category name width ", 69, "", "", "-")>> */
+        static constexpr size_t max_category_name_len() noexcept;
+        /** <<pad("--- "+class-name+" types init array ", 69, "", "", "-")>> */
+        [[nodiscard]] rtl::span_buffer_dscr_init buffer_description_init() override;
 ## if is-param
-      /// --- mark every field of every row as sql NULL -----------------------------
-      void reset_all_null() noexcept override;
-      /// --- per row status of a batch execute -------------------------------------
-      [[nodiscard]] std::span<uint16_t> get_row_status() noexcept override { return row_status_; }
-      void                                    clear_row_status() noexcept override { row_status_.fill(0); }
+        /** <<pad("--- mark every field of every row as sql NULL ", 69, "", "", "-")>> */
+        void reset_all_null() noexcept override;
+        /** <<pad("--- per row status of a batch execute ", 69, "", "", "-")>> */
+        [[nodiscard]] std::span<uint16_t> row_status() noexcept override;
+        void                              clear_row_status() noexcept override;
 ## endif
-      /// --- dump    ---------------------------------------------------------------
-      [[nodiscard]]std::string dump(uint8_t offs=0) const;
-    private:
-      /// --- members ---------------------------------------------------------------
+        /** <<pad("--- dump ", 69, "", "", "-")>> */
+        [[nodiscard]]std::string dump(uint8_t offs=0) const;
+      private:
+        /** <<pad("--- one entry per row of the buffer ", 69, "", "", "-")>> */
+        using arr_int32 = std::vector<int32_t>;
+        using arr_int16 = std::vector<uint16_t>;
+        /** <<pad("--- members ", 69, "", "", "-")>> */
 ##    for el in buf
-      std::array< <<el.storage>>, buf_dim> <<el.name>>_{};
+        std::vector< <<el.storage>> > <<el.name>>_;
 ##    endfor
-      /// --- length or NULL indicators ---------------------------------------------
-      /// ------ positive values actual length --------------------------------------
-      /// ------ SQL_NULL_DATA - sql null value -------------------------------------
+        /** <<pad("--- length or NULL indicators ", 69, "", "", "-")>> */
+        /** <<pad("--- positive values actual length ", 69, "", "", "-")>> */
 ##    for el in buf
-      std::array<int32_t, buf_dim> len_<<el.name>>_{};
+        arr_int32 len_<<el.name>>_;
 ##    endfor
 ## if is-param
-      /// ------ per row status, filled in by the driver on a batch execute ---------
-      std::array<uint16_t, buf_dim> row_status_{};
+        /** <<pad("--- per row status, filled in by the driver on a batch execute ", 69, "", "", "-")>> */
+        arr_int16 row_status_;
 ## endif
-      /// ------ where buffer_description_init() publishes this object's buffers ----
-      std::array<buffer_dscr_init, <<buf|length>>> dscr_init_{};
-  }; // class <<class-name>> // -----------------------------------------------------
+        /** <<pad("--- where buffer_description_init() publishes this object's buffers ", 69, "", "", "-")>> */
+        std::array<rtl::buffer_dscr_init, column_count> dscr_init_{};
+    }; // class <<class-name>> // -------------------------------------------------
+    /** <<pad("--- buffer size ", 69, "", "", "-")>> */
+    inline size_t <<class-name>>::buffer_size() const noexcept { return <<buf.0.name>>_.size(); }
+## if is-param
+    /** <<pad("--- per row status of a batch execute ", 69, "", "", "-")>> */
+    inline std::span<uint16_t> <<class-name>>::row_status() noexcept { return row_status_; }
+    inline void <<class-name>>::clear_row_status() noexcept { std::ranges::fill(row_status_, 0); }
+## endif
+    /** <<pad("--- getters ", 69, "", "", "-")>> */
+##    for el in buf
+    inline <<el.as-result>> <<class-name>>::<<el.name>>(size_t row) const <<el.getter-code>>
+##    endfor
+    /** <<pad("--- null getters ", 69, "", "", "-")>> */
+##    for el in buf
+    inline bool <<class-name>>::is_<<el.name>>_null(size_t row) const {return rtl::null_data == len_<<el.name>>_.at(row);}
+##    endfor
+    /** <<pad("--- length getters ", 69, "", "", "-")>> */
+##    for el in buf
+    inline size_t <<class-name>>::<<el.name>>_length(size_t row) const {auto l = len_<<el.name>>_.at(row); return (rtl::null_data != l)?l:0;}
+##    endfor
+    /** <<pad("--- setters ", 69, "", "", "-")>> */
+##    for el in buf
+    inline void <<class-name>>::set_<<el.name>>(const <<el.as-param>>& v, size_t row) <<el.setter-code>>
+##    endfor
+    /** <<pad("--- null setters ", 69, "", "", "-")>> */
+##    for el in buf
+    inline void <<class-name>>::set_<<el.name>>_null(size_t row) { len_<<el.name>>_.at(row) = rtl::null_data;}
+##    endfor
+    /** <<pad("--- "+class-name+" types constant array ", 69, "", "", "-")>> */
+    inline constexpr rtl::span_buffer_dscr_const <<class-name>>::buffer_description_const() noexcept
+    {
+      constexpr static const rtl::buffer_dscr_const arr[] = {
+        // clang-format off
+##      for el in buf
+        {<< el.name | pad(17, "\"", "\",") >> rtl::sql_cat::<<el.category|pad(10, "",",")>> <<el.base-type|pad(24, "\"", "\", ")>>rtl::sql_type::<<el.type|pad(26, "",", ")>><<el.size|lpad(6, "",", ")>><<el.digits|lpad(2)>>},
+##      endfor
+        // clang-format on
+      };
+      return arr;
+    }
+    /** <<pad("--- static interface ", 69, "", "", "-")>> */
+## if is-param
+    inline constexpr bool <<class-name>>::has_parameters() noexcept { return ! buffer_description_const().empty(); }
+## else
+    inline constexpr bool <<class-name>>::has_results() noexcept { return ! buffer_description_const().empty(); }
+## endif
+    /** <<pad("--- widths of the description columns, for dump() ", 69, "", "", "-")>> */
+    inline consteval size_t <<class-name>>::max_column_name_len() noexcept
+    {
+      size_t max = 0;
+      for (const auto& el: buffer_description_const())
+        max = std::max(el.name.size(), max);
+      return max;
+    }
+    inline consteval size_t <<class-name>>::max_column_type_name_len() noexcept
+    {
+      size_t max = 0;
+      for (const auto& el: buffer_description_const())
+        max = std::max(el.base_type.size(), max);
+      return max;
+    }
+    inline constexpr size_t <<class-name>>::max_category_name_len() noexcept
+    {
+      size_t max = 0;
+      for (const auto& el: buffer_description_const())
+        switch(el.category)
+        {
+          // clang-format off
+          case rtl::sql_cat::atomic:    {max = std::max(cstr_t("atomic").size(), max); break;}
+          case rtl::sql_cat::structure: {max = std::max(cstr_t("structure").size(), max); break;}
+          case rtl::sql_cat::c_string:  {max = std::max(cstr_t("c_string").size(), max); break;}
+          case rtl::sql_cat::w_string:  {max = std::max(cstr_t("w_string").size(), max); break;}
+          case rtl::sql_cat::b_string:  {max = std::max(cstr_t("b_string").size(), max); break;}
+          default: {break;}
+          // clang-format on
+        }
+      return max;
+    }

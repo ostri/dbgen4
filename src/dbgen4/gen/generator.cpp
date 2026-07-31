@@ -91,7 +91,7 @@ namespace dbgen4
     if (! json) return std::unexpected(json.error());
 
     /// does output folder exist
-    fs::path path(cmd().out_folder());
+    const fs::path path(cmd().out_folder());
     if (! fs::exists(path))
     {
       log_()->info("Provided output folder '{}' does not exist. Starting to create.");
@@ -153,7 +153,7 @@ namespace dbgen4
   void generator::set_yaml_fn_and_barename(cstr_t yaml_fn)
   {
     yaml_fn_ = yaml_fn;
-    fs::path path(yaml_fn_);
+    const fs::path path(yaml_fn_);
     barename_ = path.stem().string();
   }
 
@@ -204,7 +204,7 @@ namespace dbgen4
   e_void generator::prepare_templates()
   {
     str_t fn; /// must be outside due to catch
-    str_t template_str = "Prepare templates";
+    const str_t template_str = "Prepare templates";
     try
     {
       /// prepare templates only for hpp and cpp files
@@ -259,6 +259,26 @@ namespace dbgen4
    * @param name
    * @return str_t
    */
+  /**
+   * @brief drop the rtl:: qualification from a type name
+   *
+   * Generated code lives in namespace dbx, which aliases the handful of rtl
+   * types that appear in signatures (cstr, wcstr, bcstr, date, time,
+   * timestamp - see main_hpp.jinja). Emitting the short name keeps the
+   * generated declarations narrow enough to read; the alias makes it resolve
+   * to exactly the same type. The mapping table stays the single place where
+   * a sql type is tied to a C++ one.
+   *
+   * @param type_name fully qualified name from the sql mapping table
+   * @return str_t the same name without a leading rtl::
+   */
+  str_t generator::unqualified(rtl::cstr_t type_name)
+  {
+    constexpr rtl::cstr_t prefix = "rtl::";
+    if (type_name.starts_with(prefix)) type_name.remove_prefix(prefix.size());
+    return str_t(type_name);
+  }
+
   str_t generator::attr_storage_type(rtl::sql_type sql_type, const str_t& name)
   {
     const auto* dscr    = rtl::get_sql_mapping(sql_type);
@@ -266,10 +286,17 @@ namespace dbgen4
     switch (col_cat)
     {
     case rtl::sql_cat::atomic:
-    case rtl::sql_cat::structure: return fmt::format("{}", dscr->cpp_type_name);
+      /// Everything else stores as its own C++ type, but bool cannot: the
+      /// buffer is a std::vector, and std::vector<bool> is the bit packed
+      /// specialisation with no data(). The driver wants one addressable byte
+      /// per row anyway - SQL_C_BIT - so uint8_t is what it should have been.
+      /// The getter and setter still speak bool, so callers see no difference.
+      if (dscr->cpp_type_name == "bool") return "uint8_t";
+      return unqualified(dscr->cpp_type_name);
+    case rtl::sql_cat::structure: return unqualified(dscr->cpp_type_name);
     case rtl::sql_cat::c_string:
-    case rtl::sql_cat::w_string: return fmt::format("std::array<{0}, l_{1}+1>", dscr->cpp_type_name, name);
-    case rtl::sql_cat::b_string: return fmt::format("std::array<{0}, l_{1}>", dscr->cpp_type_name, name);
+    case rtl::sql_cat::w_string: return fmt::format("std::array<{0}, l_{1}+1>", unqualified(dscr->cpp_type_name), name);
+    case rtl::sql_cat::b_string: return fmt::format("std::array<{0}, l_{1}>", unqualified(dscr->cpp_type_name), name);
     default: std::unreachable();
     }
   }
@@ -345,26 +372,38 @@ namespace dbgen4
     auto        col_cat = dscr->category;
     switch (col_cat)
     {
+    /// The indicator is written along with the value, exactly as the string
+    /// categories do through rtl::set_value. Without it a buffer that has been
+    /// through reset_all_null() keeps the indicator at rtl::null_data, and the
+    /// driver sends NULL no matter what the value slot holds - a setter whose
+    /// meaning depends on the column's storage category, which is not
+    /// something a caller can see.
+    ///
+    /// sizeof over the element rather than a literal or a spelled out type:
+    /// all three compile to identical machine code (checked), and this one
+    /// cannot drift if the storage type changes - bool, for one, is stored as
+    /// uint8_t.
     case rtl::sql_cat::atomic:
-    case rtl::sql_cat::structure: return fmt::format("{{ {0}_.at(row) = v;}}", name);
+    case rtl::sql_cat::structure:
+      return fmt::format("{{ {0}_.at(row) = v; len_{0}_.at(row) = static_cast<int32_t>(sizeof({0}_[0]));}}", name);
     case rtl::sql_cat::c_string:
       return fmt::format( //
         "{{"
-        "set_value<{0},l_{1}+1>(v, row, len_{1}_, {1}_);" // net capacity +1
+        "rtl::set_value<{0},l_{1}+1>(v, row, len_{1}_, {1}_);" // net capacity +1
         "}}",
         "char",
         name);
     case rtl::sql_cat::w_string:
       return fmt::format( //
         "{{"
-        "set_value<{0},l_{1}+1>(v, row, len_{1}_, {1}_);" // net capacity +1
+        "rtl::set_value<{0},l_{1}+1>(v, row, len_{1}_, {1}_);" // net capacity +1
         "}}",
         "wchar_t",
         name);
     case rtl::sql_cat::b_string:
       return fmt::format( //
         "{{"
-        "set_value<{0},l_{1}>(v, row, len_{1}_, {1}_);" // net capacity +0 (to simplify, not needed)
+        "rtl::set_value<{0},l_{1}>(v, row, len_{1}_, {1}_);" // net capacity +0 (to simplify, not needed)
         "}}",
         "uint8_t",
         name);
@@ -417,7 +456,7 @@ namespace dbgen4
                         [this](inja::Arguments& args) -> std::string
                         {
                           const json& buf        = *args[0];                    // data
-                          std::string class_name = args[1]->get<std::string>(); // name
+                          const std::string class_name = args[1]->get<std::string>(); // name
                           auto        buf_size   = args[2]->get<int>();         // buffer size
 
                           /// a parameter buffer and a result buffer derive from
@@ -432,7 +471,14 @@ namespace dbgen4
                           data["root-class"] = is_param ? "rtl::parameter_root" : "rtl::result_root";
 
                           // only rendering of the preloaded template
-                          return env_.render(templates_.at(inja_tpl_enum::buf_hpp), data);
+                          //
+                          // The rendered template ends in a newline, and the
+                          // call site is itself on its own line - together that
+                          // leaves a blank line after every buffer class. Trim
+                          // the trailing whitespace so the generated file has
+                          // none.
+                          auto out = env_.render(templates_.at(inja_tpl_enum::buf_hpp), data);
+                          return str_t(trim_trailing_whitespace_view(out));
                         });
       log_()->debug("callback {} - registered.", cb_name);
     }
@@ -458,8 +504,11 @@ namespace dbgen4
                           data["is-param"]   = is_param;
                           data["root-class"] = is_param ? "rtl::parameter_root" : "rtl::result_root";
 
-                          // only rendering of the preloaded template
-                          return env_.render(templates_.at(inja_tpl_enum::buf_cpp), data);
+                          // only rendering of the preloaded template - trailing
+                          // whitespace trimmed for the same reason as in the
+                          // hpp callback above
+                          auto out = env_.render(templates_.at(inja_tpl_enum::buf_cpp), data);
+                          return str_t(trim_trailing_whitespace_view(out));
                         });
       log_()->debug("callback {} - registered.", cb_name);
     }
@@ -503,8 +552,8 @@ namespace dbgen4
     tmp_col["digits"]    = el.digits;
     tmp_col["nullable"]  = el.nullable;
     tmp_col["category"]  = ME::enum_name(dscr->category);
-    tmp_col["as-param"]  = dscr->par_type_name;
-    tmp_col["as-result"] = dscr->ret_type_name;
+    tmp_col["as-param"]  = unqualified(dscr->par_type_name);
+    tmp_col["as-result"] = unqualified(dscr->ret_type_name);
     tmp_col["storage"]       = attr_storage_type(el.type, el.name);
     tmp_col["storage-raw"]   = attr_storage_raw_type(el.type, el.size);
     tmp_col["getter-code"]   = attr_getter_code(el.type, el.name);
@@ -524,43 +573,82 @@ namespace dbgen4
     json j;
     j["cpp-file"] = this->filename(gen_fn_tpl_names::cpp);
     j["hpp-file"] = this->filename(gen_fn_tpl_names::hpp);
-    fs::path path(this->filename(gen_fn_tpl_names::hpp));
+    const fs::path path(this->filename(gen_fn_tpl_names::hpp));
     auto     hpp_include  = path.filename().string();
     j["hpp-include-file"] = hpp_include;
 
-    /// generated code includes the runtime of the backend it will be linked
-    /// against - everything else in the generated header is backend neutral
-    j["rtl-include"] = fmt::format("{}_rtl.hpp", rtl::backend_name());
-
     j["summary"]     = s.summary();
-    j["description"] = join(prefix_split(s.description(), '\n', " *  "), "\n");
+    j["description"] = join(prefix_split(trim_whitespace_view(s.description()), '\n', " *   "), "\n");
     j["version"]     = "0.1.0"; // FIXME(ostri) magic string
     // auto now         = std::chrono::system_clock::now();
     // auto local       = std::chrono::current_zone()->to_local(now);
 
     // j["timestamp"]  = fmt::format("{:%Y-%m-%d %H:%M:%S}", local);
     j["timestamp"]  = fmt::format("{:%Y-%m-%d %H:%M:%S}", std::chrono::current_zone()->to_local(std::chrono::system_clock::now()));
+
+    /// Which helper headers the emitted code will actually reach for. Only
+    /// dump() needs any of them, and which one depends on the storage
+    /// categories this yaml happens to use - see attr_dump_value_to_string().
+    /// Worked out here so that the template does not have to walk every
+    /// statement to find out, and so that a buffer of plain integers does not
+    /// drag in a utf8 converter it never calls.
+    bool needs_rtl_fmt = false;
+    bool needs_utf8    = false;
+    bool needs_hex     = false;
+
+    const auto note_helpers = [&](const rtl::meta_dscr& el) noexcept
+    {
+      switch (rtl::get_sql_mapping(el.type)->category)
+      {
+      case rtl::sql_cat::structure: needs_rtl_fmt = true; break; // fmt::format("{}", date)
+      case rtl::sql_cat::w_string: needs_utf8 = true; break;     // dbgen4::to_utf8
+      case rtl::sql_cat::b_string: needs_hex = true; break;      // dbgen4::to_hex
+      /// printed as they are, so no helper header - and a category nobody
+      /// added yet needs none either, which is why they share the branch
+      case rtl::sql_cat::atomic:
+      case rtl::sql_cat::c_string:
+      default: break;
+      }
+    };
+
     j["statements"] = json::array();
     for (const auto& stmt : s.map_statements() | std::views::values)
     {
       json s;
-      s["id"]           = stmt.id();
-      s["sql"]          = prefix_text(stmt.sql(), 10);                             // no offset NOLINT
+      s["id"] = stmt.id();
+      /// Both of these land inside a /** */ block, so every line needs the
+      /// leading star of a doxygen comment - a bare indent leaves the
+      /// continuation lines dangling outside the block's left edge.
+      s["sql"]     = join(prefix_split(trim_whitespace_view(stmt.sql()), '\n', "     *   "), "\n");
+      s["summary"] = stmt.summary();
+      s["dscr"]    = stmt.dscr().empty() ? "" : join(prefix_split(trim_whitespace_view(stmt.dscr()), '\n', "   * "), "\n");
       /// the statement verbatim, for the generated string_view - the pretty
       /// printed one above is for the doc comment and cannot be executed
       s["sql-literal"]  = str_t(trim_whitespace_view(stmt.sql()));
-      s["dscr"]         = stmt.dscr().empty() ? "" : prefix_text(stmt.dscr(), 10); // NOLINT
       s["res-set-size"] = stmt.res_buf_size();
       s["par-set-size"] = stmt.par_buf_size();
 
       s["result"] = json::array();
       s["param"]  = json::array();
 
-      for (const auto& el : stmt.results()) s["result"].push_back(attr_mappings(el));
-      for (const auto& el : stmt.params()) s["param"].push_back(attr_mappings(el));
+      for (const auto& el : stmt.results())
+      {
+        note_helpers(el);
+        s["result"].push_back(attr_mappings(el));
+      }
+      for (const auto& el : stmt.params())
+      {
+        note_helpers(el);
+        s["param"].push_back(attr_mappings(el));
+      }
 
       j["statements"].push_back(s);
     }
+
+    j["needs-rtl-fmt"] = needs_rtl_fmt;
+    j["needs-utf8"]    = needs_utf8;
+    j["needs-hex"]     = needs_hex;
+
     return j;
   };
 

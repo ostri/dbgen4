@@ -37,6 +37,24 @@ namespace dbgen4
   }
 
   /**
+   * @brief trim trailing whitespace only, it returns a reference (no copying)
+   *
+   * Leading whitespace is left alone on purpose: rendered template output
+   * starts at the indentation its call site expects, and trimming that would
+   * pull the first line back to the left margin.
+   *
+   * @param s string to be trimmed
+   * @return view to trimmed string
+   */
+  std::string_view trim_trailing_whitespace_view(std::string_view s)
+  {
+    auto is_space = [](char ch) { return std::isspace(static_cast<unsigned char>(ch)); };
+
+    const auto* last = find_if_not(s.rbegin(), s.rend(), is_space).base(); // NOLINT
+    return s.substr(0, static_cast<size_t>(last - s.begin()));
+  }
+
+  /**
    * @brief Splits the input string by a single character delimiter using std::stringstream and
    * getline, and prefixes each resulting token with the provided string.
    * * This approach is commonly used to simulate reading from a stream, but it involves copying

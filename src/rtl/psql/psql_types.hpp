@@ -64,7 +64,7 @@ namespace rtl::psql
     {
     // --- atomic ---
     case pg_oid::boolean: return sql_type::bit;
-    case pg_oid::int2: return sql_type::smallInt;
+    case pg_oid::int2: return sql_type::smallint;
     case pg_oid::int4: return sql_type::integer;
     case pg_oid::int8: return sql_type::bigint;
     /// oid is an unsigned 32 bit value - integer would overflow on the high half
@@ -112,7 +112,7 @@ namespace rtl::psql
     switch (type)
     {
     case sql_type::bit: return static_cast<oid_t>(pg_oid::boolean);
-    case sql_type::smallInt: return static_cast<oid_t>(pg_oid::int2);
+    case sql_type::smallint: return static_cast<oid_t>(pg_oid::int2);
     case sql_type::integer: return static_cast<oid_t>(pg_oid::int4);
     case sql_type::bigint: return static_cast<oid_t>(pg_oid::int8);
     case sql_type::tiny_int: return static_cast<oid_t>(pg_oid::int2); // no 8 bit integer in PostgreSQL
@@ -159,6 +159,8 @@ namespace rtl::psql
     case sql_type::graphic:
     case sql_type::var_graphic:
     case sql_type::unknown:
+    /// the table width, not a type anyone can bind - see db2_types::to_odbc()
+    case sql_type::count_:
     default: return 0; // unspecified - let the server infer
     }
   }
@@ -180,9 +182,9 @@ namespace rtl::psql
     constexpr uint32_t varlena_header = 4;
     /// 0 means "the database declares no width" - the generator substitutes
     /// its --max-field-len, or whatever the yaml file says for this column
-    constexpr uint32_t unbounded      = 0;
-    constexpr uint32_t uuid_text_len  = 36;
-    constexpr uint32_t numeric_len    = 64; ///< generous - numeric arrives as text
+    constexpr uint32_t unbounded     = 0;
+    constexpr uint32_t uuid_text_len = 36;
+    constexpr uint32_t numeric_len   = 64; ///< generous - numeric arrives as text
 
     /// switching on the raw value rather than pg_oid on purpose - this only
     /// cares about a handful of types, and -Wswitch-enum would demand the rest

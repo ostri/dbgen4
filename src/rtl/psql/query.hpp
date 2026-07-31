@@ -163,6 +163,10 @@ namespace rtl
     bool            prepared_ = false;
 
     /// the rows of the last execute, still owned by libpq until the next one
+    /// what layout_generation() said when prepare() bound the buffers; see check_layout()
+    uint64_t bound_par_layout_ = 0;
+    uint64_t bound_res_layout_ = 0;
+
     detail::result_holder rows_{nullptr};
     size_t                next_row_    = 0; ///< how far fetch() has walked through rows_
     size_t                total_rows_  = 0;
@@ -222,6 +226,10 @@ namespace rtl
         return std::unexpected(psql_error::from_result(res.get(), conn));
 
       prepared_ = true;
+      /// Remember how the buffers looked, so that a resize afterwards is caught
+      /// rather than followed - see check_layout().
+      if constexpr (has_params) bound_par_layout_ = par_->layout_generation();
+      if constexpr (has_results) bound_res_layout_ = res_->layout_generation();
       logger->info("Query prepared: params={}, results={}", has_params ? "yes" : "no", has_results ? "yes" : "no");
       return {};
     }
@@ -233,10 +241,33 @@ namespace rtl
     /**
      * @brief send the current parameter buffer and run the statement
      */
+    /**
+     * @brief refuse to run against buffers that have moved since prepare()
+     *
+     * set_buffer_size() reallocates every column array. This backend walks
+     * those arrays itself rather than handing them to a driver, but the
+     * pointers in buffer_description_init() go stale all the same.
+     */
+    [[nodiscard]] std::expected<void, psql_error> check_layout() const noexcept
+    {
+      if constexpr (has_params)
+        if (par_->layout_generation() != bound_par_layout_)
+          return std::unexpected(psql_error{.message = "parameter buffer was resized after prepare(); "
+                                                       "call set_buffer_size() before prepare(), then prepare() again",
+                                            .sql_state = ""});
+      if constexpr (has_results)
+        if (res_->layout_generation() != bound_res_layout_)
+          return std::unexpected(psql_error{.message = "result buffer was resized after prepare(); "
+                                                       "call set_buffer_size() before prepare(), then prepare() again",
+                                            .sql_state = ""});
+      return {};
+    }
+
     [[nodiscard]] std::expected<void, psql_error> execute() noexcept
     try
     {
       if (! prepared_) return std::unexpected(psql_error{.message = "statement is not prepared", .sql_state = ""});
+      if (auto layout = check_layout(); ! layout) return std::unexpected(layout.error());
 
       PGconn* conn = db_->get_conn();
 
@@ -296,13 +327,14 @@ namespace rtl
       if constexpr (! has_results) return false;
       else
       {
+        if (auto layout = check_layout(); ! layout) return std::unexpected(layout.error());
         if (! rows_) return std::unexpected(psql_error{.message = "no result set - execute first", .sql_state = ""});
 
         constexpr auto rd = results::buffer_description_const();
         auto           ri = res_->buffer_description_init();
 
         const size_t remaining = total_rows_ - next_row_;
-        const size_t count     = std::min(remaining, static_cast<size_t>(results::batch_size));
+        const size_t count     = std::min(remaining, res_->buffer_size());
 
         for (size_t r = 0; r < count; ++r)
         {
@@ -341,6 +373,19 @@ namespace rtl
       else return std::monostate{};
     }
 
+
+    /**
+     * @brief the result buffer, writable
+     *
+     * Separate from get_result() because that one hands out a const pointer for
+     * reading fetched rows, while sizing the buffer is a write and has to
+     * happen before prepare().
+     */
+    [[nodiscard]] std::conditional_t<has_results, std::shared_ptr<results>, std::monostate> get_result_buffer() noexcept
+    {
+      if constexpr (has_results) return res_;
+      else return std::monostate{};
+    }
     [[nodiscard]] std::conditional_t<has_results, std::shared_ptr<const results>, std::monostate> get_result() const noexcept
     {
       if constexpr (has_results) return res_;

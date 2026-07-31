@@ -29,13 +29,58 @@ namespace rtl
     [[nodiscard]] virtual span_buffer_dscr_init buffer_description_init() = 0;
     virtual void                                reset_all_null() noexcept = 0;
 
-    static constexpr size_t batch_size = 1;
-    static constexpr bool   has_parameters() noexcept { return ! buffer_description_const().empty(); }
-    static constexpr bool   is_batch() noexcept { return batch_size > 1; }
+    /**
+     * @brief set how many rows the buffer holds
+     *
+     * Call before prepare(). Which columns a buffer has is fixed at generation
+     * time; how many rows it carries is the caller's decision, so this one is a
+     * run time value.
+     *
+     * Not virtual on purpose: the bookkeeping belongs in one place, and the
+     * generated class only says how to move its storage. An override could
+     * otherwise resize without the generation counter noticing, which is the
+     * one thing that must not happen.
+     */
+    void set_buffer_size(size_t rows)
+    {
+      if (rows == 0) rows = 1;
+      resize_storage(rows);
+      ++layout_generation_;
+    }
+
+    /**
+     * @brief how many rows the buffer holds
+     *
+     * Answered by the arrays themselves rather than by a counter kept beside
+     * them: a cached size is one more thing that can disagree with the storage
+     * it describes, and this one is read a handful of times per statement, all
+     * of them outside any loop.
+     */
+    [[nodiscard]] virtual size_t buffer_size() const noexcept = 0;
+
+    [[nodiscard]] bool is_batch() const noexcept { return buffer_size() > 1; }
+
+    /**
+     * @brief how many times the storage has moved
+     *
+     * prepare() hands the driver raw pointers into the column arrays and
+     * records this number; execute() compares. A buffer resized in between has
+     * reallocated, so those pointers dangle and the driver reading them is a
+     * use after free - the counter turns that into a refusal instead.
+     */
+    [[nodiscard]] uint64_t layout_generation() const noexcept { return layout_generation_; }
+
+    /// Stays static: it asks what the buffer is made of, not how big it is.
+    static constexpr bool has_parameters() noexcept { return ! buffer_description_const().empty(); }
 
     /// per row status of a batch execute; empty when the buffer is not batched
     /// Mutable: the driver writes the per row status into this array.
-    [[nodiscard]] virtual std::span<uint16_t> get_row_status() noexcept { return {}; }
+    [[nodiscard]] virtual std::span<uint16_t> row_status() noexcept { return {}; }
     virtual void                                    clear_row_status() noexcept { }
+  protected:
+    /// resize every column array to `rows` and republish buffer_description_init()
+    virtual void resize_storage(size_t rows) = 0;
+  private:
+    uint64_t layout_generation_ = 0;
   };
 } // namespace rtl
