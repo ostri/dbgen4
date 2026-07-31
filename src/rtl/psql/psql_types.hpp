@@ -12,13 +12,14 @@
 
 #include "sql_types.hpp"
 #include <cstdint>
+#include <utility>
 
 namespace rtl::psql
 {
   using oid_t = uint32_t;
 
   /// OIDs of the built-in types we know how to map
-  enum class pg_oid : oid_t
+  enum class pg_oid : oid_t // NOLINT(performance-enum-size)
   {
     boolean     = 16,
     bytea       = 17,
@@ -66,7 +67,8 @@ namespace rtl::psql
     case pg_oid::boolean: return sql_type::bit;
     case pg_oid::int2: return sql_type::smallint;
     case pg_oid::int4: return sql_type::integer;
-    case pg_oid::int8: return sql_type::bigint;
+    case pg_oid::int8: // NOLINT(bugprone-branch-clone)
+      return sql_type::bigint;
     /// oid is an unsigned 32 bit value - integer would overflow on the high half
     case pg_oid::oid: return sql_type::bigint;
     case pg_oid::float4: return sql_type::real;
@@ -84,7 +86,8 @@ namespace rtl::psql
     /// numeric travels as text so that no precision is lost on the way out
     case pg_oid::numeric: return sql_type::numeric;
     // --- binary data ---
-    case pg_oid::bytea: return sql_type::var_binary;
+    case pg_oid::bytea: // NOLINT(bugprone-branch-clone)
+      return sql_type::var_binary;
     case pg_oid::bit:
     case pg_oid::varbit: return sql_type::var_binary;
     // --- date / time ---
@@ -192,7 +195,7 @@ namespace rtl::psql
     {
     case static_cast<oid_t>(pg_oid::bpchar):
     case static_cast<oid_t>(pg_oid::varchar):
-      return (typmod > static_cast<int32_t>(varlena_header)) ? static_cast<uint32_t>(typmod) - varlena_header : unbounded;
+      return std::cmp_greater(typmod, varlena_header) ? static_cast<uint32_t>(typmod) - varlena_header : unbounded;
     case static_cast<oid_t>(pg_oid::numeric): return numeric_len;
     case static_cast<oid_t>(pg_oid::uuid): return uuid_text_len;
     case static_cast<oid_t>(pg_oid::text):
@@ -216,9 +219,9 @@ namespace rtl::psql
    */
   [[nodiscard]] constexpr int16_t column_scale(oid_t oid, int32_t typmod) noexcept
   {
-    constexpr int32_t varlena_header = 4;
-    constexpr int32_t scale_mask     = 0xffff;
-    if (static_cast<pg_oid>(oid) != pg_oid::numeric || typmod < varlena_header) return 0;
+    constexpr uint32_t varlena_header = 4;
+    constexpr uint32_t scale_mask     = 0xffff;
+    if (static_cast<pg_oid>(oid) != pg_oid::numeric || std::cmp_less(typmod, varlena_header)) return 0;
     return static_cast<int16_t>((typmod - varlena_header) & scale_mask);
   }
 

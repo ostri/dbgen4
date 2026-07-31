@@ -41,7 +41,7 @@ namespace
 
     // pad char is single character, blank is default;
     char pad_char = ' ';
-    if (! fill_char.empty()) pad_char = fill_char[0];
+    if (! fill_char.empty()) pad_char = fill_char[0]; // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
 
     // combine leading string and trailing
     str = leading + str + trailing;
@@ -65,7 +65,7 @@ namespace
 
     // pad char is single character, blank is default;
     char pad_char = '-';
-    if (! fill_char.empty()) pad_char = fill_char[0];
+    if (! fill_char.empty()) pad_char = fill_char[0]; // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
 
     // combine leading string and trailing
     str = leading + str + trailing;
@@ -455,6 +455,7 @@ namespace dbgen4
                         3,
                         [this](inja::Arguments& args) -> std::string
                         {
+                          // NOLINTBEGIN(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
                           const json& buf        = *args[0];                    // data
                           const std::string class_name = args[1]->get<std::string>(); // name
                           auto        buf_size   = args[2]->get<int>();         // buffer size
@@ -469,6 +470,7 @@ namespace dbgen4
                           data["buf-size"]   = buf_size;
                           data["is-param"]   = is_param;
                           data["root-class"] = is_param ? "rtl::parameter_root" : "rtl::result_root";
+                          // NOLINTEND(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
 
                           // only rendering of the preloaded template
                           //
@@ -493,6 +495,7 @@ namespace dbgen4
                         2,
                         [this](inja::Arguments& args) -> std::string
                         {
+                          // NOLINTBEGIN(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
                           const json& buf        = *args[0];                    // data
                           auto        class_name = args[1]->get<std::string>(); // name
 
@@ -503,6 +506,7 @@ namespace dbgen4
                           data["class-name"] = class_name;
                           data["is-param"]   = is_param;
                           data["root-class"] = is_param ? "rtl::parameter_root" : "rtl::result_root";
+                          // NOLINTEND(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
 
                           // only rendering of the preloaded template - trailing
                           // whitespace trimmed for the same reason as in the
@@ -540,6 +544,7 @@ namespace dbgen4
   {
     const auto* dscr = rtl::get_sql_mapping(el.type);
     json        tmp_col;
+    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
     tmp_col["index"]     = el.index;
     tmp_col["name"]      = el.name;
     tmp_col["col-name"]  = fmt::format("\"{}\"", el.name);
@@ -559,6 +564,7 @@ namespace dbgen4
     tmp_col["getter-code"]   = attr_getter_code(el.type, el.name);
     tmp_col["setter-code"]   = attr_setter_code(el.type, el.name);
     tmp_col["dump-value"]    = attr_dump_value_to_string(el.type, el.name);
+    // NOLINTEND(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
     return tmp_col;
   }
 
@@ -571,6 +577,7 @@ namespace dbgen4
   e_json generator::internal_model_to_json(const data_statements& s)
   {
     json j;
+    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
     j["cpp-file"] = this->filename(gen_fn_tpl_names::cpp);
     j["hpp-file"] = this->filename(gen_fn_tpl_names::hpp);
     const fs::path path(this->filename(gen_fn_tpl_names::hpp));
@@ -580,10 +587,12 @@ namespace dbgen4
     j["summary"]     = s.summary();
     j["description"] = join(prefix_split(trim_whitespace_view(s.description()), '\n', " *   "), "\n");
     j["version"]     = "0.1.0"; // FIXME(ostri) magic string
+    // NOLINTEND(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
     // auto now         = std::chrono::system_clock::now();
     // auto local       = std::chrono::current_zone()->to_local(now);
 
     // j["timestamp"]  = fmt::format("{:%Y-%m-%d %H:%M:%S}", local);
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
     j["timestamp"]  = fmt::format("{:%Y-%m-%d %H:%M:%S}", std::chrono::current_zone()->to_local(std::chrono::system_clock::now()));
 
     /// Which helper headers the emitted code will actually reach for. Only
@@ -611,6 +620,7 @@ namespace dbgen4
       }
     };
 
+    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
     j["statements"] = json::array();
     for (const auto& stmt : s.map_statements() | std::views::values)
     {
@@ -648,6 +658,7 @@ namespace dbgen4
     j["needs-rtl-fmt"] = needs_rtl_fmt;
     j["needs-utf8"]    = needs_utf8;
     j["needs-hex"]     = needs_hex;
+    // NOLINTEND(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
 
     return j;
   };

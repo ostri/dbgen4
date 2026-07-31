@@ -104,7 +104,7 @@ namespace dbgen4
       {
         auto res = ME::enum_cast<db_type_enum>(v);
         db_type_ = res ? res.value() : db_type_enum::sql;
-        if (res && (res.value() != db_type_enum::sql))
+        if (res && (res.value() != db_type_enum::sql)) // NOLINT(readability-inconsistent-ifelse-braces)
           db_type_ = res.value();
         else
         {
@@ -149,7 +149,7 @@ namespace dbgen4
     try
     {
       // set_log_level(false);
-      std::vector<const char*> arg = {};
+      const std::vector<const char*> arg = {};
       if (argc == 1)
       {
         // char* fake_argv[] = {argv[0], (char*)"--help"}; // NOLINT
@@ -158,7 +158,7 @@ namespace dbgen4
         std::array<char*, 3> arg = {argv[0], const_cast<char*>("--help"), nullptr}; // NOLINT
         app.parse(arg.size() - 1, arg.data());
       }
-      else app.parse(argc, argv);
+      else app.parse(argc, argv); // NOLINT(readability-inconsistent-ifelse-braces)
       set_log_level(verbose_);
 
       log_()->info(R"(Command line parameter values :

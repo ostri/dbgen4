@@ -17,9 +17,9 @@ namespace rtl::detail
     constexpr uint8_t hex_val(char c) noexcept
     {
       if (c >= '0' && c <= '9') return static_cast<uint8_t>(c - '0');
-      if (c >= 'a' && c <= 'f') return static_cast<uint8_t>(c - 'a' + 10);
-      if (c >= 'A' && c <= 'F') return static_cast<uint8_t>(c - 'A' + 10);
-      return 0xff;
+      if (c >= 'a' && c <= 'f') return static_cast<uint8_t>(c - 'a' + 10); // NOLINT(readability-magic-numbers)
+      if (c >= 'A' && c <= 'F') return static_cast<uint8_t>(c - 'A' + 10); // NOLINT(readability-magic-numbers)
+      return 0xff;                                                         // NOLINT(readability-magic-numbers)
     }
 
     /// read exactly n digits starting at pos, advancing it past them
@@ -30,9 +30,9 @@ namespace rtl::detail
       T v = 0;
       for (size_t i = 0; i < n; ++i)
       {
-        const char c = sv[pos + i];
+        const char c = sv[pos + i]; // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
         if (c < '0' || c > '9') return false;
-        v = static_cast<T>(v * 10 + (c - '0'));
+        v = static_cast<T>(v * 10 + (c - '0')); // NOLINT(readability-magic-numbers)
       }
       pos += n;
       out = v;
@@ -41,7 +41,7 @@ namespace rtl::detail
 
     bool expect(std::string_view sv, size_t& pos, char c) noexcept
     {
-      if (pos >= sv.size() || sv[pos] != c) return false;
+      if (pos >= sv.size() || sv[pos] != c) return false; // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
       ++pos;
       return true;
     }
@@ -50,13 +50,13 @@ namespace rtl::detail
     void read_fraction(std::string_view sv, size_t& pos, uint32_t& nanos) noexcept
     {
       nanos = 0;
-      if (pos >= sv.size() || sv[pos] != '.') return;
+      if (pos >= sv.size() || sv[pos] != '.') return; // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
       ++pos;
-      uint32_t scale = 100000000; // first digit is 1e8 ns
-      while (pos < sv.size() && sv[pos] >= '0' && sv[pos] <= '9')
+      uint32_t scale = 100000000;                                 // first digit is 1e8 ns // NOLINT(readability-magic-numbers)
+      while (pos < sv.size() && sv[pos] >= '0' && sv[pos] <= '9') // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
       {
-        nanos += static_cast<uint32_t>(sv[pos] - '0') * scale;
-        scale /= 10;
+        nanos += static_cast<uint32_t>(sv[pos] - '0') * scale; // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
+        scale /= 10;                                           // NOLINT(readability-magic-numbers)
         ++pos;
       }
     }
@@ -105,7 +105,7 @@ namespace rtl::detail
     if (! read_digits(sv, p, 2, mo) || ! expect(sv, p, '-')) return false;
     if (! read_digits(sv, p, 2, d)) return false;
     /// PostgreSQL separates date and time with a space, ISO 8601 uses 'T'
-    if (p < sv.size() && (sv[p] == ' ' || sv[p] == 'T')) ++p;
+    if (p < sv.size() && (sv[p] == ' ' || sv[p] == 'T')) ++p; // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
     if (! read_digits(sv, p, 2, hh) || ! expect(sv, p, ':')) return false;
     if (! read_digits(sv, p, 2, mm) || ! expect(sv, p, ':')) return false;
     if (! read_digits(sv, p, 2, ss)) return false;
@@ -120,31 +120,31 @@ namespace rtl::detail
   bool parse_guid(std::string_view sv, rtl::guid& out) noexcept
   {
     /// "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-    std::array<uint8_t, 16> bytes{};
+    std::array<uint8_t, 16> bytes{}; // NOLINT(readability-magic-numbers)
     size_t                  b = 0;
     for (size_t i = 0; i < sv.size() && b < bytes.size();)
     {
-      if (sv[i] == '-')
+      if (sv[i] == '-') // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
       {
         ++i;
         continue;
       }
       if (i + 1 >= sv.size()) return false;
-      const uint8_t hi = hex_val(sv[i]);
-      const uint8_t lo = hex_val(sv[i + 1]);
-      if (hi == 0xff || lo == 0xff) return false;
-      bytes.at(b++) = static_cast<uint8_t>((hi << 4) | lo);
+      const uint8_t hi = hex_val(sv[i]);          // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
+      const uint8_t lo = hex_val(sv[i + 1]);      // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
+      if (hi == 0xff || lo == 0xff) return false; // NOLINT(readability-magic-numbers)
+      bytes.at(b++) = static_cast<uint8_t>((static_cast<unsigned>(hi) << 4U) | lo);
       i += 2;
     }
     if (b != bytes.size()) return false;
 
-    // NOLINTBEGIN(readability-magic-numbers,cppcoreguidelines-pro-bounds-constant-array-index)
-    out.data1 =
-      (static_cast<uint32_t>(bytes[0]) << 24) | (static_cast<uint32_t>(bytes[1]) << 16) | (static_cast<uint32_t>(bytes[2]) << 8) | bytes[3];
-    out.data2 = static_cast<uint16_t>((bytes[4] << 8) | bytes[5]);
-    out.data3 = static_cast<uint16_t>((bytes[6] << 8) | bytes[7]);
+    // NOLINTBEGIN(readability-magic-numbers,cppcoreguidelines-pro-bounds-constant-array-index,cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
+    out.data1 = (static_cast<uint32_t>(bytes[0]) << 24U) | (static_cast<uint32_t>(bytes[1]) << 16U) |
+                (static_cast<uint32_t>(bytes[2]) << 8U) | bytes[3];
+    out.data2 = static_cast<uint16_t>((static_cast<unsigned>(bytes[4]) << 8U) | bytes[5]);
+    out.data3 = static_cast<uint16_t>((static_cast<unsigned>(bytes[6]) << 8U) | bytes[7]);
     for (size_t i = 0; i < 8; ++i) out.data4[i] = bytes[8 + i];
-    // NOLINTEND(readability-magic-numbers,cppcoreguidelines-pro-bounds-constant-array-index)
+    // NOLINTEND(readability-magic-numbers,cppcoreguidelines-pro-bounds-constant-array-index,cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
     return true;
   }
 
@@ -164,13 +164,14 @@ namespace rtl::detail
   // --------------------------------------------------------------------
   size_t decode_bytea(std::string_view sv, std::byte* dst, size_t capacity) noexcept
   {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
     if (sv.size() >= 2 && sv[0] == '\\' && (sv[1] == 'x' || sv[1] == 'X')) sv.remove_prefix(2);
     size_t n = 0;
     for (size_t i = 0; i + 1 < sv.size() && n < capacity; i += 2)
     {
-      const uint8_t hi = hex_val(sv[i]);
-      const uint8_t lo = hex_val(sv[i + 1]);
-      if (hi == 0xff || lo == 0xff) break;
+      const uint8_t hi = hex_val(sv[i]);                 // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
+      const uint8_t lo = hex_val(sv[i + 1]);             // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
+      if (hi == 0xff || lo == 0xff) break;               // NOLINT(readability-magic-numbers)
       dst[n++] = static_cast<std::byte>((hi << 4) | lo); // NOLINT
     }
     return n;
@@ -185,21 +186,13 @@ namespace rtl::detail
     return out;
   }
 
-  // --------------------------------------------------------------------
-  // storing a server value into a generated buffer slot
-  // --------------------------------------------------------------------
-  bool store_value(const buffer_dscr_const& dscr, const buffer_dscr_init& init, size_t row, std::string_view text) noexcept
+  namespace
   {
-    void* slot = row_ptr(init, row);
-
-    switch (dscr.category)
+    /// if/else rather than switch: only a handful of the sql_type enumerators
+    /// can reach an atomic slot, and -Wswitch-enum would demand a case for all
+    /// forty odd of them
+    bool store_atomic(sql_type t, std::string_view text, void* slot) noexcept
     {
-    case sql_cat::atomic:
-    {
-      /// if/else rather than switch: only a handful of the sql_type
-      /// enumerators can reach an atomic slot, and -Wswitch-enum would demand
-      /// a case for all forty odd of them
-      const auto t = dscr.type;
       if (t == sql_type::smallint) return parse_int(text, *static_cast<int16_t*>(slot));
       if (t == sql_type::integer) return parse_int(text, *static_cast<int32_t*>(slot));
       if (t == sql_type::bigint) return parse_int(text, *static_cast<int64_t*>(slot));
@@ -209,13 +202,16 @@ namespace rtl::detail
       if (t == sql_type::bit)
       {
         /// PostgreSQL renders boolean as "t" or "f"
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
         *static_cast<bool*>(slot) = (! text.empty() && (text[0] == 't' || text[0] == 'T' || text[0] == '1'));
         return true;
       }
       return false;
     }
-    case sql_cat::c_string:
+
+    bool store_c_string(const buffer_dscr_const& dscr, const buffer_dscr_init& init, size_t row, std::string_view text) noexcept
     {
+      void* slot = row_ptr(init, row);
       /// the generated array is column_size + 1 bytes, the extra one is the
       /// safety null - a longer value is truncated rather than overrun
       auto*        dst      = static_cast<char*>(slot);
@@ -226,25 +222,73 @@ namespace rtl::detail
       init.indicator_ptr[row] = static_cast<int32_t>(n); // NOLINT
       return true;
     }
-    case sql_cat::b_string:
+
+    bool store_b_string(const buffer_dscr_const& dscr, const buffer_dscr_init& init, size_t row, std::string_view text) noexcept
     {
+      void*        slot       = row_ptr(init, row);
       const size_t n          = decode_bytea(text, static_cast<std::byte*>(slot), dscr.column_size);
       init.indicator_ptr[row] = static_cast<int32_t>(n); // NOLINT
       return true;
     }
-    case sql_cat::structure:
+
+    /// intervals are not converted: PostgreSQL's interval output is far richer
+    /// than rtl::interval can hold, and quietly dropping the parts that do not
+    /// fit would be worse than refusing
+    bool store_structure(sql_type t, std::string_view text, void* slot) noexcept
     {
-      const auto t = dscr.type;
       if (t == sql_type::date || t == sql_type::type_date) return parse_date(text, *static_cast<rtl::date*>(slot));
       if (t == sql_type::time || t == sql_type::type_time) return parse_time(text, *static_cast<rtl::time*>(slot));
       if (t == sql_type::timestamp || t == sql_type::type_timestamp) return parse_timestamp(text, *static_cast<rtl::timestamp*>(slot));
       if (t == sql_type::guid) return parse_guid(text, *static_cast<rtl::guid*>(slot));
-      /// intervals are not converted: PostgreSQL's interval output is far
-      /// richer than rtl::interval can hold, and quietly dropping the parts
-      /// that do not fit would be worse than refusing
       return false;
     }
-    case sql_cat::w_string:
+
+    std::string load_atomic(sql_type t, const void* slot)
+    {
+      if (t == sql_type::smallint) return fmt::format("{}", *static_cast<const int16_t*>(slot));
+      if (t == sql_type::integer) return fmt::format("{}", *static_cast<const int32_t*>(slot));
+      if (t == sql_type::bigint) return fmt::format("{}", *static_cast<const int64_t*>(slot));
+      if (t == sql_type::tiny_int) return fmt::format("{}", *static_cast<const int8_t*>(slot));
+      if (t == sql_type::real) return fmt::format("{}", *static_cast<const float*>(slot));
+      if (t == sql_type::float_ || t == sql_type::double_) return fmt::format("{}", *static_cast<const double*>(slot));
+      if (t == sql_type::bit) return *static_cast<const bool*>(slot) ? "true" : "false";
+      return {};
+    }
+
+    std::string load_c_string(const buffer_dscr_const& dscr, const buffer_dscr_init& init, size_t row, const void* slot)
+    {
+      const auto len = static_cast<size_t>(init.indicator_ptr[row]); // NOLINT
+      return {static_cast<const char*>(slot), std::min(len, static_cast<size_t>(dscr.column_size))};
+    }
+
+    std::string load_b_string(const buffer_dscr_const& dscr, const buffer_dscr_init& init, size_t row, const void* slot)
+    {
+      const auto len = static_cast<size_t>(init.indicator_ptr[row]); // NOLINT
+      return encode_bytea(static_cast<const std::byte*>(slot), std::min(len, static_cast<size_t>(dscr.column_size)));
+    }
+
+    std::string load_structure(sql_type t, const void* slot)
+    {
+      if (t == sql_type::date || t == sql_type::type_date) return format_date(*static_cast<const rtl::date*>(slot));
+      if (t == sql_type::time || t == sql_type::type_time) return format_time(*static_cast<const rtl::time*>(slot));
+      if (t == sql_type::timestamp || t == sql_type::type_timestamp) return format_timestamp(*static_cast<const rtl::timestamp*>(slot));
+      if (t == sql_type::guid) return format_guid(*static_cast<const rtl::guid*>(slot));
+      return {};
+    }
+  } // namespace
+
+  // --------------------------------------------------------------------
+  // storing a server value into a generated buffer slot
+  // --------------------------------------------------------------------
+  bool store_value(const buffer_dscr_const& dscr, const buffer_dscr_init& init, size_t row, std::string_view text) noexcept
+  {
+    switch (dscr.category)
+    {
+    case sql_cat::atomic: return store_atomic(dscr.type, text, row_ptr(init, row));
+    case sql_cat::c_string: return store_c_string(dscr, init, row, text);
+    case sql_cat::b_string: return store_b_string(dscr, init, row, text);
+    case sql_cat::structure: return store_structure(dscr.type, text, row_ptr(init, row));
+    case sql_cat::w_string: // NOLINT(bugprone-branch-clone)
       /// PostgreSQL is UTF-8 throughout and never reports a 16 bit character
       /// type, so reaching here means the neutral mapping produced something
       /// this backend cannot honour
@@ -262,37 +306,10 @@ namespace rtl::detail
 
     switch (dscr.category)
     {
-    case sql_cat::atomic:
-    {
-      const auto t = dscr.type;
-      if (t == sql_type::smallint) return fmt::format("{}", *static_cast<const int16_t*>(slot));
-      if (t == sql_type::integer) return fmt::format("{}", *static_cast<const int32_t*>(slot));
-      if (t == sql_type::bigint) return fmt::format("{}", *static_cast<const int64_t*>(slot));
-      if (t == sql_type::tiny_int) return fmt::format("{}", *static_cast<const int8_t*>(slot));
-      if (t == sql_type::real) return fmt::format("{}", *static_cast<const float*>(slot));
-      if (t == sql_type::float_ || t == sql_type::double_) return fmt::format("{}", *static_cast<const double*>(slot));
-      if (t == sql_type::bit) return *static_cast<const bool*>(slot) ? "true" : "false";
-      return {};
-    }
-    case sql_cat::c_string:
-    {
-      const auto len = static_cast<size_t>(init.indicator_ptr[row]); // NOLINT
-      return std::string(static_cast<const char*>(slot), std::min(len, static_cast<size_t>(dscr.column_size)));
-    }
-    case sql_cat::b_string:
-    {
-      const auto len = static_cast<size_t>(init.indicator_ptr[row]); // NOLINT
-      return encode_bytea(static_cast<const std::byte*>(slot), std::min(len, static_cast<size_t>(dscr.column_size)));
-    }
-    case sql_cat::structure:
-    {
-      const auto t = dscr.type;
-      if (t == sql_type::date || t == sql_type::type_date) return format_date(*static_cast<const rtl::date*>(slot));
-      if (t == sql_type::time || t == sql_type::type_time) return format_time(*static_cast<const rtl::time*>(slot));
-      if (t == sql_type::timestamp || t == sql_type::type_timestamp) return format_timestamp(*static_cast<const rtl::timestamp*>(slot));
-      if (t == sql_type::guid) return format_guid(*static_cast<const rtl::guid*>(slot));
-      return {};
-    }
+    case sql_cat::atomic: return load_atomic(dscr.type, slot);
+    case sql_cat::c_string: return load_c_string(dscr, init, row, slot);
+    case sql_cat::b_string: return load_b_string(dscr, init, row, slot);
+    case sql_cat::structure: return load_structure(dscr.type, slot);
     case sql_cat::w_string:
     default: return {};
     }

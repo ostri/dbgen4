@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 #pragma once
-
+// NOLINTBEGIN
 #if defined(__clang__)
 #  pragma clang diagnostic push
 #  pragma clang diagnostic ignored "-Wswitch-enum"
@@ -35,7 +35,7 @@ SOFTWARE.
 #  pragma GCC diagnostic ignored "-Wswitch"
 #  pragma GCC diagnostic ignored "-Wswitch-default"
 #endif
-#define INJA_EXPERIMENTAL 1
+#define INJA_EXPERIMENTAL 1 // NOLINT(cppcoreguidelines-macro-usage)
 // NOLINTBEGIN
 #ifndef INCLUDE_INJA_INJA_HPP_
 #  define INCLUDE_INJA_INJA_HPP_
@@ -61,16 +61,15 @@ namespace inja
 #  ifndef INCLUDE_INJA_THROW_HPP_
 #    define INCLUDE_INJA_THROW_HPP_
 
-#    if (defined(__cpp_exceptions) || defined(__EXCEPTIONS) || defined(_CPPUNWIND)) &&             \
-      ! defined(INJA_NOEXCEPTION)
+#    if (defined(__cpp_exceptions) || defined(__EXCEPTIONS) || defined(_CPPUNWIND)) && ! defined(INJA_NOEXCEPTION)
 #      ifndef INJA_THROW
 #        define INJA_THROW(exception) throw exception
 #      endif
 #    else
 #      include <cstdlib>
 #      ifndef INJA_THROW
-#        define INJA_THROW(exception)                                                              \
-          std::abort();                                                                            \
+#        define INJA_THROW(exception)                                                                                                      \
+          std::abort();                                                                                                                    \
           std::ignore = exception
 #      endif
 #      ifndef INJA_NOEXCEPTION
@@ -248,16 +247,10 @@ namespace inja
     };
   public:
     void add_builtin(std::string_view name, int num_args, Operation op)
-    {
-      function_storage.emplace(std::make_pair(static_cast<std::string>(name), num_args),
-                               FunctionData{op});
-    }
+    { function_storage.emplace(std::make_pair(static_cast<std::string>(name), num_args), FunctionData{op}); }
 
     void add_callback(std::string_view name, int num_args, const CallbackFunction& callback)
-    {
-      function_storage.emplace(std::make_pair(static_cast<std::string>(name), num_args),
-                               FunctionData{Operation::Callback, callback});
-    }
+    { function_storage.emplace(std::make_pair(static_cast<std::string>(name), num_args), FunctionData{Operation::Callback, callback}); }
 
     FunctionData find_function(std::string_view name, int num_args) const
     {
@@ -325,8 +318,8 @@ namespace inja
     }
 
     explicit InjaError(const std::string& type, const std::string& message, SourceLocation location)
-    : std::runtime_error("[inja.exception." + type + "] (at " + std::to_string(location.line) +
-                         ":" + std::to_string(location.column) + ") " + message)
+    : std::runtime_error("[inja.exception." + type + "] (at " + std::to_string(location.line) + ":" + std::to_string(location.column) +
+                         ") " + message)
     , type(type)
     , message(message)
     , location(location)
@@ -387,8 +380,7 @@ namespace inja
       return view.substr(start, end - start);
     }
 
-    inline std::pair<std::string_view, std::string_view> split(std::string_view view,
-                                                               char             Separator)
+    inline std::pair<std::string_view, std::string_view> split(std::string_view view, char Separator)
     {
       const size_t idx = view.find(Separator);
       if (idx == std::string_view::npos) { return std::make_pair(view, std::string_view()); }
@@ -396,9 +388,7 @@ namespace inja
     }
 
     inline bool starts_with(std::string_view view, std::string_view prefix)
-    {
-      return (view.size() >= prefix.size() && view.compare(0, prefix.size(), prefix) == 0);
-    }
+    { return (view.size() >= prefix.size() && view.compare(0, prefix.size(), prefix) == 0); }
   } // namespace string_view
 
   inline SourceLocation get_source_location(std::string_view content, size_t pos)
@@ -562,7 +552,8 @@ namespace inja
     static std::string convert_dot_to_ptr(std::string_view ptr_name)
     {
       std::string result;
-      do {
+      do
+      {
         std::string_view part;
         std::tie(part, ptr_name) = string_view::split(ptr_name, '.');
         result.push_back('/');
@@ -596,8 +587,8 @@ namespace inja
 
     Op operation;
 
-    std::string name;
-    int         number_args; // Can also be negative -> -1 for unknown number
+    std::string                                  name;
+    int                                          number_args; // Can also be negative -> -1 for unknown number
     std::vector<std::shared_ptr<ExpressionNode>> arguments;
     CallbackFunction                             callback;
 
@@ -811,10 +802,7 @@ namespace inja
     const std::string key;
     const std::string value;
 
-    explicit ForObjectStatementNode(const std::string& key,
-                                    const std::string& value,
-                                    BlockNode* const   parent,
-                                    size_t             pos)
+    explicit ForObjectStatementNode(const std::string& key, const std::string& value, BlockNode* const parent, size_t pos)
     : ForStatementNode(parent, pos)
     , key(key)
     , value(value)
@@ -1052,35 +1040,14 @@ namespace inja
     void update_open_chars()
     {
       open_chars = "";
-      if (open_chars.find(line_statement[0]) == std::string::npos)
-      {
-        open_chars += line_statement[0];
-      }
-      if (open_chars.find(statement_open[0]) == std::string::npos)
-      {
-        open_chars += statement_open[0];
-      }
-      if (open_chars.find(statement_open_no_lstrip[0]) == std::string::npos)
-      {
-        open_chars += statement_open_no_lstrip[0];
-      }
-      if (open_chars.find(statement_open_force_lstrip[0]) == std::string::npos)
-      {
-        open_chars += statement_open_force_lstrip[0];
-      }
-      if (open_chars.find(expression_open[0]) == std::string::npos)
-      {
-        open_chars += expression_open[0];
-      }
-      if (open_chars.find(expression_open_force_lstrip[0]) == std::string::npos)
-      {
-        open_chars += expression_open_force_lstrip[0];
-      }
+      if (open_chars.find(line_statement[0]) == std::string::npos) { open_chars += line_statement[0]; }
+      if (open_chars.find(statement_open[0]) == std::string::npos) { open_chars += statement_open[0]; }
+      if (open_chars.find(statement_open_no_lstrip[0]) == std::string::npos) { open_chars += statement_open_no_lstrip[0]; }
+      if (open_chars.find(statement_open_force_lstrip[0]) == std::string::npos) { open_chars += statement_open_force_lstrip[0]; }
+      if (open_chars.find(expression_open[0]) == std::string::npos) { open_chars += expression_open[0]; }
+      if (open_chars.find(expression_open_force_lstrip[0]) == std::string::npos) { open_chars += expression_open_force_lstrip[0]; }
       if (open_chars.find(comment_open[0]) == std::string::npos) { open_chars += comment_open[0]; }
-      if (open_chars.find(comment_open_force_lstrip[0]) == std::string::npos)
-      {
-        open_chars += comment_open_force_lstrip[0];
-      }
+      if (open_chars.find(comment_open_force_lstrip[0]) == std::string::npos) { open_chars += comment_open_force_lstrip[0]; }
     }
   };
 
@@ -1265,10 +1232,7 @@ namespace inja
     size_t           tok_start;
     size_t           pos;
 
-    Token scan_body(std::string_view close,
-                    Token::Kind      closeKind,
-                    std::string_view close_trim = std::string_view(),
-                    bool             trim       = false)
+    Token scan_body(std::string_view close, Token::Kind closeKind, std::string_view close_trim = std::string_view(), bool trim = false)
     {
     again:
       // skip whitespace (except for \n as it might be a close)
@@ -1281,8 +1245,7 @@ namespace inja
       }
 
       // check for close
-      if (! close_trim.empty() &&
-          inja::string_view::starts_with(m_in.substr(tok_start), close_trim))
+      if (! close_trim.empty() && inja::string_view::starts_with(m_in.substr(tok_start), close_trim))
       {
         state           = State::Text;
         pos             = tok_start + close_trim.size();
@@ -1422,25 +1385,21 @@ namespace inja
         const char ch = m_in[pos++];
         if (ch == '\\') { escape = ! escape; }
         else if (! escape && ch == m_in[tok_start]) { break; }
-        else { escape = false; }
+        else
+        {
+          escape = false;
+        }
       }
       return make_token(Token::Kind::String);
     }
 
-    Token make_token(Token::Kind kind) const
-    {
-      return Token(kind, string_view::slice(m_in, tok_start, pos));
-    }
+    Token make_token(Token::Kind kind) const { return Token(kind, string_view::slice(m_in, tok_start, pos)); }
 
     void skip_whitespaces_and_newlines()
     {
       if (pos < m_in.size())
       {
-        while (pos < m_in.size() &&
-               (m_in[pos] == ' ' || m_in[pos] == '\t' || m_in[pos] == '\n' || m_in[pos] == '\r'))
-        {
-          pos += 1;
-        }
+        while (pos < m_in.size() && (m_in[pos] == ' ' || m_in[pos] == '\t' || m_in[pos] == '\n' || m_in[pos] == '\r')) { pos += 1; }
       }
     }
 
@@ -1471,7 +1430,10 @@ namespace inja
         const char ch = result.back();
         if (ch == ' ' || ch == '\t') { result.remove_suffix(1); }
         else if (ch == '\n' || ch == '\r') { break; }
-        else { return text; }
+        else
+        {
+          return text;
+        }
       }
       return result;
     }
@@ -1531,14 +1493,14 @@ namespace inja
             state       = State::ExpressionStartForceLstrip;
             must_lstrip = true;
           }
-          else { state = State::ExpressionStart; }
+          else
+          {
+            state = State::ExpressionStart;
+          }
         }
         else if (inja::string_view::starts_with(open_str, config.statement_open))
         {
-          if (inja::string_view::starts_with(open_str, config.statement_open_no_lstrip))
-          {
-            state = State::StatementStartNoLstrip;
-          }
+          if (inja::string_view::starts_with(open_str, config.statement_open_no_lstrip)) { state = State::StatementStartNoLstrip; }
           else if (inja::string_view::starts_with(open_str, config.statement_open_force_lstrip))
           {
             state       = State::StatementStartForceLstrip;
@@ -1563,8 +1525,7 @@ namespace inja
             must_lstrip = config.lstrip_blocks;
           }
         }
-        else if ((pos == 0 || m_in[pos - 1] == '\n') &&
-                 inja::string_view::starts_with(open_str, config.line_statement))
+        else if ((pos == 0 || m_in[pos - 1] == '\n') && inja::string_view::starts_with(open_str, config.line_statement))
         {
           state = State::LineStart;
         }
@@ -1632,15 +1593,10 @@ namespace inja
         return make_token(Token::Kind::CommentOpen);
       }
       case State::ExpressionBody:
-        return scan_body(config.expression_close,
-                         Token::Kind::ExpressionClose,
-                         config.expression_close_force_rstrip);
+        return scan_body(config.expression_close, Token::Kind::ExpressionClose, config.expression_close_force_rstrip);
       case State::LineBody: return scan_body("\n", Token::Kind::LineStatementClose);
       case State::StatementBody:
-        return scan_body(config.statement_close,
-                         Token::Kind::StatementClose,
-                         config.statement_close_force_rstrip,
-                         config.trim_blocks);
+        return scan_body(config.statement_close, Token::Kind::StatementClose, config.statement_close_force_rstrip, config.trim_blocks);
       case State::CommentBody:
       {
         // fast-scan to comment close
@@ -1652,8 +1608,7 @@ namespace inja
         }
 
         // Check for trim pattern
-        const bool must_rstrip = inja::string_view::starts_with(m_in.substr(pos + end - 1),
-                                                                config.comment_close_force_rstrip);
+        const bool must_rstrip = inja::string_view::starts_with(m_in.substr(pos + end - 1), config.comment_close_force_rstrip);
 
         // return the entire comment in the close token
         state = State::Text;
@@ -1711,10 +1666,7 @@ namespace inja
     std::stack<ForStatementNode*>   for_statement_stack;
     std::stack<BlockStatementNode*> block_statement_stack;
 
-    void throw_parser_error(const std::string& message) const
-    {
-      INJA_THROW(ParserError(message, lexer.current_position()));
-    }
+    void throw_parser_error(const std::string& message) const { INJA_THROW(ParserError(message, lexer.current_position())); }
 
     void get_next_token()
     {
@@ -1723,7 +1675,10 @@ namespace inja
         tok           = peek_tok;
         have_peek_tok = false;
       }
-      else { tok = lexer.scan(); }
+      else
+      {
+        tok = lexer.scan();
+      }
     }
 
     void get_peek_token()
@@ -1737,10 +1692,8 @@ namespace inja
 
     void add_literal(Arguments& arguments, const char* content_ptr)
     {
-      const std::string_view data_text(literal_start.data(),
-                                       tok.text.data() - literal_start.data() + tok.text.size());
-      arguments.emplace_back(
-        std::make_shared<LiteralNode>(data_text, data_text.data() - content_ptr));
+      const std::string_view data_text(literal_start.data(), tok.text.data() - literal_start.data() + tok.text.size());
+      arguments.emplace_back(std::make_shared<LiteralNode>(data_text, data_text.data() - content_ptr));
     }
 
     void add_operator(Arguments& arguments, OperatorStack& operator_stack)
@@ -1748,10 +1701,7 @@ namespace inja
       auto function = operator_stack.top();
       operator_stack.pop();
 
-      if (static_cast<int>(arguments.size()) < function->number_args)
-      {
-        throw_parser_error("too few arguments");
-      }
+      if (static_cast<int>(arguments.size()) < function->number_args) { throw_parser_error("too few arguments"); }
 
       for (int i = 0; i < function->number_args; ++i)
       {
@@ -1780,18 +1730,14 @@ namespace inja
           file.open(template_name);
           if (! file.fail())
           {
-            const std::string text((std::istreambuf_iterator<char>(file)),
-                                   std::istreambuf_iterator<char>());
+            const std::string text((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
 
             auto include_template = Template(text);
             template_storage.emplace(template_name, include_template);
             parse_into_template(template_storage[template_name], template_name);
             return;
           }
-          else if (! config.include_callback)
-          {
-            INJA_THROW(FileError("failed accessing file at '" + template_name + "'"));
-          }
+          else if (! config.include_callback) { INJA_THROW(FileError("failed accessing file at '" + template_name + "'")); }
         }
       }
 
@@ -1805,15 +1751,9 @@ namespace inja
 
     std::string parse_filename() const
     {
-      if (tok.kind != Token::Kind::String)
-      {
-        throw_parser_error("expected string, got '" + tok.describe() + "'");
-      }
+      if (tok.kind != Token::Kind::String) { throw_parser_error("expected string, got '" + tok.describe() + "'"); }
 
-      if (tok.text.length() < 2)
-      {
-        throw_parser_error("expected filename, got '" + static_cast<std::string>(tok.text) + "'");
-      }
+      if (tok.text.length() < 2) { throw_parser_error("expected filename, got '" + static_cast<std::string>(tok.text) + "'"); }
 
       // Remove first and last character ""
       return std::string{tok.text.substr(1, tok.text.length() - 2)};
@@ -1872,10 +1812,7 @@ namespace inja
           if (current_bracket_level == 0) { throw_parser_error("unexpected ']'"); }
 
           current_bracket_level -= 1;
-          if (current_brace_level == 0 && current_bracket_level == 0)
-          {
-            add_literal(arguments, tmpl.content.c_str());
-          }
+          if (current_brace_level == 0 && current_bracket_level == 0) { add_literal(arguments, tmpl.content.c_str()); }
         }
         break;
         case Token::Kind::RightBrace:
@@ -1883,10 +1820,7 @@ namespace inja
           if (current_brace_level == 0) { throw_parser_error("unexpected '}'"); }
 
           current_brace_level -= 1;
-          if (current_brace_level == 0 && current_bracket_level == 0)
-          {
-            add_literal(arguments, tmpl.content.c_str());
-          }
+          if (current_brace_level == 0 && current_bracket_level == 0) { add_literal(arguments, tmpl.content.c_str()); }
         }
         break;
         case Token::Kind::Id:
@@ -1894,8 +1828,7 @@ namespace inja
           get_peek_token();
 
           // Data Literal
-          if (tok.text == static_cast<decltype(tok.text)>("true") ||
-              tok.text == static_cast<decltype(tok.text)>("false") ||
+          if (tok.text == static_cast<decltype(tok.text)>("true") || tok.text == static_cast<decltype(tok.text)>("false") ||
               tok.text == static_cast<decltype(tok.text)>("null"))
           {
             if (current_brace_level == 0 && current_bracket_level == 0)
@@ -1914,39 +1847,29 @@ namespace inja
           }
           else if (peek_tok.kind == Token::Kind::LeftParen)
           {
-            auto func =
-              std::make_shared<FunctionNode>(tok.text, tok.text.data() - tmpl.content.c_str());
+            auto func = std::make_shared<FunctionNode>(tok.text, tok.text.data() - tmpl.content.c_str());
             get_next_token();
-            do {
+            do
+            {
               get_next_token();
               auto expr = parse_expression(tmpl);
               if (! expr) { break; }
               func->number_args += 1;
               func->arguments.emplace_back(expr);
             } while (tok.kind == Token::Kind::Comma);
-            if (tok.kind != Token::Kind::RightParen)
-            {
-              throw_parser_error("expected right parenthesis, got '" + tok.describe() + "'");
-            }
+            if (tok.kind != Token::Kind::RightParen) { throw_parser_error("expected right parenthesis, got '" + tok.describe() + "'"); }
 
             auto function_data = function_storage.find_function(func->name, func->number_args);
-            if (function_data.operation == FunctionStorage::Operation::None)
-            {
-              throw_parser_error("unknown function " + func->name);
-            }
+            if (function_data.operation == FunctionStorage::Operation::None) { throw_parser_error("unknown function " + func->name); }
             func->operation = function_data.operation;
-            if (function_data.operation == FunctionStorage::Operation::Callback)
-            {
-              func->callback = function_data.callback;
-            }
+            if (function_data.operation == FunctionStorage::Operation::Callback) { func->callback = function_data.callback; }
             arguments.emplace_back(func);
 
             // Variables
           }
           else
           {
-            arguments.emplace_back(std::make_shared<DataNode>(
-              static_cast<std::string>(tok.text), tok.text.data() - tmpl.content.c_str()));
+            arguments.emplace_back(std::make_shared<DataNode>(static_cast<std::string>(tok.text), tok.text.data() - tmpl.content.c_str()));
           }
 
           // Operators
@@ -1976,7 +1899,10 @@ namespace inja
             else if (tok.text == "or") { operation = FunctionStorage::Operation::Or; }
             else if (tok.text == "in") { operation = FunctionStorage::Operation::In; }
             else if (tok.text == "not") { operation = FunctionStorage::Operation::Not; }
-            else { throw_parser_error("unknown operator in parser."); }
+            else
+            {
+              throw_parser_error("unknown operator in parser.");
+            }
           }
           break;
           case Token::Kind::Equal:
@@ -2049,13 +1975,11 @@ namespace inja
             throw_parser_error("unknown operator in parser.");
           }
           }
-          auto function_node =
-            std::make_shared<FunctionNode>(operation, tok.text.data() - tmpl.content.c_str());
+          auto function_node = std::make_shared<FunctionNode>(operation, tok.text.data() - tmpl.content.c_str());
 
-          while (! operator_stack.empty() &&
-                 ((operator_stack.top()->precedence > function_node->precedence) ||
-                  (operator_stack.top()->precedence == function_node->precedence &&
-                   function_node->associativity == FunctionNode::Associativity::Left)))
+          while (! operator_stack.empty() && ((operator_stack.top()->precedence > function_node->precedence) ||
+                                              (operator_stack.top()->precedence == function_node->precedence &&
+                                               function_node->associativity == FunctionNode::Associativity::Left)))
           {
             add_operator(arguments, operator_stack);
           }
@@ -2070,20 +1994,14 @@ namespace inja
         break;
         case Token::Kind::Colon:
         {
-          if (current_brace_level == 0 && current_bracket_level == 0)
-          {
-            throw_parser_error("unexpected ':'");
-          }
+          if (current_brace_level == 0 && current_bracket_level == 0) { throw_parser_error("unexpected ':'"); }
         }
         break;
         case Token::Kind::LeftParen:
         {
           get_next_token();
           auto expr = parse_expression(tmpl);
-          if (tok.kind != Token::Kind::RightParen)
-          {
-            throw_parser_error("expected right parenthesis, got '" + tok.describe() + "'");
-          }
+          if (tok.kind != Token::Kind::RightParen) { throw_parser_error("expected right parenthesis, got '" + tok.describe() + "'"); }
           if (! expr) { throw_parser_error("empty expression in parentheses"); }
           arguments.emplace_back(expr);
         }
@@ -2094,12 +2012,8 @@ namespace inja
         {
           // get function name
           get_next_token();
-          if (tok.kind != Token::Kind::Id)
-          {
-            throw_parser_error("expected function name, got '" + tok.describe() + "'");
-          }
-          auto func =
-            std::make_shared<FunctionNode>(tok.text, tok.text.data() - tmpl.content.c_str());
+          if (tok.kind != Token::Kind::Id) { throw_parser_error("expected function name, got '" + tok.describe() + "'"); }
+          auto func = std::make_shared<FunctionNode>(tok.text, tok.text.data() - tmpl.content.c_str());
           // add first parameter as last value from arguments
           func->number_args += 1;
           func->arguments.emplace_back(arguments.back());
@@ -2109,29 +2023,21 @@ namespace inja
           {
             get_next_token();
             // parse additional parameters
-            do {
+            do
+            {
               get_next_token();
               auto expr = parse_expression(tmpl);
               if (! expr) { break; }
               func->number_args += 1;
               func->arguments.emplace_back(expr);
             } while (tok.kind == Token::Kind::Comma);
-            if (tok.kind != Token::Kind::RightParen)
-            {
-              throw_parser_error("expected right parenthesis, got '" + tok.describe() + "'");
-            }
+            if (tok.kind != Token::Kind::RightParen) { throw_parser_error("expected right parenthesis, got '" + tok.describe() + "'"); }
           }
           // search store for defined function with such name and number of args
           auto function_data = function_storage.find_function(func->name, func->number_args);
-          if (function_data.operation == FunctionStorage::Operation::None)
-          {
-            throw_parser_error("unknown function " + func->name);
-          }
+          if (function_data.operation == FunctionStorage::Operation::None) { throw_parser_error("unknown function " + func->name); }
           func->operation = function_data.operation;
-          if (function_data.operation == FunctionStorage::Operation::Callback)
-          {
-            func->callback = function_data.callback;
-          }
+          if (function_data.operation == FunctionStorage::Operation::Callback) { func->callback = function_data.callback; }
           arguments.emplace_back(func);
         }
         break;
@@ -2162,8 +2068,7 @@ namespace inja
       {
         get_next_token();
 
-        auto if_statement_node =
-          std::make_shared<IfStatementNode>(current_block, tok.text.data() - tmpl.content.c_str());
+        auto if_statement_node = std::make_shared<IfStatementNode>(current_block, tok.text.data() - tmpl.content.c_str());
         current_block->nodes.emplace_back(if_statement_node);
         if_statement_stack.emplace(if_statement_node.get());
         current_block           = &if_statement_node->true_statement;
@@ -2185,8 +2090,7 @@ namespace inja
         {
           get_next_token();
 
-          auto if_statement_node = std::make_shared<IfStatementNode>(
-            true, current_block, tok.text.data() - tmpl.content.c_str());
+          auto if_statement_node = std::make_shared<IfStatementNode>(true, current_block, tok.text.data() - tmpl.content.c_str());
           current_block->nodes.emplace_back(if_statement_node);
           if_statement_stack.emplace(if_statement_node.get());
           current_block           = &if_statement_node->true_statement;
@@ -2212,32 +2116,22 @@ namespace inja
       {
         get_next_token();
 
-        if (tok.kind != Token::Kind::Id)
-        {
-          throw_parser_error("expected block name, got '" + tok.describe() + "'");
-        }
+        if (tok.kind != Token::Kind::Id) { throw_parser_error("expected block name, got '" + tok.describe() + "'"); }
 
         const std::string block_name = static_cast<std::string>(tok.text);
 
-        auto block_statement_node = std::make_shared<BlockStatementNode>(
-          current_block, block_name, tok.text.data() - tmpl.content.c_str());
+        auto block_statement_node = std::make_shared<BlockStatementNode>(current_block, block_name, tok.text.data() - tmpl.content.c_str());
         current_block->nodes.emplace_back(block_statement_node);
         block_statement_stack.emplace(block_statement_node.get());
         current_block = &block_statement_node->block;
         auto success  = tmpl.block_storage.emplace(block_name, block_statement_node);
-        if (! success.second)
-        {
-          throw_parser_error("block with the name '" + block_name + "' does already exist");
-        }
+        if (! success.second) { throw_parser_error("block with the name '" + block_name + "' does already exist"); }
 
         get_next_token();
       }
       else if (tok.text == static_cast<decltype(tok.text)>("endblock"))
       {
-        if (block_statement_stack.empty())
-        {
-          throw_parser_error("endblock without matching block");
-        }
+        if (block_statement_stack.empty()) { throw_parser_error("endblock without matching block"); }
 
         auto& block_statement_data = block_statement_stack.top();
         get_next_token();
@@ -2250,10 +2144,7 @@ namespace inja
         get_next_token();
 
         // options: for a in arr; for a, b in obj
-        if (tok.kind != Token::Kind::Id)
-        {
-          throw_parser_error("expected id, got '" + tok.describe() + "'");
-        }
+        if (tok.kind != Token::Kind::Id) { throw_parser_error("expected id, got '" + tok.describe() + "'"); }
 
         Token value_token = tok;
         get_next_token();
@@ -2263,29 +2154,23 @@ namespace inja
         if (tok.kind == Token::Kind::Comma)
         {
           get_next_token();
-          if (tok.kind != Token::Kind::Id)
-          {
-            throw_parser_error("expected id, got '" + tok.describe() + "'");
-          }
+          if (tok.kind != Token::Kind::Id) { throw_parser_error("expected id, got '" + tok.describe() + "'"); }
 
           const Token key_token = value_token;
           value_token           = tok;
           get_next_token();
 
-          for_statement_node =
-            std::make_shared<ForObjectStatementNode>(static_cast<std::string>(key_token.text),
-                                                     static_cast<std::string>(value_token.text),
-                                                     current_block,
-                                                     tok.text.data() - tmpl.content.c_str());
+          for_statement_node = std::make_shared<ForObjectStatementNode>(static_cast<std::string>(key_token.text),
+                                                                        static_cast<std::string>(value_token.text),
+                                                                        current_block,
+                                                                        tok.text.data() - tmpl.content.c_str());
 
           // Array type
         }
         else
         {
-          for_statement_node =
-            std::make_shared<ForArrayStatementNode>(static_cast<std::string>(value_token.text),
-                                                    current_block,
-                                                    tok.text.data() - tmpl.content.c_str());
+          for_statement_node = std::make_shared<ForArrayStatementNode>(
+            static_cast<std::string>(value_token.text), current_block, tok.text.data() - tmpl.content.c_str());
         }
 
         current_block->nodes.emplace_back(for_statement_node);
@@ -2318,8 +2203,7 @@ namespace inja
         std::string template_name = parse_filename();
         add_to_template_storage(path, template_name);
 
-        current_block->nodes.emplace_back(std::make_shared<IncludeStatementNode>(
-          template_name, tok.text.data() - tmpl.content.c_str()));
+        current_block->nodes.emplace_back(std::make_shared<IncludeStatementNode>(template_name, tok.text.data() - tmpl.content.c_str()));
 
         get_next_token();
       }
@@ -2330,8 +2214,7 @@ namespace inja
         std::string template_name = parse_filename();
         add_to_template_storage(path, template_name);
 
-        current_block->nodes.emplace_back(std::make_shared<ExtendsStatementNode>(
-          template_name, tok.text.data() - tmpl.content.c_str()));
+        current_block->nodes.emplace_back(std::make_shared<ExtendsStatementNode>(template_name, tok.text.data() - tmpl.content.c_str()));
 
         get_next_token();
       }
@@ -2339,28 +2222,24 @@ namespace inja
       {
         get_next_token();
 
-        if (tok.kind != Token::Kind::Id)
-        {
-          throw_parser_error("expected variable name, got '" + tok.describe() + "'");
-        }
+        if (tok.kind != Token::Kind::Id) { throw_parser_error("expected variable name, got '" + tok.describe() + "'"); }
 
         const std::string key = static_cast<std::string>(tok.text);
         get_next_token();
 
-        auto set_statement_node =
-          std::make_shared<SetStatementNode>(key, tok.text.data() - tmpl.content.c_str());
+        auto set_statement_node = std::make_shared<SetStatementNode>(key, tok.text.data() - tmpl.content.c_str());
         current_block->nodes.emplace_back(set_statement_node);
         current_expression_list = &set_statement_node->expression;
 
-        if (tok.text != static_cast<decltype(tok.text)>("="))
-        {
-          throw_parser_error("expected '=', got '" + tok.describe() + "'");
-        }
+        if (tok.text != static_cast<decltype(tok.text)>("=")) { throw_parser_error("expected '=', got '" + tok.describe() + "'"); }
         get_next_token();
 
         if (! parse_expression(tmpl, closing)) { return false; }
       }
-      else { return false; }
+      else
+      {
+        return false;
+      }
       return true;
     }
 
@@ -2383,8 +2262,7 @@ namespace inja
           return;
         case Token::Kind::Text:
         {
-          current_block->nodes.emplace_back(
-            std::make_shared<TextNode>(tok.text.data() - tmpl.content.c_str(), tok.text.size()));
+          current_block->nodes.emplace_back(std::make_shared<TextNode>(tok.text.data() - tmpl.content.c_str(), tok.text.size()));
         }
         break;
         case Token::Kind::StatementOpen:
@@ -2394,10 +2272,7 @@ namespace inja
           {
             throw_parser_error("expected statement, got '" + tok.describe() + "'");
           }
-          if (tok.kind != Token::Kind::StatementClose)
-          {
-            throw_parser_error("expected statement close, got '" + tok.describe() + "'");
-          }
+          if (tok.kind != Token::Kind::StatementClose) { throw_parser_error("expected statement close, got '" + tok.describe() + "'"); }
         }
         break;
         case Token::Kind::LineStatementOpen:
@@ -2417,8 +2292,7 @@ namespace inja
         {
           get_next_token();
 
-          auto expression_list_node =
-            std::make_shared<ExpressionListNode>(tok.text.data() - tmpl.content.c_str());
+          auto expression_list_node = std::make_shared<ExpressionListNode>(tok.text.data() - tmpl.content.c_str());
           current_block->nodes.emplace_back(expression_list_node);
           current_expression_list = expression_list_node.get();
 
@@ -2431,10 +2305,7 @@ namespace inja
         case Token::Kind::CommentOpen:
         {
           get_next_token();
-          if (tok.kind != Token::Kind::CommentClose)
-          {
-            throw_parser_error("expected comment close, got '" + tok.describe() + "'");
-          }
+          if (tok.kind != Token::Kind::CommentClose) { throw_parser_error("expected comment close, got '" + tok.describe() + "'"); }
         }
         break;
         default:
@@ -2475,10 +2346,7 @@ namespace inja
     {
       std::ifstream file;
       file.open(filename);
-      if (file.fail())
-      {
-        INJA_THROW(FileError("failed accessing file at '" + filename.string() + "'"));
-      }
+      if (file.fail()) { INJA_THROW(FileError("failed accessing file at '" + filename.string() + "'")); }
       std::string text((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
       return text;
     }
@@ -2586,22 +2454,19 @@ namespace inja
     {
       if (value->is_string())
       {
-        if (config.html_autoescape)
+        if (config.html_autoescape) { *output_stream << htmlescape(value->get_ref<const json::string_t&>()); }
+        else
         {
-          *output_stream << htmlescape(value->get_ref<const json::string_t&>());
+          *output_stream << value->get_ref<const json::string_t&>();
         }
-        else { *output_stream << value->get_ref<const json::string_t&>(); }
       }
-      else if (value->is_number_unsigned())
-      {
-        *output_stream << value->get<const json::number_unsigned_t>();
-      }
-      else if (value->is_number_integer())
-      {
-        *output_stream << value->get<const json::number_integer_t>();
-      }
+      else if (value->is_number_unsigned()) { *output_stream << value->get<const json::number_unsigned_t>(); }
+      else if (value->is_number_integer()) { *output_stream << value->get<const json::number_integer_t>(); }
       else if (value->is_null()) { }
-      else { *output_stream << value->dump(); }
+      else
+      {
+        *output_stream << value->dump();
+      }
     }
 
     const std::shared_ptr<json> eval_expression_list(const ExpressionListNode& expression_list)
@@ -2611,26 +2476,19 @@ namespace inja
       expression_list.root->accept(*this);
 
       if (data_eval_stack.empty()) { throw_renderer_error("empty expression", expression_list); }
-      else if (data_eval_stack.size() != 1)
-      {
-        throw_renderer_error("malformed expression", expression_list);
-      }
+      else if (data_eval_stack.size() != 1) { throw_renderer_error("malformed expression", expression_list); }
 
       const auto result = data_eval_stack.top();
       data_eval_stack.pop();
 
       if (result == nullptr)
       {
-        if (not_found_stack.empty())
-        {
-          throw_renderer_error("expression could not be evaluated", expression_list);
-        }
+        if (not_found_stack.empty()) { throw_renderer_error("expression could not be evaluated", expression_list); }
 
         const auto node = not_found_stack.top();
         not_found_stack.pop();
 
-        throw_renderer_error("variable '" + static_cast<std::string>(node->name) + "' not found",
-                             *node);
+        throw_renderer_error("variable '" + static_cast<std::string>(node->name) + "' not found", *node);
       }
       return std::make_shared<json>(*result);
     }
@@ -2653,8 +2511,7 @@ namespace inja
     {
       if (node.arguments.size() < N_start + N)
       {
-        throw_renderer_error("function needs " + std::to_string(N_start + N) +
-                               " variables, but has only found " +
+        throw_renderer_error("function needs " + std::to_string(N_start + N) + " variables, but has only found " +
                                std::to_string(node.arguments.size()),
                              node);
       }
@@ -2663,10 +2520,8 @@ namespace inja
 
       if (data_eval_stack.size() < N)
       {
-        throw_renderer_error("function needs " + std::to_string(N) +
-                               " variables, but has only found " +
-                               std::to_string(data_eval_stack.size()),
-                             node);
+        throw_renderer_error(
+          "function needs " + std::to_string(N) + " variables, but has only found " + std::to_string(data_eval_stack.size()), node);
       }
 
       std::array<const json*, N> result;
@@ -2682,8 +2537,7 @@ namespace inja
 
           if (throw_not_found)
           {
-            throw_renderer_error(
-              "variable '" + static_cast<std::string>(data_node->name) + "' not found", *data_node);
+            throw_renderer_error("variable '" + static_cast<std::string>(data_node->name) + "' not found", *data_node);
           }
         }
       }
@@ -2698,10 +2552,8 @@ namespace inja
 
       if (data_eval_stack.size() < N)
       {
-        throw_renderer_error("function needs " + std::to_string(N) +
-                               " variables, but has only found " +
-                               std::to_string(data_eval_stack.size()),
-                             node);
+        throw_renderer_error(
+          "function needs " + std::to_string(N) + " variables, but has only found " + std::to_string(data_eval_stack.size()), node);
       }
 
       Arguments result{N};
@@ -2717,8 +2569,7 @@ namespace inja
 
           if (throw_not_found)
           {
-            throw_renderer_error(
-              "variable '" + static_cast<std::string>(data_node->name) + "' not found", *data_node);
+            throw_renderer_error("variable '" + static_cast<std::string>(data_node->name) + "' not found", *data_node);
           }
         }
       }
@@ -2735,10 +2586,7 @@ namespace inja
       }
     }
 
-    void visit(const TextNode& node) override
-    {
-      output_stream->write(current_template->content.c_str() + node.pos, node.length);
-    }
+    void visit(const TextNode& node) override { output_stream->write(current_template->content.c_str() + node.pos, node.length); }
 
     void visit(const ExpressionNode&) override { }
 
@@ -2746,10 +2594,7 @@ namespace inja
 
     void visit(const DataNode& node) override
     {
-      if (additional_data.contains(node.ptr))
-      {
-        data_eval_stack.push(&(additional_data[node.ptr]));
-      }
+      if (additional_data.contains(node.ptr)) { data_eval_stack.push(&(additional_data[node.ptr])); }
       else if (data_input->contains(node.ptr)) { data_eval_stack.push(&(*data_input)[node.ptr]); }
       else
       {
@@ -2837,18 +2682,15 @@ namespace inja
         const auto args = get_arguments<2>(node);
         if (args[0]->is_string() && args[1]->is_string())
         {
-          make_result(args[0]->get_ref<const json::string_t&>() +
-                      args[1]->get_ref<const json::string_t&>());
+          make_result(args[0]->get_ref<const json::string_t&>() + args[1]->get_ref<const json::string_t&>());
         }
         else if (args[0]->is_number_integer() && args[1]->is_number_integer())
         {
-          make_result(args[0]->get<const json::number_integer_t>() +
-                      args[1]->get<const json::number_integer_t>());
+          make_result(args[0]->get<const json::number_integer_t>() + args[1]->get<const json::number_integer_t>());
         }
         else
         {
-          make_result(args[0]->get<const json::number_float_t>() +
-                      args[1]->get<const json::number_float_t>());
+          make_result(args[0]->get<const json::number_float_t>() + args[1]->get<const json::number_float_t>());
         }
       }
       break;
@@ -2857,13 +2699,11 @@ namespace inja
         const auto args = get_arguments<2>(node);
         if (args[0]->is_number_integer() && args[1]->is_number_integer())
         {
-          make_result(args[0]->get<const json::number_integer_t>() -
-                      args[1]->get<const json::number_integer_t>());
+          make_result(args[0]->get<const json::number_integer_t>() - args[1]->get<const json::number_integer_t>());
         }
         else
         {
-          make_result(args[0]->get<const json::number_float_t>() -
-                      args[1]->get<const json::number_float_t>());
+          make_result(args[0]->get<const json::number_float_t>() - args[1]->get<const json::number_float_t>());
         }
       }
       break;
@@ -2872,25 +2712,19 @@ namespace inja
         const auto args = get_arguments<2>(node);
         if (args[0]->is_number_integer() && args[1]->is_number_integer())
         {
-          make_result(args[0]->get<const json::number_integer_t>() *
-                      args[1]->get<const json::number_integer_t>());
+          make_result(args[0]->get<const json::number_integer_t>() * args[1]->get<const json::number_integer_t>());
         }
         else
         {
-          make_result(args[0]->get<const json::number_float_t>() *
-                      args[1]->get<const json::number_float_t>());
+          make_result(args[0]->get<const json::number_float_t>() * args[1]->get<const json::number_float_t>());
         }
       }
       break;
       case Op::Division:
       {
         const auto args = get_arguments<2>(node);
-        if (args[1]->get<const json::number_float_t>() == 0)
-        {
-          throw_renderer_error("division by zero", node);
-        }
-        make_result(args[0]->get<const json::number_float_t>() /
-                    args[1]->get<const json::number_float_t>());
+        if (args[1]->get<const json::number_float_t>() == 0) { throw_renderer_error("division by zero", node); }
+        make_result(args[0]->get<const json::number_float_t>() / args[1]->get<const json::number_float_t>());
       }
       break;
       case Op::Power:
@@ -2899,14 +2733,12 @@ namespace inja
         if (args[0]->is_number_integer() && args[1]->get<const json::number_integer_t>() >= 0)
         {
           const auto result = static_cast<json::number_integer_t>(
-            std::pow(args[0]->get<const json::number_integer_t>(),
-                     args[1]->get<const json::number_integer_t>()));
+            std::pow(args[0]->get<const json::number_integer_t>(), args[1]->get<const json::number_integer_t>()));
           make_result(result);
         }
         else
         {
-          const auto result = std::pow(args[0]->get<const json::number_float_t>(),
-                                       args[1]->get<const json::number_integer_t>());
+          const auto result = std::pow(args[0]->get<const json::number_float_t>(), args[1]->get<const json::number_integer_t>());
           make_result(result);
         }
       }
@@ -2914,18 +2746,14 @@ namespace inja
       case Op::Modulo:
       {
         const auto args = get_arguments<2>(node);
-        make_result(args[0]->get<const json::number_integer_t>() %
-                    args[1]->get<const json::number_integer_t>());
+        make_result(args[0]->get<const json::number_integer_t>() % args[1]->get<const json::number_integer_t>());
       }
       break;
       case Op::AtId:
       {
         const auto container = get_arguments<1, 0, false>(node)[0];
         node.arguments[1]->accept(*this);
-        if (not_found_stack.empty())
-        {
-          throw_renderer_error("could not find element with given name", node);
-        }
+        if (not_found_stack.empty()) { throw_renderer_error("could not find element with given name", node); }
         const auto id_node = not_found_stack.top();
         not_found_stack.pop();
         data_eval_stack.pop();
@@ -2935,21 +2763,18 @@ namespace inja
       case Op::At:
       {
         const auto args = get_arguments<2>(node);
-        if (args[0]->is_object())
+        if (args[0]->is_object()) { data_eval_stack.push(&args[0]->at(args[1]->get<std::string>())); }
+        else
         {
-          data_eval_stack.push(&args[0]->at(args[1]->get<std::string>()));
+          data_eval_stack.push(&args[0]->at(args[1]->get<int>()));
         }
-        else { data_eval_stack.push(&args[0]->at(args[1]->get<int>())); }
       }
       break;
       case Op::Capitalize:
       {
         auto result = get_arguments<1>(node)[0]->get<json::string_t>();
         result[0]   = static_cast<char>(::toupper(result[0]));
-        std::transform(result.begin() + 1,
-                       result.end(),
-                       result.begin() + 1,
-                       [](char c) { return static_cast<char>(::tolower(c)); });
+        std::transform(result.begin() + 1, result.end(), result.begin() + 1, [](char c) { return static_cast<char>(::tolower(c)); });
         make_result(std::move(result));
       }
       break;
@@ -2963,8 +2788,7 @@ namespace inja
       {
         const auto args    = get_arguments<2>(node);
         const auto divisor = args[1]->get<const json::number_integer_t>();
-        make_result((divisor != 0) &&
-                    (args[0]->get<const json::number_integer_t>() % divisor == 0));
+        make_result((divisor != 0) && (args[0]->get<const json::number_integer_t>() % divisor == 0));
       }
       break;
       case Op::Even:
@@ -3011,16 +2835,16 @@ namespace inja
       {
         const auto val = get_arguments<1>(node)[0];
         if (val->is_string()) { make_result(val->get_ref<const json::string_t&>().length()); }
-        else { make_result(val->size()); }
+        else
+        {
+          make_result(val->size());
+        }
       }
       break;
       case Op::Lower:
       {
         auto result = get_arguments<1>(node)[0]->get<json::string_t>();
-        std::transform(result.begin(),
-                       result.end(),
-                       result.begin(),
-                       [](char c) { return static_cast<char>(::tolower(c)); });
+        std::transform(result.begin(), result.end(), result.begin(), [](char c) { return static_cast<char>(::tolower(c)); });
         make_result(std::move(result));
       }
       break;
@@ -3063,16 +2887,17 @@ namespace inja
         const auto   args      = get_arguments<2>(node);
         const auto   precision = args[1]->get<const json::number_integer_t>();
         const double result =
-          std::round(args[0]->get<const json::number_float_t>() * std::pow(10.0, precision)) /
-          std::pow(10.0, precision);
+          std::round(args[0]->get<const json::number_float_t>() * std::pow(10.0, precision)) / std::pow(10.0, precision);
         if (precision == 0) { make_result(static_cast<int>(result)); }
-        else { make_result(result); }
+        else
+        {
+          make_result(result);
+        }
       }
       break;
       case Op::Sort:
       {
-        auto result_ptr =
-          std::make_shared<json>(get_arguments<1>(node)[0]->get<std::vector<json>>());
+        auto result_ptr = std::make_shared<json>(get_arguments<1>(node)[0]->get<std::vector<json>>());
         std::sort(result_ptr->begin(), result_ptr->end());
         data_tmp_stack.push_back(result_ptr);
         data_eval_stack.push(result_ptr.get());
@@ -3081,10 +2906,7 @@ namespace inja
       case Op::Upper:
       {
         auto result = get_arguments<1>(node)[0]->get<json::string_t>();
-        std::transform(result.begin(),
-                       result.end(),
-                       result.begin(),
-                       [](char c) { return static_cast<char>(::toupper(c)); });
+        std::transform(result.begin(), result.end(), result.begin(), [](char c) { return static_cast<char>(::toupper(c)); });
         make_result(std::move(result));
       }
       break;
@@ -3136,23 +2958,19 @@ namespace inja
         const size_t level_diff = (args.size() == 1) ? args[0]->get<int>() : 1;
         const size_t level      = current_level + level_diff;
 
-        if (block_statement_stack.empty())
-        {
-          throw_renderer_error("super() call is not within a block", node);
-        }
+        if (block_statement_stack.empty()) { throw_renderer_error("super() call is not within a block", node); }
 
         if (level < 1 || level > template_stack.size() - 1)
         {
-          throw_renderer_error(
-            "level of super() call does not match parent templates (between 1 and " +
-              std::to_string(template_stack.size() - 1) + ")",
-            node);
+          throw_renderer_error("level of super() call does not match parent templates (between 1 and " +
+                                 std::to_string(template_stack.size() - 1) + ")",
+                               node);
         }
 
         const auto      current_block_statement = block_statement_stack.back();
         const Template* new_template            = template_stack.at(level);
         const Template* old_template            = current_template;
-        const auto      block_it = new_template->block_storage.find(current_block_statement->name);
+        const auto      block_it                = new_template->block_storage.find(current_block_statement->name);
         if (block_it != new_template->block_storage.end())
         {
           current_template = new_template;
@@ -3163,8 +2981,7 @@ namespace inja
         }
         else
         {
-          throw_renderer_error(
-            "could not find block with name '" + current_block_statement->name + "'", node);
+          throw_renderer_error("could not find block with name '" + current_block_statement->name + "'", node);
         }
         make_result(nullptr);
       }
@@ -3182,7 +2999,10 @@ namespace inja
           {
             os << value.get<std::string>(); // otherwise the value is surrounded with ""
           }
-          else { os << value.dump(); }
+          else
+          {
+            os << value.dump();
+          }
           sep = separator;
         }
         make_result(os.str());
@@ -3231,7 +3051,10 @@ namespace inja
         const auto tmp     = (*current_loop_data)["parent"];
         *current_loop_data = tmp;
       }
-      else { current_loop_data = &additional_data["loop"]; }
+      else
+      {
+        current_loop_data = &additional_data["loop"];
+      }
     }
 
     void visit(const ForObjectStatementNode& node) override
@@ -3239,10 +3062,7 @@ namespace inja
       const auto result = eval_expression_list(node.condition);
       if (! result->is_object()) { throw_renderer_error("object must be an object", node); }
 
-      if (! current_loop_data->empty())
-      {
-        (*current_loop_data)["parent"] = std::move(*current_loop_data);
-      }
+      if (! current_loop_data->empty()) { (*current_loop_data)["parent"] = std::move(*current_loop_data); }
 
       size_t index                     = 0;
       (*current_loop_data)["is_first"] = true;
@@ -3263,11 +3083,11 @@ namespace inja
 
       additional_data[static_cast<std::string>(node.key)].clear();
       additional_data[static_cast<std::string>(node.value)].clear();
-      if (! (*current_loop_data)["parent"].empty())
+      if (! (*current_loop_data)["parent"].empty()) { *current_loop_data = std::move((*current_loop_data)["parent"]); }
+      else
       {
-        *current_loop_data = std::move((*current_loop_data)["parent"]);
+        current_loop_data = &additional_data["loop"];
       }
-      else { current_loop_data = &additional_data["loop"]; }
     }
 
     void visit(const IfStatementNode& node) override
@@ -3283,13 +3103,9 @@ namespace inja
       const auto included_template_it = template_storage.find(node.file);
       if (included_template_it != template_storage.end())
       {
-        sub_renderer.render_to(
-          *output_stream, included_template_it->second, *data_input, &additional_data);
+        sub_renderer.render_to(*output_stream, included_template_it->second, *data_input, &additional_data);
       }
-      else if (config.throw_at_missing_includes)
-      {
-        throw_renderer_error("include '" + node.file + "' not found", node);
-      }
+      else if (config.throw_at_missing_includes) { throw_renderer_error("include '" + node.file + "' not found", node); }
     }
 
     void visit(const ExtendsStatementNode& node) override
@@ -3301,10 +3117,7 @@ namespace inja
         render_to(*output_stream, *parent_template, *data_input, &additional_data);
         break_rendering = true;
       }
-      else if (config.throw_at_missing_includes)
-      {
-        throw_renderer_error("extends '" + node.file + "' not found", node);
-      }
+      else if (config.throw_at_missing_includes) { throw_renderer_error("extends '" + node.file + "' not found", node); }
     }
 
     void visit(const BlockStatementNode& node) override
@@ -3331,19 +3144,14 @@ namespace inja
       additional_data[json::json_pointer(ptr)] = *eval_expression_list(node.expression);
     }
   public:
-    explicit Renderer(const RenderConfig&    config,
-                      const TemplateStorage& template_storage,
-                      const FunctionStorage& function_storage)
+    explicit Renderer(const RenderConfig& config, const TemplateStorage& template_storage, const FunctionStorage& function_storage)
     : config(config)
     , template_storage(template_storage)
     , function_storage(function_storage)
     {
     }
 
-    void render_to(std::ostream&   os,
-                   const Template& tmpl,
-                   const json&     data,
-                   json*           loop_data = nullptr)
+    void render_to(std::ostream& os, const Template& tmpl, const json& data, json* loop_data = nullptr)
     {
       output_stream    = &os;
       current_template = &tmpl;
@@ -3449,15 +3257,10 @@ namespace inja
 
     /// Sets the element notation syntax
     void set_search_included_templates_in_files(bool search_in_files)
-    {
-      parser_config.search_included_templates_in_files = search_in_files;
-    }
+    { parser_config.search_included_templates_in_files = search_in_files; }
 
     /// Sets whether a missing include will throw an error
-    void set_throw_at_missing_includes(bool will_throw)
-    {
-      render_config.throw_at_missing_includes = will_throw;
-    }
+    void set_throw_at_missing_includes(bool will_throw) { render_config.throw_at_missing_includes = will_throw; }
 
     /// Sets whether we'll automatically perform HTML escape
     void set_html_autoescape(bool will_escape) { render_config.html_autoescape = will_escape; }
@@ -3478,10 +3281,7 @@ namespace inja
 
     Template parse_file(const std::filesystem::path& filename) { return parse_template(filename); }
 
-    std::string render(std::string_view input, const json& data)
-    {
-      return render(parse(input), data);
-    }
+    std::string render(std::string_view input, const json& data) { return render(parse(input), data); }
 
     std::string render(const Template& tmpl, const json& data)
     {
@@ -3490,21 +3290,15 @@ namespace inja
       return os.str();
     }
 
-    std::string render_file(const std::filesystem::path& filename, const json& data)
-    {
-      return render(parse_template(filename), data);
-    }
+    std::string render_file(const std::filesystem::path& filename, const json& data) { return render(parse_template(filename), data); }
 
-    std::string render_file_with_json_file(const std::filesystem::path& filename,
-                                           const std::string&           filename_data)
+    std::string render_file_with_json_file(const std::filesystem::path& filename, const std::string& filename_data)
     {
       const json data = load_json(filename_data);
       return render_file(filename, data);
     }
 
-    void write(const std::filesystem::path& filename,
-               const json&                  data,
-               const std::string&           filename_out)
+    void write(const std::filesystem::path& filename, const json& data, const std::string& filename_out)
     {
       std::ofstream file(output_path / filename_out);
       file << render_file(filename, data);
@@ -3518,17 +3312,13 @@ namespace inja
       file.close();
     }
 
-    void write_with_json_file(const std::filesystem::path& filename,
-                              const std::string&           filename_data,
-                              const std::string&           filename_out)
+    void write_with_json_file(const std::filesystem::path& filename, const std::string& filename_data, const std::string& filename_out)
     {
       const json data = load_json(filename_data);
       write(filename, data, filename_out);
     }
 
-    void write_with_json_file(const Template&    temp,
-                              const std::string& filename_data,
-                              const std::string& filename_out)
+    void write_with_json_file(const Template& temp, const std::string& filename_data, const std::string& filename_out)
     {
       const json data = load_json(filename_data);
       write(temp, data, filename_out);
@@ -3540,10 +3330,7 @@ namespace inja
       return os;
     }
 
-    std::ostream& render_to(std::ostream& os, const std::string_view input, const json& data)
-    {
-      return render_to(os, parse(input), data);
-    }
+    std::ostream& render_to(std::ostream& os, const std::string_view input, const json& data) { return render_to(os, parse(input), data); }
 
     std::string load_file(const std::string& filename)
     {
@@ -3555,11 +3342,7 @@ namespace inja
     {
       std::ifstream file;
       file.open(input_path / filename);
-      if (file.fail())
-      {
-        INJA_THROW(
-          FileError("failed accessing file at '" + (input_path / filename).string() + "'"));
-      }
+      if (file.fail()) { INJA_THROW(FileError("failed accessing file at '" + (input_path / filename).string() + "'")); }
 
       return json::parse(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
     }
@@ -3567,33 +3350,23 @@ namespace inja
     /*!
     @brief Adds a variadic callback
     */
-    void add_callback(const std::string& name, const CallbackFunction& callback)
-    {
-      add_callback(name, -1, callback);
-    }
+    void add_callback(const std::string& name, const CallbackFunction& callback) { add_callback(name, -1, callback); }
 
     /*!
     @brief Adds a variadic void callback
     */
-    void add_void_callback(const std::string& name, const VoidCallbackFunction& callback)
-    {
-      add_void_callback(name, -1, callback);
-    }
+    void add_void_callback(const std::string& name, const VoidCallbackFunction& callback) { add_void_callback(name, -1, callback); }
 
     /*!
     @brief Adds a callback with given number or arguments
     */
     void add_callback(const std::string& name, int num_args, const CallbackFunction& callback)
-    {
-      function_storage.add_callback(name, num_args, callback);
-    }
+    { function_storage.add_callback(name, num_args, callback); }
 
     /*!
     @brief Adds a void callback with given number or arguments
     */
-    void add_void_callback(const std::string&          name,
-                           int                         num_args,
-                           const VoidCallbackFunction& callback)
+    void add_void_callback(const std::string& name, int num_args, const VoidCallbackFunction& callback)
     {
       function_storage.add_callback(name,
                                     num_args,
@@ -3608,28 +3381,19 @@ namespace inja
      * Then, a template can be rendered in another template using the
      * include "<name>" syntax.
      */
-    void include_template(const std::string& name, const Template& tmpl)
-    {
-      template_storage[name] = tmpl;
-    }
+    void include_template(const std::string& name, const Template& tmpl) { template_storage[name] = tmpl; }
 
     /*!
     @brief Sets a function that is called when an included file is not found
     */
-    void set_include_callback(
-      const std::function<Template(const std::filesystem::path&, const std::string&)>& callback)
-    {
-      parser_config.include_callback = callback;
-    }
+    void set_include_callback(const std::function<Template(const std::filesystem::path&, const std::string&)>& callback)
+    { parser_config.include_callback = callback; }
   };
 
   /*!
   @brief render with default settings to a string
   */
-  inline std::string render(std::string_view input, const json& data)
-  {
-    return Environment().render(input, data);
-  }
+  inline std::string render(std::string_view input, const json& data) { return Environment().render(input, data); }
 
   /*!
   @brief render with default settings to the given output stream
@@ -3662,3 +3426,4 @@ namespace inja
 #if defined(__GNUC__) //&& ! defined(__clang__)
 #  pragma GCC diagnostic pop
 #endif
+// NOLINTEND

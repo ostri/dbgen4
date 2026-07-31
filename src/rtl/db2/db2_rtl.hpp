@@ -39,7 +39,7 @@ namespace rtl
 
   }; //__attribute__((aligned(DATA_ALIGNMENT_64)));
 
-  class db_db2 : public db, public database
+  class db_db2 final : public db, public database
   {
   public:
     db_db2();

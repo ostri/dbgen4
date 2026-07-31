@@ -10,8 +10,8 @@ namespace rtl
   public:
     [[nodiscard]] span_buffer_dscr_init buffer_description_init() override { return {}; }
     /// no columns, so no rows either - and nothing to resize
-    [[nodiscard]] size_t                buffer_size() const noexcept override { return 0; }
+    [[nodiscard]] size_t buffer_size() const noexcept override { return 0; }
   protected:
-    void                                resize_storage(size_t) override { }
+    void resize_storage(size_t /* rows */) override { }
   };
 } // namespace rtl

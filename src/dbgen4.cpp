@@ -10,7 +10,7 @@ int main(int argc, char** argv, char** env)
   try
   {
     const auto* program_name = argv[0]; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    fs::path    p(program_name);
+    const fs::path p(program_name);
     log::get()->info("Program {} started", p.filename().string());
     /// application initialization
     dbgen4::appl app;

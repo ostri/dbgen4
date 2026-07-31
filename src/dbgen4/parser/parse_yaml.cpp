@@ -1,4 +1,5 @@
 #include "parse_yaml.hpp"
+#include <fstream>
 namespace dbgen4
 {
   Error dbgen4::parse_yaml::make_missing_key_error(const std::string& key) const
@@ -42,25 +43,29 @@ namespace dbgen4
   [[nodiscard]] std::expected<std::vector<std::string>, Error> parse_yaml::get_seq_of_strings(const std::string& key) const
   {
     if (! exists(key)) return std::unexpected(make_missing_key_error(key));
-    if (! root_[key].IsSequence())
+    if (! root_[key].IsSequence()) // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
     {
+      // NOLINTBEGIN(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
       auto err = Error{.message  = fmt::format("Key '{}' is not a sequence", key),
                        .line     = root_[key].Mark().line,
                        .column   = root_[key].Mark().column,
                        .filename = filename_};
+      // NOLINTEND(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
       log_()->error(err.to_string());
       return std::unexpected(err);
     }
     std::vector<std::string> result;
-    result.reserve(root_[key].size());
-    for (const auto& item : root_[key])
+    result.reserve(root_[key].size()); // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
+    for (const auto& item : root_[key]) // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
     {
       if (! item.IsScalar())
       {
+        // NOLINTBEGIN(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
         auto err = Error{.message  = "Key '" + key + "' is not a sequence",
                          .line     = root_[key].Mark().line,
                          .column   = root_[key].Mark().column,
                          .filename = filename_};
+        // NOLINTEND(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
         log_()->error(err.to_string());
         return std::unexpected(err);
       }
@@ -72,34 +77,43 @@ namespace dbgen4
   [[nodiscard]] std::vector<std::string> parse_yaml::get_seq_of_strings_or(const std::string&              key,
                                                                            const std::vector<std::string>& def) const noexcept
   {
-    auto res = get_seq_of_strings(key);
-    if (! res)
+    try
     {
-      log_()->trace("root: '{0}' key: '{1}' not found. Using default.", root_.Tag(), key);
+      auto res = get_seq_of_strings(key);
+      if (! res)
+      {
+        log_()->trace("root: '{0}' key: '{1}' not found. Using default.", root_.Tag(), key);
+        return def;
+      }
+      return *res;
+    }
+    catch (const YAML::Exception&)
+    {
       return def;
     }
-    return *res;
   }
 
   // sequence of maps
   [[nodiscard]] std::expected<std::vector<parse_yaml>, Error> parse_yaml::get_seq_of_maps(const std::string& key) const
   {
     if (! exists(key)) return std::unexpected(make_missing_key_error(key));
-    if (! root_[key].IsSequence())
+    if (! root_[key].IsSequence()) // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
     {
+      // NOLINTBEGIN(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
       auto err = Error{.message  = fmt::format("Key '{}' is not a sequence of maps", key),
                        .line     = root_[key].Mark().line,
                        .column   = root_[key].Mark().column,
                        .filename = filename_};
+      // NOLINTEND(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
       log_()->error(err.to_string());
       return std::unexpected(err);
     }
 
     std::vector<parse_yaml> result;
-    result.reserve(root_[key].size());
-    for (std::size_t i = 0; i < root_[key].size(); ++i)
+    result.reserve(root_[key].size());                              // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
+    for (std::size_t i = 0; i < root_[key].size(); ++i)              // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
     {
-      const auto& item = root_[key][i];
+      const auto& item = root_[key][i]; // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
       if (! item.IsMap())
       {
         auto err = Error{.message  = "Item " + std::to_string(i) + " in sequence '" + key + "' is not a map",
@@ -117,13 +131,20 @@ namespace dbgen4
   [[nodiscard]] std::vector<parse_yaml> parse_yaml::get_seq_of_maps_or(const std::string&             key,
                                                                        const std::vector<parse_yaml>& def) const noexcept
   {
-    auto res = get_seq_of_maps(key);
-    if (! res)
+    try
     {
-      log_()->trace("Root: {0} Key: '{1}' does not exists using default sequence of maps.", root_.Tag(), key);
+      auto res = get_seq_of_maps(key);
+      if (! res)
+      {
+        log_()->trace("Root: {0} Key: '{1}' does not exists using default sequence of maps.", root_.Tag(), key);
+        return def;
+      }
+      return *res;
+    }
+    catch (const YAML::Exception&)
+    {
       return def;
     }
-    return *res;
   }
 
   /**
@@ -141,16 +162,22 @@ namespace dbgen4
       if (exists(key)) log_()->error("Key '{}' is not a map of name to length - ignored.", key);
       return result;
     }
-    for (const auto& item : root_[key])
+    try
     {
-      try
+      for (const auto& item : root_[key]) // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
       {
-        result[item.first.as<std::string>()] = item.second.as<size_t>();
+        try
+        {
+          result[item.first.as<std::string>()] = item.second.as<size_t>();
+        }
+        catch (const YAML::Exception& e)
+        {
+          log_()->error("Entry of '{}' is not a name to length pair: {}", key, e.msg);
+        }
       }
-      catch (const YAML::Exception& e)
-      {
-        log_()->error("Entry of '{}' is not a name to length pair: {}", key, e.msg);
-      }
+    }
+    catch (const YAML::Exception&) // NOLINT(bugprone-empty-catch)
+    {
     }
     return result;
   }
@@ -159,16 +186,18 @@ namespace dbgen4
   [[nodiscard]] Result parse_yaml::get_map(const std::string& key) const
   {
     if (! exists(key)) return std::unexpected(make_missing_key_error(key));
-    if (! root_[key].IsMap())
+    if (! root_[key].IsMap()) // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
     {
+      // NOLINTBEGIN(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
       auto err = Error{.message  = fmt::format("Key '{}' is not member of map/object", key),
                        .line     = root_[key].Mark().line,
                        .column   = root_[key].Mark().column,
                        .filename = filename_};
+      // NOLINTEND(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
       log_()->trace(err.to_string());
       return std::unexpected(err);
     }
-    return parse_yaml(root_[key], filename_ + "." + key);
+    return parse_yaml(root_[key], filename_ + "." + key); // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
   }
 
   [[nodiscard]] std::string Error::to_string() const
@@ -213,9 +242,10 @@ namespace dbgen4
       if (i == cur_idx)
       {
         std::string msg_feed(column > 0 ? column - 1 : 0, ' ');
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
         msg += fmt::format("\033[1;37m{0}{1} \033[1;31m>\033[0m {2}\n{3}\033[1;31m^ here\033[0m\n", pad, num, lines[i], msg_feed);
       }
-      else msg += fmt::format("\033[2m{0}{1}  \033[0m {2}\n", pad, num, lines[i]);
+      else msg += fmt::format("\033[2m{0}{1}  \033[0m {2}\n", pad, num, lines[i]); // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access,readability-inconsistent-ifelse-braces)
     }
     msg += "\n";
     log_()->trace(msg);

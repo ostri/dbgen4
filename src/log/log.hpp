@@ -17,6 +17,9 @@ constexpr const char* def_log_path      = is_debug_build() ? "logs/fallback.debu
 class log
 {
 public:
+  log()  = default;
+  ~log() = default;
+
   static class log& instance();
 
   enum class mode : uint8_t
@@ -26,7 +29,7 @@ public:
   };
 
   // Mnemonic level names
-  enum class level : int
+  enum class level : int // NOLINT(performance-enum-size)
   {
     trace    = 0,
     debug    = 1,
@@ -51,12 +54,12 @@ public:
                 std::string_view log_folder      = "logs",
                 enum level       flush_lvl       = level::warn);
 
-  enum level level() const;
-  enum level console_level() const;
-  enum level file_level() const;
-  void       set_console_level(enum level l);
-  void       set_file_level(enum level l);
-  void       set_level(enum level l);
+  [[nodiscard]] enum level level() const;
+  [[nodiscard]] enum level console_level() const;
+  [[nodiscard]] enum level file_level() const;
+  void                     set_console_level(enum level l);
+  void                     set_file_level(enum level l);
+  void                     set_level(enum level l);
 
 
   void log_exception_with_chain(const std::exception& e, enum level l = level::critical);
@@ -72,7 +75,7 @@ public:
   log& operator=(const log&)         = delete;
   log(log&&)                         = delete;
   log&              operator=(log&&) = delete;
-  static class log* get();
+  static class log* get() noexcept;
 
   // clang-format off
   template <typename... Args> void trace   (fmt::format_string<Args...> fmt, Args&&... args);
@@ -92,8 +95,6 @@ public:
   void flush();
   void flush_on(enum level l);
 private:
-  log();
-  ~log();
   // Helper functions
   static enum level flush_level_from_string(const std::string& level);
   // Signal handler must be static to be passed to std::signal
@@ -115,7 +116,7 @@ inline void log::trace(fmt::format_string<Args...> fmt, Args&&... args)
   {
     _log(level::trace, fmt::format(fmt, std::forward<Args>(args)...));
   }
-  catch (...)
+  catch (...) // NOLINT(bugprone-empty-catch)
   {
   }
 }
@@ -127,7 +128,7 @@ inline void log::debug(fmt::format_string<Args...> fmt, Args&&... args)
   {
     _log(level::debug, fmt::format(fmt, std::forward<Args>(args)...));
   }
-  catch (...)
+  catch (...) // NOLINT(bugprone-empty-catch)
   {
   }
 }
@@ -139,7 +140,7 @@ inline void log::info(fmt::format_string<Args...> fmt, Args&&... args)
   {
     _log(level::info, fmt::format(fmt, std::forward<Args>(args)...));
   }
-  catch (...)
+  catch (...) // NOLINT(bugprone-empty-catch)
   {
   }
 }
@@ -151,7 +152,7 @@ inline void log::warn(fmt::format_string<Args...> fmt, Args&&... args)
   {
     _log(level::warn, fmt::format(fmt, std::forward<Args>(args)...));
   }
-  catch (...)
+  catch (...) // NOLINT(bugprone-empty-catch)
   {
   }
 }
@@ -163,7 +164,7 @@ inline void log::error(fmt::format_string<Args...> fmt, Args&&... args)
   {
     _log(level::error, fmt::format(fmt, std::forward<Args>(args)...));
   }
-  catch (...)
+  catch (...) // NOLINT(bugprone-empty-catch)
   {
   }
 }
@@ -175,7 +176,7 @@ inline void log::critical(fmt::format_string<Args...> fmt, Args&&... args)
   {
     _log(level::critical, fmt::format(fmt, std::forward<Args>(args)...));
   }
-  catch (...)
+  catch (...) // NOLINT(bugprone-empty-catch)
   {
   }
 }

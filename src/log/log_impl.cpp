@@ -151,7 +151,8 @@ void log::impl::setup_terminate_handler()
           get()->critical("UNKNOWN EXCEPTION – terminating!");
         }
       }
-      else {
+      else
+      {
         get()->critical("std::terminate() called without exception");
       }
 
@@ -308,7 +309,8 @@ void log::impl::init_raw(std::string_view app_name,
     logger_ = std::make_shared<spdlog::async_logger>(
       std::string(app_name), sinks.begin(), sinks.end(), spdlog::thread_pool(), spdlog::async_overflow_policy::overrun_oldest);
   }
-  else {
+  else
+  {
     logger_ = std::make_shared<spdlog::logger>(std::string(app_name), sinks.begin(), sinks.end());
   }
 
@@ -375,16 +377,22 @@ provided parameters :
 //   }
 // }
 // Meyers' Singleton – thread-safe, lazy initialization
-class ::log& log::impl::instance()
+class ::log& log::impl::instance() noexcept
 {
   static log singleton_;
-  if (! singleton_.pimpl_ || singleton_.pimpl_->cfg_filename_.empty())
+  try
   {
-    if (! singleton_.pimpl_) singleton_.pimpl_ = std::make_unique<impl>();
-    const auto* config_file = std::getenv("LOG_CONFIG"); // NOLINT(concurrency-mt-unsafe)
-    singleton_.init_from_json(config_file != nullptr ? config_file : "");
-    singleton_.setup_terminate_handler();
-    singleton_.setup_signal_handler();
+    if (! singleton_.pimpl_ || singleton_.pimpl_->cfg_filename_.empty())
+    {
+      if (! singleton_.pimpl_) singleton_.pimpl_ = std::make_unique<impl>();
+      const auto* config_file = std::getenv("LOG_CONFIG"); // NOLINT(concurrency-mt-unsafe)
+      singleton_.init_from_json(config_file != nullptr ? config_file : "");
+      singleton_.setup_terminate_handler();
+      singleton_.setup_signal_handler();
+    }
+  }
+  catch (...) // NOLINT(bugprone-empty-catch)
+  {
   }
   return singleton_;
 }

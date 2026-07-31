@@ -55,7 +55,7 @@ namespace rtl::fmt_detail
 
   /// append ".fffffffff" and trim it, returning the new total length
   template <size_t capacity>
-  size_t append_fraction(char (&buffer)[capacity], size_t len, uint32_t fraction) noexcept
+  size_t append_fraction(char (&buffer)[capacity], size_t len, uint32_t fraction) noexcept // NOLINT(hicpp-avoid-c-arrays)
   {
     // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     const int    written = std::snprintf(buffer + len, capacity - len, ".%09u", fraction); // NOLINT
@@ -72,13 +72,14 @@ struct fmt::formatter<rtl::date> : fmt::formatter<std::string_view> // NOLINT
   template <typename FormatContext>
   auto format(const rtl::date& dt, FormatContext& ctx) const
   {
-    char      buffer[16]; // "YYYY-MM-DD" and room for a field that prints wider NOLINT
+    char      buffer[16];                     // "YYYY-MM-DD" and room for a field that prints wider NOLINT
     const int written = std::snprintf(buffer, // NOLINT
                                       sizeof(buffer),
                                       "%04d-%02d-%02d",
                                       static_cast<int>(dt.year),
                                       static_cast<int>(dt.month),
                                       static_cast<int>(dt.day));
+    // NOLINTNEXTLINE(hicpp-no-array-decay)
     const std::string_view text(buffer, rtl::fmt_detail::written_len(written, sizeof(buffer)));
     return formatter<std::string_view>::format(text, ctx);
   }
@@ -91,13 +92,14 @@ struct fmt::formatter<rtl::time> : fmt::formatter<std::string_view> // NOLINT
   template <typename FormatContext>
   auto format(const rtl::time& tm, FormatContext& ctx) const
   {
-    char      buffer[16]; // "HH:MM:SS" and room to spare NOLINT
+    char      buffer[16];                     // "HH:MM:SS" and room to spare NOLINT
     const int written = std::snprintf(buffer, // NOLINT
                                       sizeof(buffer),
                                       "%02d:%02d:%02d",
                                       static_cast<int>(tm.hour),
                                       static_cast<int>(tm.minute),
                                       static_cast<int>(tm.second));
+    // NOLINTNEXTLINE(hicpp-no-array-decay)
     const std::string_view text(buffer, rtl::fmt_detail::written_len(written, sizeof(buffer)));
     return formatter<std::string_view>::format(text, ctx);
   }
@@ -113,18 +115,19 @@ struct fmt::formatter<rtl::timestamp> : fmt::formatter<std::string_view> // NOLI
     // The date and time go down first so that the offset of the fraction is
     // measured rather than assumed - that is what lets trim_fraction stop at
     // the right place even when a field prints wider than its format.
-    char      buffer[48]; // NOLINT
-    const int written = std::snprintf(buffer, // NOLINT
-                                      sizeof(buffer),
-                                      "%04d-%02d-%02d %02d:%02d:%02d",
-                                      static_cast<int>(ts.year),
-                                      static_cast<int>(ts.month),
-                                      static_cast<int>(ts.day),
-                                      static_cast<int>(ts.hour),
-                                      static_cast<int>(ts.minute),
-                                      static_cast<int>(ts.second));
-    const size_t head  = rtl::fmt_detail::written_len(written, sizeof(buffer));
-    const size_t total = rtl::fmt_detail::append_fraction(buffer, head, ts.fraction);
+    char         buffer[48];                     // NOLINT
+    const int    written = std::snprintf(buffer, // NOLINT
+                                         sizeof(buffer),
+                                         "%04d-%02d-%02d %02d:%02d:%02d",
+                                         static_cast<int>(ts.year),
+                                         static_cast<int>(ts.month),
+                                         static_cast<int>(ts.day),
+                                         static_cast<int>(ts.hour),
+                                         static_cast<int>(ts.minute),
+                                         static_cast<int>(ts.second));
+    const size_t head    = rtl::fmt_detail::written_len(written, sizeof(buffer));
+    const size_t total   = rtl::fmt_detail::append_fraction(buffer, head, ts.fraction);
+    // NOLINTNEXTLINE(hicpp-no-array-decay)
     return formatter<std::string_view>::format(std::string_view(buffer, total), ctx);
   }
 };
@@ -137,7 +140,7 @@ struct fmt::formatter<rtl::guid> : fmt::formatter<std::string_view> // NOLINT
   auto format(const rtl::guid& g, FormatContext& ctx) const
   {
     char buffer[40]; // 36 significant, rounded up NOLINT
-    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
+    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index,cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
     const int written = std::snprintf(buffer, // NOLINT
                                       sizeof(buffer),
                                       "%08x-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x",
@@ -152,7 +155,8 @@ struct fmt::formatter<rtl::guid> : fmt::formatter<std::string_view> // NOLINT
                                       g.data4[5],
                                       g.data4[6],
                                       g.data4[7]);
-    // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
+    // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index,cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
+    // NOLINTNEXTLINE(hicpp-no-array-decay)
     const std::string_view text(buffer, rtl::fmt_detail::written_len(written, sizeof(buffer)));
     return formatter<std::string_view>::format(text, ctx);
   }
@@ -166,7 +170,7 @@ struct fmt::formatter<rtl::interval> : fmt::formatter<std::string_view> // NOLIN
   auto format(const rtl::interval& iv, FormatContext& ctx) const
   {
     char        buffer[64]; // NOLINT
-    const char* sign = (iv.sign == 0) ? "-" : "";
+    const char* sign  = (iv.sign == 0) ? "-" : "";
     size_t      total = 0;
     // Every kind is named rather than swept up by the default, because
     // -Werror=switch-enum is what makes a new interval_kind break the build
@@ -178,12 +182,14 @@ struct fmt::formatter<rtl::interval> : fmt::formatter<std::string_view> // NOLIN
     case rtl::interval_kind::month:
     case rtl::interval_kind::year_to_month:
     {
+      // NOLINTBEGIN(cppcoreguidelines-pro-type-union-access)
       const int written = std::snprintf(buffer, // NOLINT
                                         sizeof(buffer),
                                         "%s%u-%u",
                                         sign,
                                         iv.value.year_month_.year,
                                         iv.value.year_month_.month);
+      // NOLINTEND(cppcoreguidelines-pro-type-union-access)
       total = rtl::fmt_detail::written_len(written, sizeof(buffer));
       break;
     }
@@ -202,19 +208,22 @@ struct fmt::formatter<rtl::interval> : fmt::formatter<std::string_view> // NOLIN
       // Same two step shape as rtl::timestamp, and for the same reason: the
       // fraction is trimmed, which needs its offset to be known rather than
       // guessed. Before this it was the one type that printed all nine digits.
-      const int written = std::snprintf(buffer, // NOLINT
-                                        sizeof(buffer),
-                                        "%s%u %02u:%02u:%02u",
-                                        sign,
-                                        iv.value.day_second_.day,
-                                        iv.value.day_second_.hour,
-                                        iv.value.day_second_.minute,
-                                        iv.value.day_second_.second);
-      const size_t head = rtl::fmt_detail::written_len(written, sizeof(buffer));
-      total             = rtl::fmt_detail::append_fraction(buffer, head, iv.value.day_second_.fraction);
+      // NOLINTBEGIN(cppcoreguidelines-pro-type-union-access)
+      const int    written = std::snprintf(buffer, // NOLINT
+                                           sizeof(buffer),
+                                           "%s%u %02u:%02u:%02u",
+                                           sign,
+                                           iv.value.day_second_.day,
+                                           iv.value.day_second_.hour,
+                                           iv.value.day_second_.minute,
+                                           iv.value.day_second_.second);
+      const size_t head    = rtl::fmt_detail::written_len(written, sizeof(buffer));
+      total                = rtl::fmt_detail::append_fraction(buffer, head, iv.value.day_second_.fraction);
+      // NOLINTEND(cppcoreguidelines-pro-type-union-access)
       break;
     }
     }
+    // NOLINTNEXTLINE(hicpp-no-array-decay)
     return formatter<std::string_view>::format(std::string_view(buffer, total), ctx);
   }
 };

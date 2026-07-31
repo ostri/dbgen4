@@ -289,7 +289,7 @@ namespace rtl
         }
         /// holders may have reallocated while being filled - repoint
         for (size_t i = 0; i < pd.size(); ++i)
-          if (values[i] != nullptr) values[i] = holders[i].c_str();
+          if (values[i] != nullptr) values[i] = holders[i].c_str(); // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
       }
 
       detail::result_holder res{PQexecPrepared(conn,
@@ -324,7 +324,7 @@ namespace rtl
     [[nodiscard]] std::expected<bool, psql_error> fetch() noexcept
     try
     {
-      if constexpr (! has_results) return false;
+      if constexpr (! has_results) return false; // NOLINT(readability-inconsistent-ifelse-braces)
       else
       {
         if (auto layout = check_layout(); ! layout) return std::unexpected(layout.error());

@@ -59,7 +59,7 @@ namespace rtl
    * the ODBC SQL_* codes, so that this header carries no backend dependency.
    * Backends translate between their native codes and these values.
    */
-  enum class sql_type : std::int16_t
+  enum class sql_type : std::int16_t // NOLINT(performance-enum-size)
   {
     unknown = 0,
     // atomic
@@ -147,9 +147,9 @@ namespace rtl
 
   struct date
   {
-    int16_t  year;
-    uint16_t month;
-    uint16_t day;
+    int16_t  year;  // NOLINT(misc-non-private-member-variables-in-classes)
+    uint16_t month; // NOLINT(misc-non-private-member-variables-in-classes)
+    uint16_t day;   // NOLINT(misc-non-private-member-variables-in-classes)
 
     /**
      * @brief compare two dates chronologically
@@ -183,7 +183,7 @@ namespace rtl
     uint32_t fraction; ///< nanoseconds
   };
 
-  enum class interval_kind : uint32_t
+  enum class interval_kind : uint32_t // NOLINT(performance-enum-size)
   {
     year = 1,
     month,
@@ -228,10 +228,10 @@ namespace rtl
 
   struct guid
   {
-    uint32_t data1;
-    uint16_t data2;
-    uint16_t data3;
-    uint8_t  data4[8]; // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
+    uint32_t               data1;
+    uint16_t               data2;
+    uint16_t               data3;
+    std::array<uint8_t, 8> data4; // NOLINT(readability-magic-numbers)
   };
 
   /**
@@ -239,13 +239,12 @@ namespace rtl
    */
   struct sql_mapping
   {
-    sql_type sql;      ///< primary key
-    cstr_t   mnemonic; ///< readable name, ends up in generated comments
-    sql_cat  category; ///< storage category
-
-    cstr_t cpp_type_name; ///< storage type (element type for the string categories)
-    cstr_t par_type_name; ///< type accepted by a generated setter
-    cstr_t ret_type_name; ///< type returned by a generated getter
+    sql_type sql;           ///< primary key
+    cstr_t   mnemonic;      ///< readable name, ends up in generated comments
+    sql_cat  category;      ///< storage category
+    cstr_t   cpp_type_name; ///< storage type (element type for the string categories)
+    cstr_t   par_type_name; ///< type accepted by a generated setter
+    cstr_t   ret_type_name; ///< type returned by a generated getter
   };
 
   /// how many entries a table keyed by sql_type needs

@@ -25,6 +25,11 @@
 #   Every header in this project uses #pragma once, which is the decision this
 #   check argues against - llvm-header-guard is off for the same reason, from
 #   the other direction.
+#
+#   misc-include-cleaner wants every symbol's own header included directly in
+#   the .cpp that uses it, even when it already arrives transitively through
+#   a header that .cpp includes. That flagged 344 sites project-wide with no
+#   bug behind any of them - pure transitive-include style, not correctness.
 Checks: |
   *,
   -altera-*,
@@ -47,6 +52,7 @@ Checks: |
   -llvm-header-guard,
   -llvm-include-order,
   -llvm-prefer-static-over-anonymous-namespace,
+  -misc-include-cleaner,
   -modernize-use-trailing-return-type,
   -modernize-avoid-c-arrays,
   -portability-avoid-pragma-once,

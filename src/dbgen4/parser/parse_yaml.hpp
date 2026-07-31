@@ -2,15 +2,12 @@
 
 #include "log.hpp"         // IWYU pragma: keep.
 #include <source_location> // IWYU pragma: keep.
-// #include <spdlog/logger.h>
 #include <yaml-cpp/yaml.h>
 #include <expected>
 #include <string>
 #include <vector>
 #include <map>
-#include <expected>
-// #include <fstream>
-#include "fmt_structs.hpp"
+// #include "fmt_structs.hpp"
 namespace dbgen4
 {
   using loc_t = const std::source_location;
@@ -58,17 +55,17 @@ namespace dbgen4
     {
       try
       {
-        if (! root_[key] || root_[key].IsNull())
+        if (! root_[key] || root_[key].IsNull()) // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
         {
-          Error err{.message  = fmt::format("root: '{}' tag: '{}' not found", root_.Tag(), key),
-                    .line     = root_.Mark().line,
-                    .column   = root_.Mark().column,
-                    .filename = filename_};
+          const Error err{.message  = fmt::format("root: '{}' tag: '{}' not found", root_.Tag(), key),
+                          .line     = root_.Mark().line,
+                          .column   = root_.Mark().column,
+                          .filename = filename_};
           log_()->trace(err.to_string());
           return std::unexpected(make_missing_key_error(key));
         }
         log_()->debug("tag '{}' found.", key);
-        return root_[key].as<T>();
+        return root_[key].as<T>(); // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
       }
       catch (const YAML::Exception& e)
       {
@@ -87,17 +84,64 @@ namespace dbgen4
       auto res = get<T>(key);
       if (! res)
       {
-        log_()->trace("root: '{0}' key '{1}' not found; using default. default:'{2}'", root_.Tag(), key, def);
+        try
+        {
+          log_()->trace("root: '{0}' key '{1}' not found; using default. default:'{2}'", root_.Tag(), key, def);
+        }
+        catch (const YAML::Exception&) // NOLINT(bugprone-empty-catch)
+        {
+        }
         return def;
       }
       return *res;
     }
 
     /// node existence and type checking
-    [[nodiscard]] bool exists(const std::string& key) const noexcept { return root_[key] && ! root_[key].IsNull(); }
-    [[nodiscard]] bool is_map(const std::string& key) const noexcept { return exists(key) && root_[key].IsMap(); }
-    [[nodiscard]] bool is_sequence(const std::string& key) const noexcept { return exists(key) && root_[key].IsSequence(); }
-    [[nodiscard]] bool is_scalar(const std::string& key) const noexcept { return exists(key) && root_[key].IsScalar(); }
+    [[nodiscard]] bool exists(const std::string& key) const noexcept
+    {
+      try
+      {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
+        return root_[key] && ! root_[key].IsNull();
+      }
+      catch (const YAML::Exception&)
+      {
+        return false;
+      }
+    }
+    [[nodiscard]] bool is_map(const std::string& key) const noexcept
+    {
+      try
+      {
+        return exists(key) && root_[key].IsMap(); // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
+      }
+      catch (const YAML::Exception&)
+      {
+        return false;
+      }
+    }
+    [[nodiscard]] bool is_sequence(const std::string& key) const noexcept
+    {
+      try
+      {
+        return exists(key) && root_[key].IsSequence(); // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
+      }
+      catch (const YAML::Exception&)
+      {
+        return false;
+      }
+    }
+    [[nodiscard]] bool is_scalar(const std::string& key) const noexcept
+    {
+      try
+      {
+        return exists(key) && root_[key].IsScalar(); // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
+      }
+      catch (const YAML::Exception&)
+      {
+        return false;
+      }
+    }
     /// fetch non atomic structures
     [[nodiscard]] std::expected<std::vector<std::string>, Error> get_seq_of_strings(const std::string& key) const;
     [[nodiscard]] std::expected<std::vector<parse_yaml>, Error>  get_seq_of_maps(const std::string& key) const;

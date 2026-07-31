@@ -281,6 +281,7 @@ set (RTL_INCLUDE_DIRS
 if(DB2_FOUND)
     add_library(db2_rtl STATIC
       ${CMAKE_SOURCE_DIR}/src/rtl/rtl.cpp
+      ${CMAKE_SOURCE_DIR}/src/rtl/parameter_root.cpp
       ${CMAKE_SOURCE_DIR}/src/rtl/db2/db2_rtl.cpp
       ${CMAKE_SOURCE_DIR}/src/rtl/db2/odbc_error.cpp
       ${CMAKE_SOURCE_DIR}/src/rtl/db2/query.cpp
@@ -296,6 +297,7 @@ endif()
 if(LIBPQ_FOUND)
     add_library(psql_rtl STATIC
       ${CMAKE_SOURCE_DIR}/src/rtl/rtl.cpp
+      ${CMAKE_SOURCE_DIR}/src/rtl/parameter_root.cpp
       ${CMAKE_SOURCE_DIR}/src/rtl/psql/psql_rtl.cpp
       ${CMAKE_SOURCE_DIR}/src/rtl/psql/query.cpp
     )
@@ -361,24 +363,33 @@ if(LIBPQ_FOUND)
 endif()
 
 # === clang-tidy ===
-# Every .cpp/.hpp under src/ goes through this target, not just GEN_SRC_FILES -
-# that list is only the main executable's sources, so db2_rtl, psql_rtl and the
-# test sources were silently skipped before. GLOB_RECURSE is fine here: unlike
-# add_library/add_executable sources, tidy is a developer convenience target,
-# not something a stale file list can break the build over.
-find_program(CLANG_TIDY_EXECUTABLE NAMES clang-tidy)
-if(CLANG_TIDY_EXECUTABLE)
-    file(GLOB_RECURSE ALL_SRC_FILES
-        ${CMAKE_SOURCE_DIR}/src/*.cpp
-        ${CMAKE_SOURCE_DIR}/src/*.hpp
-    )
+# Every .cpp under src/ goes through this target, not just GEN_SRC_FILES - that
+# list is only the main executable's sources, so db2_rtl, psql_rtl and the
+# generator sources were silently skipped before. Headers are covered too:
+# clang-tidy analyzes them as included by these translation units, same as it
+# does for the source-filtered .cpp itself.
+#
+# run-clang-tidy (not clang-tidy directly) so this uses all available cores -
+# it drives one clang-tidy subprocess per translation unit via -j, instead of
+# one process working through the whole list serially.
+#
+# -source-filter restricts to our own .cpp files: the compilation database
+# also lists every CPM dependency's sources (fmt, spdlog, yaml-cpp, Catch2),
+# which would otherwise be tidied as their own translation units too.
+# src/test/ is excluded from that filter, same as CXX_CLANG_TIDY "" on the
+# unit_tests target below: Catch2's macros trigger clang-tidy false positives
+# there.
+find_program(RUN_CLANG_TIDY_EXECUTABLE NAMES run-clang-tidy run-clang-tidy.py)
+if(RUN_CLANG_TIDY_EXECUTABLE)
     add_custom_target(tidy
-        COMMAND ${CLANG_TIDY_EXECUTABLE}
+        COMMAND ${RUN_CLANG_TIDY_EXECUTABLE}
             -p ${CMAKE_BINARY_DIR}
             -config-file=${CMAKE_SOURCE_DIR}/.clang-tidy
-            ${ALL_SRC_FILES}
+            -quiet
+            -source-filter "^${CMAKE_SOURCE_DIR}/src/(?!test/).*\\.cpp$"
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        COMMENT "Running clang-tidy"
+        COMMENT "Running clang-tidy (parallel)"
+        VERBATIM
     )
 endif()
 

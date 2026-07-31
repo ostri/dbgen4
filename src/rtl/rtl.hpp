@@ -315,11 +315,12 @@ namespace rtl
     if (data_vec.size() < row) [[unlikely]]
       throw std::out_of_range(fmt::format("Row is too long. provided: {} maximum allowed {}", row, data_vec.size()));
 
-    len_vec[row] = static_cast<int32_t>(value.size());
+    len_vec[row] = static_cast<int32_t>(value.size()); // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
     auto& buf    = data_vec[row];
     value.copy(buf.data(), value.size(), 0);
-    if constexpr (std::is_same_v<CharT, char> || std::is_same_v<CharT, wchar_t>) buf[value.size()] = CharT(0); // safety null
-    else {
+    if constexpr (std::is_same_v<CharT, char> || std::is_same_v<CharT, wchar_t>) buf[value.size()] = CharT(0); // safety null // NOLINT(readability-inconsistent-ifelse-braces)
+    else
+    {
       // Binary string - no need for trailing zero
     };
   }

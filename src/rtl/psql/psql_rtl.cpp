@@ -250,6 +250,6 @@ namespace rtl
 
   std::string_view backend_name() noexcept { return "psql"; }
 
-  uint16_t default_port() noexcept { return 5432; }
+  uint16_t default_port() noexcept { return 5432; } // NOLINT(readability-magic-numbers)
 
 } // namespace rtl

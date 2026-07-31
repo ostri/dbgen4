@@ -157,7 +157,7 @@ namespace rtl
   template <typename params, typename results>
   inline e_void query<params, results>::prepare() noexcept
   {
-    auto    logger = db_->get_logger();
+    auto*   logger = db_->get_logger();
     SQLHDBC conn   = db_->get_conn();
 
     if (is_prepared()) SQLFreeHandle(SQL_HANDLE_STMT, stmt_);
@@ -269,7 +269,7 @@ namespace rtl
     if (! is_prepared()) return std::unexpected(odbc_error(SQL_ERROR, SQL_NULL_HANDLE, handle_type_enum::stmt));
     if (auto layout = check_layout(); ! layout) return std::unexpected(layout.error());
 
-    auto logger = db_->get_logger();
+    auto* logger = db_->get_logger();
     if constexpr (has_params) par_->clear_row_status();
 
     SQLRETURN ret = SQLExecute(stmt_);
@@ -310,7 +310,7 @@ namespace rtl
     /// the whole body has to live in the else branch - without it the code
     /// below is still compiled for a result-less query, where rows_fetched_
     /// and res_ are std::monostate
-    if constexpr (! has_results) return false;
+    if constexpr (! has_results) return false; // NOLINT(readability-inconsistent-ifelse-braces)
     else
     {
       rows_fetched_ = 0;

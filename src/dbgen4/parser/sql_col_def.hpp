@@ -38,7 +38,7 @@ namespace dbgen4
     void set_type(const rtl::sql_type& type);
     void is_nullable(bool nullable);
   protected:
-    // NOLINTNEXTLINE(cert-err58-cpp)
+    // NOLINTNE XTLINE(cert-err58-cpp)
     inline static const auto log = log::get();
   private:
     uint16_t      position_{0};    ///< position of the column in the select list or parameter list

@@ -31,8 +31,8 @@ namespace dbgen4
     {
       return ""; // return empty string
     }
-    size_t pos = first - s.begin();
-    size_t len = last - first;
+    const size_t pos = first - s.begin();
+    const size_t len = last - first;
     return s.substr(pos, len);
   }
 
@@ -129,8 +129,7 @@ namespace dbgen4
   std::string lowercase(std::string_view input_view)
   {
     std::string exit_string(input_view);
-    /// NOLINTNEXTLINE(modernize-use-ranges, boost-use-ranges)
-    std::transform(exit_string.begin(), exit_string.end(), exit_string.begin(), [](unsigned char c) { return std::tolower(c); });
+    std::ranges::transform(exit_string, exit_string.begin(), [](unsigned char c) { return std::tolower(c); });
     return exit_string;
   }
 }; // namespace dbgen4

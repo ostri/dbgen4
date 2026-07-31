@@ -36,7 +36,7 @@ namespace rtl
     static class log::log* log_() { return log::get(); };
   };
 
-  class db_psql : public db
+  class db_psql final : public db
   {
   public:
     db_psql();

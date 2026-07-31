@@ -7,8 +7,8 @@
 class log::impl
 {
 public:
-  static class ::log& instance();
-  static class log*   get() { return &instance(); }
+  static class ::log& instance() noexcept;
+  static class log*   get() noexcept { return &instance(); }
   void                init_from_json(const std::string& config_path);
   void                init_fallback();
 
@@ -23,14 +23,14 @@ public:
                 std::string_view log_folder,
                 enum level       flush_lvl);
 
-  enum log::level console_level() const;
-  enum log::level file_level() const;
-  enum log::level level() const;
-  void            set_console_level(enum log::level l);
-  void            set_file_level(enum log::level l);
-  void            set_level(enum log::level l);
-  void            flush();
-  void            flush_on(enum level l);
+  [[nodiscard]] enum log::level console_level() const;
+  [[nodiscard]] enum log::level file_level() const;
+  [[nodiscard]] enum log::level level() const;
+  void                          set_console_level(enum log::level l);
+  void                          set_file_level(enum log::level l);
+  void                          set_level(enum log::level l);
+  void                          flush();
+  void                          flush_on(enum level l);
 
   void        _log(enum log::level l, std::string_view s);
   void        log_exception_with_chain(const std::exception& e, enum log::level lvl);

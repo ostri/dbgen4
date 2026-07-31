@@ -69,7 +69,7 @@ namespace dbgen4
   {
     log_()->info("build type: {}", build_type_name());
 
-    parser p;
+    const parser p;
     log_()->info("=========== Application initialized ===========");
     auto sts = p_.load_parameters(argc, argv, env);
     log_()->info("Command line parsing. status: '{}'", ME::enum_name(sts));
@@ -98,7 +98,7 @@ namespace dbgen4
         log_()->error("Unable to connect to database '{}'", p_.db_name());
         return exit_status_enum::connection_error;
       }
-      context ctx(p_); /// package cmd line parameters
+      const context ctx(p_); /// package cmd line parameters
       // auto    res = ctx.prepare_templates(); /// prepare templates
       //      if (! res) return res.error();         /// errors in template generation
       generator gen(ctx); /// bare bone generator
