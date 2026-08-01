@@ -153,6 +153,7 @@ namespace
   template <typename Db>
   insert_timing timed_insert(Db& db, size_t rows_per_block, size_t blocks)
   {
+    auto*                 log = rtl::logger::get();
     dbx::s_perf_ins::stmt ins(&db, dbx::s_perf_ins::qry::sql());
 
     /// sized before prepare(): prepare() hands the driver pointers into these
@@ -193,7 +194,7 @@ namespace
         REQUIRE(rtl::is_success(db.commit()));
         ++t.commits;
         t.committing += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - commit_from);
-        rtl::logger::get()->debug("commit #{}: {} rows this commit, {} rows total", t.commits, rows_per_block * commit_after, rows_written);
+        log->debug("commit #{}: {} rows this commit, {} rows total", t.commits, rows_per_block * commit_after, rows_written);
       }
     }
 
@@ -206,8 +207,7 @@ namespace
       REQUIRE(rtl::is_success(db.commit()));
       ++t.commits;
       t.committing += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - last_from);
-      rtl::logger::get()->debug(
-        "commit #{}: {} rows this commit, {} rows total", t.commits, rows_per_block * (blocks % commit_after), rows_written);
+      log->debug("commit #{}: {} rows this commit, {} rows total", t.commits, rows_per_block * (blocks % commit_after), rows_written);
     }
 
     t.total = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - started);
