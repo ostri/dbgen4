@@ -335,6 +335,7 @@ if(DB2_FOUND)
     add_library(db2_rtl STATIC
       ${CMAKE_SOURCE_DIR}/src/rtl/rtl.cpp
       ${CMAKE_SOURCE_DIR}/src/rtl/parameter_root.cpp
+      ${CMAKE_SOURCE_DIR}/src/rtl/db_error.cpp
       ${CMAKE_SOURCE_DIR}/src/rtl/db2/db2_rtl.cpp
       ${CMAKE_SOURCE_DIR}/src/rtl/db2/odbc_error.cpp
       ${CMAKE_SOURCE_DIR}/src/rtl/db2/query.cpp
@@ -351,6 +352,7 @@ if(LIBPQ_FOUND)
     add_library(psql_rtl STATIC
       ${CMAKE_SOURCE_DIR}/src/rtl/rtl.cpp
       ${CMAKE_SOURCE_DIR}/src/rtl/parameter_root.cpp
+      ${CMAKE_SOURCE_DIR}/src/rtl/db_error.cpp
       ${CMAKE_SOURCE_DIR}/src/rtl/psql/psql_rtl.cpp
       ${CMAKE_SOURCE_DIR}/src/rtl/psql/query.cpp
     )
@@ -774,6 +776,7 @@ if(BUILD_TESTING)
     add_executable(unit_tests
         src/test/main.cpp
         src/test/parser_test.cpp
+        src/test/db_error_test.cpp
         ${GEN_SRC_FILES}
     )
     set_target_properties(unit_tests PROPERTIES
@@ -782,11 +785,18 @@ if(BUILD_TESTING)
 
     # the unit tests exercise the generator, which needs make_db() from some
     # backend - either will do, prefer db2 when both are present
+    #
+    # db_error_test.cpp also checks the conversion from that backend's own
+    # error type into rtl::db_error, and only the linked backend has one - so
+    # it is told which through DBGEN4_HAS_*, the same choice made here.
     if(DB2_FOUND)
         set(UNIT_TEST_RTL db2_rtl)
+        set(UNIT_TEST_BACKEND_DEFINE DBGEN4_HAS_DB2)
     else()
         set(UNIT_TEST_RTL psql_rtl)
+        set(UNIT_TEST_BACKEND_DEFINE DBGEN4_HAS_PSQL)
     endif()
+    target_compile_definitions(unit_tests PRIVATE ${UNIT_TEST_BACKEND_DEFINE})
 
     target_link_libraries(unit_tests PRIVATE
         Catch2::Catch2WithMain

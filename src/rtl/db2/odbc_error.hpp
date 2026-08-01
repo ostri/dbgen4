@@ -8,6 +8,7 @@
  * how statements run. Everything that handles an error from this backend needs
  * the former; only the runtime itself needs the latter.
  */
+#include "db_error.hpp"
 #include <sqlcli1.h>
 #include <cstdint>
 #include <expected>
@@ -58,4 +59,19 @@ namespace rtl
 
   using e_void = std::expected<void, odbc_error>;
   using e_bool = std::expected<bool, odbc_error>;
+
+  /**
+   * @brief the db2 half of the backend neutral error - see db_error.hpp
+   *
+   * `driver_status` keeps the SQLRETURN untranslated on purpose; the
+   * classification callers act on comes from the SQLSTATE instead.
+   */
+  [[nodiscard]] inline db_error to_db_error(const odbc_error& e)
+  {
+    return db_error{.sts           = sqlstate_to_db_sts(e.sql_state_),
+                    .message       = e.message_,
+                    .sql_state     = e.sql_state_,
+                    .driver_status = static_cast<int16_t>(e.ret_),
+                    .native_error  = static_cast<int32_t>(e.native_error_)};
+  }
 } // namespace rtl

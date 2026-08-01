@@ -17,6 +17,7 @@
  */
 
 #include "buffer_dscr.hpp"
+#include "db_error.hpp"
 #include "no_params.hpp"
 #include "no_results.hpp"
 #include "parameter_root.hpp"
@@ -48,15 +49,40 @@ namespace rtl
     // NOLINTBEGIN(misc-non-private-member-variables-in-classes)
     std::string message;   ///< human readable, already UTF-8
     std::string sql_state; ///< five character SQLSTATE, empty for client side errors
+    /// what PQresultStatus() said - PGRES_FATAL_ERROR and friends. Kept
+    /// because it is the one thing that distinguishes a row which failed from
+    /// one that never ran (PGRES_PIPELINE_ABORTED), which SQLSTATE alone does
+    /// not say. Defaults to PGRES_FATAL_ERROR for the client side errors
+    /// built by hand below, since those never had a PGresult to ask.
+    ExecStatusType status = PGRES_FATAL_ERROR;
     // NOLINTEND(misc-non-private-member-variables-in-classes)
 
     static psql_error from_result(const PGresult* res, PGconn* conn)
     {
       const char* state = (res != nullptr) ? PQresultErrorField(res, PG_DIAG_SQLSTATE) : nullptr;
       const char* msg   = (res != nullptr) ? PQresultErrorMessage(res) : PQerrorMessage(conn);
-      return psql_error{.message = (msg != nullptr) ? msg : "unknown error", .sql_state = (state != nullptr) ? state : ""};
+      return psql_error{.message   = (msg != nullptr) ? msg : "unknown error",
+                        .sql_state = (state != nullptr) ? state : "",
+                        .status    = (res != nullptr) ? PQresultStatus(res) : PGRES_FATAL_ERROR};
     }
   };
+
+  /**
+   * @brief the psql half of the backend neutral error - see db_error.hpp
+   *
+   * `driver_status` keeps the ExecStatusType untranslated on purpose; the
+   * classification callers act on comes from the SQLSTATE instead.
+   * PostgreSQL has no numeric error code beyond that state, so `native_error`
+   * stays 0.
+   */
+  [[nodiscard]] inline db_error to_db_error(const psql_error& e)
+  {
+    return db_error{.sts           = sqlstate_to_db_sts(e.sql_state),
+                    .message       = e.message,
+                    .sql_state     = e.sql_state,
+                    .driver_status = static_cast<int16_t>(e.status),
+                    .native_error  = 0};
+  }
 
   namespace detail
   {
