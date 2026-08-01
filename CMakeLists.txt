@@ -62,6 +62,18 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     add_link_options(-fno-omit-frame-pointer)
 endif()
 
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+    # GCC's stringop-overflow analysis produces false positives from fmt's
+    # write_fixed/write_significand once inlined into our own translation
+    # units - fmt being a SYSTEM dependency doesn't suppress it there because
+    # the diagnostic fires at the inlined call site, not in fmt's own headers.
+    # Also needed as a link option: with -flto, GCC redoes this analysis
+    # during the link step using the link command's flags, not just each
+    # TU's compile flags.
+    target_compile_options(dbgen4_warnings INTERFACE -Wno-stringop-overflow)
+    target_link_options(dbgen4_warnings INTERFACE -Wno-stringop-overflow)
+endif()
+
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     # Catch2's INTERNAL_CATCH_UNIQUE_NAME expands to __COUNTER__, which clang
     # reports under -Wpedantic as a C2y extension while gcc says nothing. It is
