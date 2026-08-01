@@ -8,9 +8,24 @@ database access layer generator
    cmake --build --preset debug -j8
    ctest --test-dir build/debug -L unit --output-on-failure
 
-Presets: `ninja-debug`, `ninja-release`, `ninja-profile`. The last one is a
-placeholder for profiling the runtime and the generated code - it configures
-`RelWithDebInfo` without sanitizers, but no profiler flags are wired up yet.
+Presets: `ninja-debug`, `ninja-release`, `ninja-profile`. `ninja-release` and
+`ninja-profile` both build with link time optimization
+(`CMAKE_INTERPROCEDURAL_OPTIMIZATION`) and native code generation
+(`-march=native`) - both assume the binary runs on the machine that built it,
+not one it ships to.
+
+`ninja-profile` is for profiling the runtime and the generated code with
+Linux `perf`: same optimization as Release (`-O3 -DNDEBUG` plus LTO),
+sanitizers off (their overhead would distort the profile), plus `-g` for
+DWARF debug info so `perf report`/`perf script` resolve readable function
+names and line numbers. `-fno-omit-frame-pointer` is already on for every
+build (see `dbgen4_warnings` in CMakeLists.txt), which `perf`'s default
+frame-pointer based unwinding needs.
+
+    cmake --preset ninja-profile
+    cmake --build --preset profile -j8
+    perf record -g --call-graph=fp -- ./build/profile/dbgen4-psql ...
+    perf report
 
 The presets do not pin a compiler. The project has to build under both gcc and
 clang, so pick one through the environment rather than through a preset:
@@ -23,16 +38,42 @@ directory, not a reconfigure of the old one.
 
 ## testing
 
-All test sources live in [src/test/](src/test/). They build into three
+All test sources live in [src/test/](src/test/). They build into these
 binaries:
 
 | binary | source | needs a database |
 | --- | --- | --- |
-| `unit_tests` | `main.cpp`, `parser_test.cpp`, `log_test.cpp` | no |
-| `test_t1` | `test_t1.cpp` | no |
-| `test_crud` | `test_crud.cpp`, `test_types.cpp`, `test_perf.cpp`, `test_bench.cpp` | yes |
+| `unit_tests` | `main.cpp`, `parser_test.cpp` | no |
+| `test_t1` | `test_t1.cpp` | at build time only (db2, to generate code from `yaml/t1.yaml`) - the test binary itself never connects |
+| `test_crud_db2` | `test_crud.cpp`, `test_types.cpp`, `test_perf.cpp`, `test_bench.cpp`, `test_crud_batch.cpp`, `test_crud_batch_db2.cpp`, `test_parallel.cpp` | yes (db2) |
+| `test_crud_psql` | `test_crud.cpp`, `test_types.cpp`, `test_perf.cpp`, `test_bench.cpp`, `test_crud_batch.cpp`, `test_crud_batch_psql.cpp`, `test_parallel.cpp` | yes (psql) |
 
-`test_db.hpp` holds the connection fixture the database tests share.
+`test_crud.cpp`, `test_types.cpp`, `test_perf.cpp`, `test_bench.cpp`,
+`test_crud_batch.cpp` and `test_parallel.cpp` are shared verbatim between the
+two `test_crud_*` binaries - each is compiled once per backend against that
+backend's generated `crud.hpp`/`crud.cpp` and its own `test_db.hpp` (under
+`src/test/db2/` or `src/test/psql/`). Only where the backends genuinely
+disagree does a test get its own file per backend (see
+`test_crud_batch_db2.cpp`/`test_crud_batch_psql.cpp` below).
+
+### what each test file covers
+
+| file | what it tests |
+| --- | --- |
+| `parser_test.cpp` | the yaml parser directly (no database): an empty document yields no statements, a simple SELECT parses into the expected structure |
+| `test_t1.cpp` | a generated buffer's own plumbing: self-description, default and explicit dimensions, row isolation, null handling, the row-status array, `dump()`; one case is `rtl::date`'s comparison operators |
+| `test_crud.cpp` | one full crud round trip (insert, read back and compare, update, read back and compare, delete, confirm gone) through generated code against a live database |
+| `test_types.cpp` | every supported sql type survives a round trip through the generated buffers, and a null in every nullable column reads back as null |
+| `test_crud_batch.cpp` | the batch behavior both backends share: ten rows go in on one execute and come back three at a time, and sizing the buffer before prepare (rather than after) still works |
+| `test_crud_batch_db2.cpp` | db2-only batch behavior: partial success (nine rows land, one is refused, reported via `row_status()`), and `rtl::odbc_error`'s fields directly |
+| `test_crud_batch_psql.cpp` | psql-only batch behavior: one bad row fails the whole batch (libpq pipeline mode is all-or-nothing), and `rtl::psql_error`'s fields directly |
+| `test_perf.cpp` | buffer-to-table size relations: a hundred-row batch on one execute, a fetch buffer larger than the table, an exact divisor of it, a non-divisor (short last fetch), and that an update touches only the rows it names |
+| `test_bench.cpp` | throughput benchmarks, tagged `[.benchmark]` so an ordinary `ctest` run skips them: batched insert (rows/s, with the fill/execute/commit split out) and buffered select (rows/s), both parametrised from the environment - see `DBGEN4_BUFFER_SIZE`/`DBGEN4_ITERATIONS`/`DBGEN4_COMMIT_EVERY` further down |
+| `test_parallel.cpp` | the generator's own `-j/--parallel` option: runs `dbgen4-<backend>` as a subprocess with `-j2` against five yaml files and checks it exits 0 with all ten `.hpp`/`.cpp` files produced |
+| `log_test.cpp` | the older `log` facade; not part of any build target (linking it alongside `rtl_logger` breaks async logging - see the comment in CMakeLists.txt) |
+
+`test_db.hpp` (one copy per backend) holds the connection fixture the
+database tests share.
 
 ### running
 
@@ -42,7 +83,7 @@ binaries:
 
 By label:
 
-    ctest --test-dir build/debug -L unit      # parser and log, no database
+    ctest --test-dir build/debug -L unit      # parser, no database
     ctest --test-dir build/debug -L smoke     # generated buffers, no database
     ctest --test-dir build/debug -L crud      # round trips against a live database
     ctest --test-dir build/debug -L live-db   # same set, by what they need
@@ -60,7 +101,7 @@ hand means supplying them, otherwise the built in defaults apply
 
     DBGEN4_TEST_HOST=localhost DBGEN4_TEST_PORT=50000 DBGEN4_TEST_DB=test \
     DBGEN4_TEST_USER=dbgen4 DBGEN4_TEST_PASS=dbgen4 \
-      ./build/debug/test_crud "crud round trip through the generated buffers"
+      ./build/debug/test_crud_db2 "crud round trip through the generated buffers"
 
 Useful Catch2 flags: `--list-tests` for the names, `-s` to show successful
 assertions as well (this is how the benchmarks print their timings), `-?` for
@@ -102,12 +143,22 @@ with PostgreSQL counterparts under `db/psql/`.
 
 ### benchmarks
 
-`test_bench.cpp` holds two throughput benchmarks. They are tagged
+`test_bench.cpp` holds two throughput benchmarks, shared between both
+backends (see "what each test file covers" above). They are tagged
 `[.benchmark]`, which means Catch2 does not run them unless they are asked for
 by tag - they move a million rows with the default settings, and `ctest` should
 not pay for that.
 
-    ./build/release/test_crud "[.benchmark]" -s
+    ./build/release/test_crud_db2  "[.benchmark]" -s   # against DB2
+    ./build/release/test_crud_psql "[.benchmark]" -s   # against PostgreSQL
+
+Each picks up its own `DBGEN4_TEST_*` connection defaults (see "the database
+account the tests use" / `PSQL_TEST_*` above); override them the same way as
+any other run against a live database, e.g.:
+
+    DBGEN4_TEST_HOST=postgres.lan DBGEN4_TEST_PORT=5432 DBGEN4_TEST_DB=dbgen4 \
+    DBGEN4_TEST_USER=dbgen4 DBGEN4_TEST_PASS=dbgen4 \
+      ./build/release/test_crud_psql "[.benchmark]" -s
 
 `-s` matters: the timings are reported through `WARN`, which is only printed
 when successful assertions are shown.
@@ -147,7 +198,8 @@ the database deactivated and reactivated before it takes effect.
 
 A smaller run, for a quick check:
 
-    DBGEN4_BUFFER_SIZE=100 DBGEN4_ITERATIONS=3 ./build/debug/test_crud "[.benchmark]" -s
+    DBGEN4_BUFFER_SIZE=100 DBGEN4_ITERATIONS=3 ./build/debug/test_crud_db2  "[.benchmark]" -s
+    DBGEN4_BUFFER_SIZE=100 DBGEN4_ITERATIONS=3 ./build/debug/test_crud_psql "[.benchmark]" -s
 
 Timings are reported, never asserted on: a wall clock threshold would fail on a
 loaded machine or a slow link without saying anything about whether the code is

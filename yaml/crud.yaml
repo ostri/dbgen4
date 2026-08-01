@@ -122,6 +122,19 @@ statements:
     psql: |
       delete from perf_test
 
+  - id: perf_truncate
+    summary: empty the perf table without logging every row
+    dscr: |
+      Used by the benchmarks instead of perf_del: a delete of a million rows
+      is one transaction that logs every row and overruns the log the same
+      way an uncommitted million row insert does. TRUNCATE is logged as a
+      single operation regardless of row count. DB2 requires the IMMEDIATE
+      keyword and refuses TRUNCATE without it; PostgreSQL has no such keyword.
+    db2: |
+      truncate table perf_test immediate
+    psql: |
+      truncate table perf_test
+
   - id: perf_ins
     summary: insert one row of the perf table
     # The batch test resizes this buffer at run time - the default is only

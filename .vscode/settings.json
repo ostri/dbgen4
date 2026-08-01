@@ -1,4 +1,10 @@
 {
+  // Forces CMake Tools to drive configuration/build through CMakePresets.json
+  // (binaryDir build/debug, build/release, build/profile) rather than its
+  // legacy kit/variant workflow, which otherwise configures into a plain
+  // top-level build/ - out of step with the ninja-debug/-release/-profile
+  // directories the command line (and launch.json) expects.
+  "cmake.useCMakePresets": "always",
   "files.associations": {
     "cmath": "cpp",
     "initializer_list": "cpp"

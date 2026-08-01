@@ -18,7 +18,6 @@
  * wrong string rather than as a silently truncated one.
  */
 #include "crud.hpp"
-#include "db2_rtl.hpp"
 #include "rtl.hpp"
 #include "rtl_fmt.hpp" // IWYU pragma: keep
 #include "query.hpp"
@@ -64,7 +63,8 @@ namespace
   }
 
   /// insert perf_rows rows as one batch and return how long insert+commit took
-  std::chrono::microseconds write_all_rows(rtl::db_db2& db)
+  template <typename Db>
+  std::chrono::microseconds write_all_rows(Db& db)
   {
     dbx::s_perf_ins::stmt ins(&db, dbx::s_perf_ins::qry::sql());
 
@@ -98,7 +98,8 @@ namespace
   }
 
   /// @return how many rows perf_test holds
-  int32_t count_rows(rtl::db_db2& db)
+  template <typename Db>
+  int32_t count_rows(Db& db)
   {
     dbx::s_perf_count::stmt cnt(&db, dbx::s_perf_count::qry::sql());
     require_ok(cnt.prepare(), "prepare(perf_count)");
@@ -124,7 +125,8 @@ namespace
    * @return the size of every fetch, in order - the shape of this vector is
    *         what says whether the last, partial window was handled right
    */
-  std::vector<size_t> read_in_windows(rtl::db_db2& db, size_t window)
+  template <typename Db>
+  std::vector<size_t> read_in_windows(Db& db, size_t window)
   {
     dbx::s_perf_sel_all::stmt sel(&db, dbx::s_perf_sel_all::qry::sql());
     sel.get_result_buffer()->set_buffer_size(window);
@@ -218,7 +220,8 @@ TEST_CASE("a batch of a hundred rows goes in on one execute", "[perf][crud][gene
 namespace
 {
   /// refill the table so that a case is runnable on its own, in any order
-  void reset_table(rtl::db_db2& db)
+  template <typename Db>
+  void reset_table(Db& db)
   {
     dbx::s_perf_del::stmt del(&db, dbx::s_perf_del::qry::sql());
     require_ok(del.prepare(), "prepare(perf_del)");

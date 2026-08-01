@@ -21,25 +21,28 @@
     {
       "name": "ninja-release",
       "displayName": "Release",
-      "description": "Ninja + Release (fast, no sanitizers)",
+      "description": "Ninja + Release (fast, no sanitizers) + LTO",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "ENABLE_SANITIZERS": "OFF"
+        "ENABLE_SANITIZERS": "OFF",
+        "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON"
       }
     },
     {
       "name": "ninja-profile",
       "displayName": "Profile",
-      "description": "Optimized with debug info, for profiling the rtl and the generated code. Placeholder - no profiler flags wired up yet.",
+      "description": "Same as Release, plus DWARF debug info for readable stack traces under Linux perf. Sanitizers are off - their overhead would distort the profile. -fno-omit-frame-pointer is already on for every build (see dbgen4_warnings), which perf needs for frame-pointer-based unwinding.",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/profile",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "ENABLE_SANITIZERS": "OFF"
+        "ENABLE_SANITIZERS": "OFF",
+        "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON",
+        "CMAKE_CXX_FLAGS": "-g"
       }
     }
   ],

@@ -11,7 +11,7 @@
  *   DBGEN4_COMMIT_EVERY  executes per commit     (default    1)
  *
  * The insert writes DBGEN4_BUFFER_SIZE rows per execute, DBGEN4_ITERATIONS
- * times - a million rows with the defaults - committing after every block,
+ * times - a million rows (4000 x 250) with the defaults - committing after every block,
  * because one transaction that size does not fit in the database's log (see
  * commit_every()). The select then reads the whole table back through a buffer
  * of the same size, fetching until the result set runs out.
@@ -29,12 +29,10 @@
  * something an ordinary `ctest` run should pay for.
  */
 #include "crud.hpp"
-#include "db2_rtl.hpp"
 #include "rtl.hpp"
 #include "rtl_fmt.hpp" // IWYU pragma: keep
 #include "query.hpp"
 #include "test_db.hpp"
-#include <catch2/catch_message.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <chrono>
 #include <cstddef>
@@ -44,10 +42,14 @@
 
 namespace
 {
+  constexpr const std::size_t c_buffer_size = 4000;
+  constexpr const std::size_t c_iterations  = 250;
+  constexpr const std::size_t c_commit_size = 100;
+  constexpr const std::size_t us_per_ms     = 1000; ///< microseconds per millisecond, for the timing reports
   /// rows per execute, and how many executes - both overridable from the
   /// environment, see the file comment
-  size_t buffer_size() { return test_db::env_size("DBGEN4_BUFFER_SIZE", 4000); }
-  size_t iterations() { return test_db::env_size("DBGEN4_ITERATIONS", 250); }
+  size_t buffer_size() { return test_db::env_size("DBGEN4_BUFFER_SIZE", c_buffer_size); }
+  size_t iterations() { return test_db::env_size("DBGEN4_ITERATIONS", c_iterations); }
 
   /**
    * @brief how many executes to run before committing
@@ -62,7 +64,7 @@ namespace
    * commit frequency costs - the timing report breaks the commit out
    * separately.
    */
-  size_t commit_every() { return test_db::env_size("DBGEN4_COMMIT_EVERY", 1); }
+  size_t commit_every() { return test_db::env_size("DBGEN4_COMMIT_EVERY", c_commit_size); }
 
   constexpr auto   bench_date = rtl::date{.year = 2026, .month = 7, .day = 31};
   constexpr size_t name_width = 255; ///< full declared width of perf_test.name
@@ -80,8 +82,9 @@ namespace
   /// rows per second, for a report that stays comparable across working sets
   double per_second(size_t rows, std::chrono::microseconds took)
   {
+    constexpr const std::size_t mega = 1e6;
     if (took.count() <= 0) return 0.0;
-    return static_cast<double>(rows) * 1e6 / static_cast<double>(took.count());
+    return static_cast<double>(rows) * mega / static_cast<double>(took.count());
   }
 
   /**
@@ -94,27 +97,28 @@ namespace
    * either, and five of them failed on the next ctest. TRUNCATE is logged as a
    * single operation and does not care how many rows it drops.
    *
-   * Executed straight rather than through a generated statement: it takes no
-   * parameters and returns no rows, so there is nothing for the generator to
-   * describe.
+   * Through dbx::s_perf_truncate, same as every other statement here - see
+   * yaml/crud.yaml for why its db2/psql text differs (the IMMEDIATE keyword).
    *
    * The commit first is not optional. DB2 requires TRUNCATE to be the first
    * statement of a unit of work and refuses it with SQL0428N otherwise, and
    * after a benchmark there is always a transaction open - the counting select
    * alone starts one.
    */
-  void clear_table(rtl::db_db2& db)
+  template <typename Db>
+  void clear_table(Db& db)
   {
     REQUIRE(rtl::is_success(db.commit())); // close whatever is open first
-    rtl::query<> truncate(&db, "truncate table perf_test immediate");
-    require_ok(truncate.prepare(), "prepare(truncate perf_test)");
-    require_ok(truncate.execute(), "execute(truncate perf_test)");
+    dbx::s_perf_truncate::stmt truncate(&db, dbx::s_perf_truncate::qry::sql());
+    require_ok(truncate.prepare(), "prepare(perf_truncate)");
+    require_ok(truncate.execute(), "execute(perf_truncate)");
     REQUIRE(rtl::is_success(db.commit()));
   }
 
   /// size_t rather than the int32_t the column carries: every caller compares
   /// it against a row count, and those are all size_t
-  size_t count_rows(rtl::db_db2& db)
+  template <typename Db>
+  size_t count_rows(Db& db)
   {
     dbx::s_perf_count::stmt cnt(&db, dbx::s_perf_count::qry::sql());
     require_ok(cnt.prepare(), "prepare(perf_count)");
@@ -141,8 +145,14 @@ namespace
    * Its own function rather than the body of the test case: the phase timing
    * and the periodic commit are branches, and enough of them in one Catch2
    * test case pushes it past readability-function-cognitive-complexity.
+   *
+   * Every successful commit is logged at debug level with the row count it
+   * just wrote (relative) and the running total (absolute) - compiled out
+   * entirely in release/profile builds (is_debug_build() gates rtl::logger::
+   * debug(), see logger.hpp), so it costs nothing there.
    */
-  insert_timing timed_insert(rtl::db_db2& db, size_t rows_per_block, size_t blocks)
+  template <typename Db>
+  insert_timing timed_insert(Db& db, size_t rows_per_block, size_t blocks)
   {
     dbx::s_perf_ins::stmt ins(&db, dbx::s_perf_ins::qry::sql());
 
@@ -156,6 +166,7 @@ namespace
     insert_timing t;
     const auto    started      = std::chrono::steady_clock::now();
     const size_t  commit_after = commit_every();
+    size_t        rows_written = 0;
 
     int32_t next_id = 1;
     for (size_t block = 0; block < blocks; ++block)
@@ -172,6 +183,7 @@ namespace
       t.filling += std::chrono::duration_cast<std::chrono::microseconds>(exec_from - fill_from);
 
       require_ok(ins.execute(), "execute(perf_ins)");
+      rows_written += rows_per_block;
       const auto commit_from = std::chrono::steady_clock::now();
       t.executing += std::chrono::duration_cast<std::chrono::microseconds>(commit_from - exec_from);
 
@@ -182,6 +194,7 @@ namespace
         REQUIRE(rtl::is_success(db.commit()));
         ++t.commits;
         t.committing += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - commit_from);
+        rtl::logger::get()->debug("commit #{}: {} rows this commit, {} rows total", t.commits, rows_per_block * commit_after, rows_written);
       }
     }
 
@@ -194,6 +207,8 @@ namespace
       REQUIRE(rtl::is_success(db.commit()));
       ++t.commits;
       t.committing += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - last_from);
+      rtl::logger::get()->debug(
+        "commit #{}: {} rows this commit, {} rows total", t.commits, rows_per_block * (blocks % commit_after), rows_written);
     }
 
     t.total = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - started);
@@ -207,7 +222,8 @@ namespace
    * got that way, so it shares the insert benchmark's writing loop rather than
    * carrying a second copy of it.
    */
-  void fill_table(rtl::db_db2& db, size_t rows_per_block, size_t blocks)
+  template <typename Db>
+  void fill_table(Db& db, size_t rows_per_block, size_t blocks)
   {
     dbx::s_perf_ins::stmt ins(&db, dbx::s_perf_ins::qry::sql());
     auto                  par = ins.get_param();
@@ -238,27 +254,41 @@ TEST_CASE("insert throughput: n rows per execute, m executes", "[.benchmark][per
   const size_t rows_per_execute = buffer_size();
   const size_t execute_count    = iterations();
   const size_t total_rows       = rows_per_execute * execute_count;
+  const size_t commit_after     = commit_every();
 
   live_db live;
-  auto&   db = live.db;
+  auto&   db  = live.db;
+  auto*   log = rtl::logger::get();
+
+  /// live_db's constructor drops the level to warn to keep ordinary test
+  /// output readable; this benchmark wants its own info/debug lines back, and
+  /// debug()/trace() calls compile out entirely outside debug builds anyway
+  /// (see logger.hpp), so raising the runtime level here is free in
+  /// release/profile.
+  log->set_level(rtl::logger::level::debug);
+
+  log->info("insert benchmark starting: backend={} host={} db={} buffer_size={} commit_every={} iterations={} total_rows={}",
+            rtl::backend_name(),
+            test_db::env_or("DBGEN4_TEST_HOST", "localhost"),
+            test_db::env_or("DBGEN4_TEST_DB", "test"),
+            rows_per_execute,
+            commit_after,
+            execute_count,
+            total_rows);
+
   clear_table(db);
 
   const auto t = timed_insert(db, rows_per_execute, execute_count);
 
-  WARN(fmt::format("insert: {} rows = {} per execute x {} executes\n"
-                   "  total (fill + execute + commit): {} ms, {:.0f} rows/s\n"
-                   "  filling the buffer:              {} ms\n"
-                   "  execute:                         {} ms\n"
-                   "  commit ({} of them):             {} ms",
-                   total_rows,
-                   rows_per_execute,
-                   execute_count,
-                   t.total.count() / 1000,
-                   per_second(total_rows, t.total),
-                   t.filling.count() / 1000,
-                   t.executing.count() / 1000,
-                   t.commits,
-                   t.committing.count() / 1000));
+  log->info("insert benchmark finished: {} rows in {} ms ({:.0f} rows/s)",
+            total_rows,
+            t.total.count() / us_per_ms,
+            per_second(total_rows, t.total));
+  log->debug("insert phase breakdown: filling={} ms executing={} ms committing={} ms ({} commits)",
+             t.filling.count() / us_per_ms,
+             t.executing.count() / us_per_ms,
+             t.committing.count() / us_per_ms,
+             t.commits);
 
   /// the assertion: every row the benchmark claims to have written is there
   CHECK(count_rows(db) == total_rows);
@@ -275,12 +305,23 @@ TEST_CASE("select throughput: read the whole table through one buffer", "[.bench
   const size_t rows_per_fetch = buffer_size();
 
   live_db live;
-  auto&   db = live.db;
+  auto&   db  = live.db;
+  auto*   log = rtl::logger::get();
+  log->set_level(rtl::logger::level::debug); // see the insert benchmark for why
 
   /// The table is left populated by the insert benchmark, but a benchmark that
   /// only works when another one ran first is not one you can run on its own.
   /// Refilling costs a moment and makes the row count known.
   const size_t total_rows = rows_per_fetch * iterations();
+
+  log->info("select benchmark starting: backend={} host={} db={} buffer_size={} iterations={} total_rows={}",
+            rtl::backend_name(),
+            test_db::env_or("DBGEN4_TEST_HOST", "localhost"),
+            test_db::env_or("DBGEN4_TEST_DB", "test"),
+            rows_per_fetch,
+            iterations(),
+            total_rows);
+
   if (count_rows(db) != total_rows)
   {
     clear_table(db);
@@ -311,17 +352,16 @@ TEST_CASE("select throughput: read the whole table through one buffer", "[.bench
     for (size_t row = 0; row < rows->occupied(); ++row)
       if (rows->id(row) != expected_id++) in_order = false;
     seen += rows->occupied();
+    log->debug("fetch #{}: {} rows this fetch, {} rows total", fetches, rows->occupied(), seen);
   }
 
   const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - started);
 
-  WARN(fmt::format("select: {} rows through a {} row buffer in {} fetches\n"
-                   "  execute + fetch to exhaustion: {} ms, {:.0f} rows/s",
-                   seen,
-                   rows_per_fetch,
-                   fetches,
-                   elapsed.count() / 1000,
-                   per_second(seen, elapsed)));
+  log->info("select benchmark finished: {} rows in {} ms ({:.0f} rows/s, {} fetches)",
+            seen,
+            elapsed.count() / us_per_ms,
+            per_second(seen, elapsed),
+            fetches);
 
   CHECK(seen == total_rows);
   CHECK(in_order); // every row exactly once, in key order

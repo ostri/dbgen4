@@ -100,6 +100,21 @@ else()
 endif()
 
 # ===================================================================
+# Native code generation - Release and Profile builds only
+#
+# Both use CMAKE_BUILD_TYPE "Release" (see CMakePresets.json - ninja-profile
+# is Release plus -g, not RelWithDebInfo), so this one check covers both
+# without touching Debug. -march=native tunes for the machine that runs the
+# build, which is also the assumption -flto (CMAKE_INTERPROCEDURAL_OPTIMIZATION,
+# set per preset) already makes: neither is meant to produce a binary that
+# ships to a different machine.
+# ===================================================================
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    add_compile_options(-march=native)
+    message(STATUS "Native code generation (-march=native) enabled")
+endif()
+
+# ===================================================================
 # Dependencies
 #
 # All of them come through CPM, pinned here rather than taken from whatever
@@ -124,7 +139,7 @@ include(cmake/CPM.cmake)
 CPMAddPackage(
     NAME fmt
     GITHUB_REPOSITORY fmtlib/fmt
-    GIT_TAG 11.2.0
+    GIT_TAG 12.2.0
     SYSTEM YES
     EXCLUDE_FROM_ALL YES
 )
@@ -135,7 +150,7 @@ CPMAddPackage(
 CPMAddPackage(
     NAME spdlog
     GITHUB_REPOSITORY gabime/spdlog
-    GIT_TAG v1.15.3
+    GIT_TAG v1.17.0
     SYSTEM YES
     EXCLUDE_FROM_ALL YES
     OPTIONS
@@ -149,7 +164,7 @@ CPMAddPackage(
 CPMAddPackage(
     NAME nlohmann_json
     GITHUB_REPOSITORY nlohmann/json
-    GIT_TAG v3.11.3
+    GIT_TAG v3.12.0
     SYSTEM YES
     EXCLUDE_FROM_ALL YES
     OPTIONS "JSON_BuildTests OFF"
@@ -158,7 +173,7 @@ CPMAddPackage(
 CPMAddPackage(
     NAME yaml-cpp
     GITHUB_REPOSITORY jbeder/yaml-cpp
-    GIT_TAG 0.8.0
+    GIT_TAG yaml-cpp-0.9.0
     SYSTEM YES
     EXCLUDE_FROM_ALL YES
     OPTIONS
@@ -171,7 +186,7 @@ CPMAddPackage(
 CPMAddPackage(
     NAME valijson
     GITHUB_REPOSITORY tristanpenman/valijson
-    GIT_TAG v1.0.6
+    GIT_TAG v1.1.3
     SYSTEM YES
     EXCLUDE_FROM_ALL YES
     OPTIONS
@@ -187,7 +202,7 @@ if(BUILD_TESTING)
     CPMAddPackage(
         NAME Catch2
         GITHUB_REPOSITORY catchorg/Catch2
-        GIT_TAG v3.7.1
+        GIT_TAG v3.15.3
         SYSTEM YES
         EXCLUDE_FROM_ALL YES
     )
@@ -828,9 +843,17 @@ function(show_target_build_info target)
     message(STATUS "COMPILE_OPTIONS         : ${_compile_opts}")
     message(STATUS "LINK_OPTIONS            : ${_link_opts}")
 
-    # Helper checks
-    string(JOIN " " _all_compile_flags ${_compile_opts})
-    if(_all_compile_flags MATCHES "-g")
+    # Helper checks - target COMPILE_OPTIONS only see add_compile_options() /
+    # target_compile_options() calls. CMAKE_CXX_FLAGS and the per-config
+    # CMAKE_CXX_FLAGS_<CONFIG> (both cache variables, e.g. the ninja-profile
+    # preset's "-g") never show up there, so they are folded in here too -
+    # otherwise a preset-supplied -g reads back as "NO".
+    string(TOUPPER "${CMAKE_BUILD_TYPE}" _build_type_upper)
+    string(JOIN " " _all_compile_flags ${_compile_opts} "${CMAKE_CXX_FLAGS}" "${CMAKE_CXX_FLAGS_${_build_type_upper}}")
+    # CMake's regex dialect has no \b word boundary, so this leans on a
+    # leading space/semicolon (the JOIN and list separators above) to avoid
+    # matching inside an unrelated flag such as -DSOMETHING-g.
+    if(_all_compile_flags MATCHES "[ ;]-g[0-9]?([ ;]|$)|-ggdb")
         message(STATUS "Debug symbols (-g)      : YES")
     else()
         message(STATUS "Debug symbols (-g)      : NO")
@@ -840,6 +863,12 @@ function(show_target_build_info target)
         message(STATUS "Sanitizers              : YES")
     else()
         message(STATUS "Sanitizers              : NO")
+    endif()
+
+    if(CMAKE_INTERPROCEDURAL_OPTIMIZATION)
+        message(STATUS "LTO                     : YES")
+    else()
+        message(STATUS "LTO                     : NO")
     endif()
 
     message(STATUS "═════════════════════════════════════════════════════")
