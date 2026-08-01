@@ -10,6 +10,7 @@
  * more build than it is worth.
  */
 #include "db2_rtl.hpp"
+#include "odbc_error.hpp"
 #include "rtl.hpp"
 #include "logger.hpp"
 #include <catch2/catch_test_macros.hpp>
@@ -51,8 +52,9 @@ namespace test_db
       const auto parsed = std::stoll(value);
       if (parsed > 0) return static_cast<size_t>(parsed);
     }
-    catch (const std::exception&)
-    { /* fall through to the default */ }
+    catch (const std::exception&) // NOLINT(bugprone-empty-catch)
+    {                             /* fall through to the default */
+    }
     return fallback;
   }
 } // namespace test_db
@@ -90,8 +92,7 @@ public:
     rtl::logger::get()->set_level(rtl::logger::level::warn); // keep the test output readable
 
     const auto host = test_db::env_or("DBGEN4_TEST_HOST", "localhost");
-    const auto port =
-      static_cast<uint16_t>(std::stoi(test_db::env_or("DBGEN4_TEST_PORT", std::to_string(rtl::default_port()))));
+    const auto port = static_cast<uint16_t>(std::stoi(test_db::env_or("DBGEN4_TEST_PORT", std::to_string(rtl::default_port()))));
     const auto name = test_db::env_or("DBGEN4_TEST_DB", "test");
     const auto user = test_db::env_or("DBGEN4_TEST_USER", "dbgen4");
     const auto pass = test_db::env_or("DBGEN4_TEST_PASS", "dbgen4");
