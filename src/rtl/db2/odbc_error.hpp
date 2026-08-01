@@ -57,4 +57,5 @@ namespace rtl
   } __attribute__((aligned(128))); // NOLINT
 
   using e_void = std::expected<void, odbc_error>;
+  using e_bool = std::expected<bool, odbc_error>;
 } // namespace rtl

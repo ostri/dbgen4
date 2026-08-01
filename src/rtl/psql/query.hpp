@@ -72,9 +72,7 @@ namespace rtl
       result_holder& operator=(const result_holder&) = delete;
       result_holder(result_holder&& o) noexcept
       : res_(o.res_)
-      {
-        o.res_ = nullptr;
-      }
+      { o.res_ = nullptr; }
       result_holder& operator=(result_holder&& o) noexcept
       {
         if (this != &o)
@@ -146,8 +144,8 @@ namespace rtl
     static_assert(std::is_base_of_v<parameter_root, params>, "Template parameter 'params' must inherit from parameter_root.");
     static_assert(std::is_base_of_v<result_root, results>, "Template parameter 'results' must inherit from result_root.");
 
-    static constexpr bool has_params  = params::has_parameters();
-    static constexpr bool has_results = results::has_results();
+    static constexpr bool has_p = params::has_parameters();
+    static constexpr bool has_r = results::has_results();
 
     const database* db_ = nullptr;
     std::string     sql_;
@@ -165,8 +163,8 @@ namespace rtl
     size_t                rows_fetched_  = 0;
     int64_t               affected_rows_ = -1; ///< rows the last execute inserted, updated or deleted; -1 when unavailable
 
-    [[no_unique_address]] std::conditional_t<has_params, std::shared_ptr<params>, std::monostate>   par_;
-    [[no_unique_address]] std::conditional_t<has_results, std::shared_ptr<results>, std::monostate> res_;
+    [[no_unique_address]] std::conditional_t<has_p, std::shared_ptr<params>, std::monostate>  par_;
+    [[no_unique_address]] std::conditional_t<has_r, std::shared_ptr<results>, std::monostate> res_;
   public:
     explicit query(const database* db, std::string_view sql)
     : db_(db)
@@ -175,8 +173,8 @@ namespace rtl
       if (db_ == nullptr) throw std::invalid_argument("db pointer cannot be null");
       /// a name unique to this object - two queries may live at once
       stmt_name_ = fmt::format("dbgen4_{}", static_cast<const void*>(this));
-      if constexpr (has_params) par_ = std::make_shared<params>();
-      if constexpr (has_results) res_ = std::make_shared<results>();
+      if constexpr (has_p) par_ = std::make_shared<params>();
+      if constexpr (has_r) res_ = std::make_shared<results>();
     }
 
     ~query()
@@ -202,10 +200,10 @@ namespace rtl
     /// push_back may have reallocated while filling it in.
     template <typename param_dscr, typename param_init>
     static void marshal_row(const param_dscr&         pd,
-                            const param_init&          pi,
-                            size_t                     row,
-                            std::vector<std::string>&  holders,
-                            std::vector<const char*>&  values)
+                            const param_init&         pi,
+                            size_t                    row,
+                            std::vector<std::string>& holders,
+                            std::vector<const char*>& values)
     {
       holders.reserve(pd.size());
       values.reserve(pd.size());
@@ -231,7 +229,7 @@ namespace rtl
       /// declare the parameter types we intend to send, so that the server
       /// does not have to infer them from the values
       std::vector<Oid> oids;
-      if constexpr (has_params)
+      if constexpr (has_p)
       {
         constexpr auto pd = params::buffer_description_const();
         oids.reserve(pd.size());
@@ -240,15 +238,14 @@ namespace rtl
 
       const detail::result_holder res{
         PQprepare(conn, stmt_name_.c_str(), sql_.c_str(), static_cast<int>(oids.size()), oids.empty() ? nullptr : oids.data())};
-      if (PQresultStatus(res.get()) != PGRES_COMMAND_OK)
-        return std::unexpected(psql_error::from_result(res.get(), conn));
+      if (PQresultStatus(res.get()) != PGRES_COMMAND_OK) return std::unexpected(psql_error::from_result(res.get(), conn));
 
       prepared_ = true;
       /// Remember how the buffers looked, so that a resize afterwards is caught
       /// rather than followed - see check_layout().
-      if constexpr (has_params) bound_par_layout_ = par_->layout_generation();
-      if constexpr (has_results) bound_res_layout_ = res_->layout_generation();
-      logger->info("Query prepared: params={}, results={}", has_params ? "yes" : "no", has_results ? "yes" : "no");
+      if constexpr (has_p) bound_par_layout_ = par_->layout_generation();
+      if constexpr (has_r) bound_res_layout_ = res_->layout_generation();
+      logger->info("Query prepared: params={}, results={}", has_p ? "yes" : "no", has_r ? "yes" : "no");
       return {};
     }
     catch (const std::exception& e)
@@ -268,15 +265,15 @@ namespace rtl
      */
     [[nodiscard]] std::expected<void, psql_error> check_layout() const noexcept
     {
-      if constexpr (has_params)
+      if constexpr (has_p)
         if (par_->layout_generation() != bound_par_layout_)
-          return std::unexpected(psql_error{.message = "parameter buffer was resized after prepare(); "
-                                                       "call set_buffer_size() before prepare(), then prepare() again",
+          return std::unexpected(psql_error{.message   = "parameter buffer was resized after prepare(); "
+                                                         "call set_buffer_size() before prepare(), then prepare() again",
                                             .sql_state = ""});
-      if constexpr (has_results)
+      if constexpr (has_r)
         if (res_->layout_generation() != bound_res_layout_)
-          return std::unexpected(psql_error{.message = "result buffer was resized after prepare(); "
-                                                       "call set_buffer_size() before prepare(), then prepare() again",
+          return std::unexpected(psql_error{.message   = "result buffer was resized after prepare(); "
+                                                         "call set_buffer_size() before prepare(), then prepare() again",
                                             .sql_state = ""});
       return {};
     }
@@ -290,14 +287,14 @@ namespace rtl
       /// a batch of parameter rows has no protocol level equivalent to send in
       /// one message - see execute_batch() for how it is still done in one
       /// round trip's worth of network latency
-      if constexpr (has_params)
+      if constexpr (has_p)
         if (par_->buffer_size() > 1) return execute_batch();
 
       PGconn* conn = db_->get_conn();
 
       std::vector<std::string> holders;
       std::vector<const char*> values;
-      if constexpr (has_params)
+      if constexpr (has_p)
       {
         constexpr auto pd = params::buffer_description_const();
         auto           pi = par_->buffer_description_init();
@@ -313,8 +310,7 @@ namespace rtl
                                                0)};     // ask for text results
 
       const auto status = PQresultStatus(res.get());
-      if (status != PGRES_TUPLES_OK && status != PGRES_COMMAND_OK)
-        return std::unexpected(psql_error::from_result(res.get(), conn));
+      if (status != PGRES_TUPLES_OK && status != PGRES_COMMAND_OK) return std::unexpected(psql_error::from_result(res.get(), conn));
 
       total_rows_ = (status == PGRES_TUPLES_OK) ? static_cast<size_t>(PQntuples(res.get())) : 0;
       next_row_   = 0;
@@ -372,20 +368,16 @@ namespace rtl
       /// still has to be synced and drained for exactly that many rows before
       /// the pipeline can be exited cleanly; rows after it were never sent, so
       /// row_status() is left untouched rather than guessed at for them
-      size_t                     sent = 0;
+      size_t                    sent = 0;
       std::optional<psql_error> send_error;
       for (; sent < rows; ++sent)
       {
         std::vector<std::string> holders;
         std::vector<const char*> values;
         marshal_row(pd, pi, sent, holders, values);
-        if (PQsendQueryPrepared(conn,
-                                stmt_name_.c_str(),
-                                static_cast<int>(values.size()),
-                                values.empty() ? nullptr : values.data(),
-                                nullptr,
-                                nullptr,
-                                0) != 1)
+        if (PQsendQueryPrepared(
+              conn, stmt_name_.c_str(), static_cast<int>(values.size()), values.empty() ? nullptr : values.data(), nullptr, nullptr, 0) !=
+            1)
         {
           send_error = psql_error{.message = PQerrorMessage(conn), .sql_state = ""};
           break;
@@ -394,18 +386,24 @@ namespace rtl
       PQpipelineSync(conn);
 
       par_->clear_row_status();
-      auto                       status_span = par_->row_status();
+      auto                      status_span = par_->row_status();
       std::optional<psql_error> first_error;
       for (size_t r = 0; r < sent; ++r)
       {
         detail::result_holder res{PQgetResult(conn)};
-        const auto             est = PQresultStatus(res.get());
+        const auto            est = PQresultStatus(res.get());
         if (! first_error && est != PGRES_COMMAND_OK && est != PGRES_TUPLES_OK) first_error = psql_error::from_result(res.get(), conn);
         status_span[r] = (! first_error) ? psql::param_status_ok : psql::param_status_error;
-        { const detail::result_holder end_of_command{PQgetResult(conn)}; } // nullptr - marks the end of this row's result
+        {
+          const detail::result_holder end_of_command{PQgetResult(conn)};
+        } // nullptr - marks the end of this row's result
       }
-      { const detail::result_holder sync{PQgetResult(conn)}; }             // PGRES_PIPELINE_SYNC
-      { const detail::result_holder end_of_sync{PQgetResult(conn)}; }      // nullptr again
+      {
+        const detail::result_holder sync{PQgetResult(conn)};
+      } // PGRES_PIPELINE_SYNC
+      {
+        const detail::result_holder end_of_sync{PQgetResult(conn)};
+      } // nullptr again
 
       PQexitPipelineMode(conn);
 
@@ -434,7 +432,7 @@ namespace rtl
     [[nodiscard]] std::expected<bool, psql_error> fetch() noexcept
     try
     {
-      if constexpr (! has_results) return false; // NOLINT(readability-inconsistent-ifelse-braces)
+      if constexpr (! has_r) return false; // NOLINT(readability-inconsistent-ifelse-braces)
       else
       {
         if (auto layout = check_layout(); ! layout) return std::unexpected(layout.error());
@@ -477,9 +475,9 @@ namespace rtl
       return std::unexpected(psql_error{.message = e.what(), .sql_state = ""});
     }
 
-    [[nodiscard]] std::conditional_t<has_params, std::shared_ptr<params>, std::monostate> get_param() noexcept
+    [[nodiscard]] std::conditional_t<has_p, std::shared_ptr<params>, std::monostate> get_param() noexcept
     {
-      if constexpr (has_params) return par_;
+      if constexpr (has_p) return par_;
       else return std::monostate{};
     }
 
@@ -491,23 +489,23 @@ namespace rtl
      * reading fetched rows, while sizing the buffer is a write and has to
      * happen before prepare().
      */
-    [[nodiscard]] std::conditional_t<has_results, std::shared_ptr<results>, std::monostate> get_result_buffer() noexcept
+    [[nodiscard]] std::conditional_t<has_r, std::shared_ptr<results>, std::monostate> get_result_buffer() noexcept
     {
-      if constexpr (has_results) return res_;
+      if constexpr (has_r) return res_;
       else return std::monostate{};
     }
-    [[nodiscard]] std::conditional_t<has_results, std::shared_ptr<const results>, std::monostate> get_result() const noexcept
+    [[nodiscard]] std::conditional_t<has_r, std::shared_ptr<const results>, std::monostate> get_result() const noexcept
     {
-      if constexpr (has_results) return res_;
+      if constexpr (has_r) return res_;
       else return std::monostate{};
     }
 
     [[nodiscard]] size_t rows_fetched() const noexcept { return rows_fetched_; }
     [[nodiscard]] size_t total_rows() const noexcept { return total_rows_; }
 
-    [[nodiscard]] std::conditional_t<has_results, size_t, std::monostate> occupied_count() const noexcept
+    [[nodiscard]] std::conditional_t<has_r, size_t, std::monostate> occupied_count() const noexcept
     {
-      if constexpr (has_results) return res_->occupied();
+      if constexpr (has_r) return res_->occupied();
       else return std::monostate{};
     }
 
@@ -519,8 +517,8 @@ namespace rtl
       total_rows_    = 0;
       rows_fetched_  = 0;
       affected_rows_ = -1;
-      if constexpr (has_params) par_->reset_all_null();
-      if constexpr (has_results) res_->set_occupied(0);
+      if constexpr (has_p) par_->reset_all_null();
+      if constexpr (has_r) res_->set_occupied(0);
     }
   };
 
