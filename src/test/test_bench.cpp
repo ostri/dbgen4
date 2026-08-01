@@ -31,7 +31,6 @@
 #include "crud.hpp"
 #include "rtl.hpp"
 #include "rtl_fmt.hpp" // IWYU pragma: keep
-#include "query.hpp"
 #include "test_db.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include <chrono>
