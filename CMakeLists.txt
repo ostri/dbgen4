@@ -336,6 +336,7 @@ if(DB2_FOUND)
       ${CMAKE_SOURCE_DIR}/src/rtl/rtl.cpp
       ${CMAKE_SOURCE_DIR}/src/rtl/parameter_root.cpp
       ${CMAKE_SOURCE_DIR}/src/rtl/db_error.cpp
+      ${CMAKE_SOURCE_DIR}/src/rtl/async_db.cpp
       ${CMAKE_SOURCE_DIR}/src/rtl/db2/db2_rtl.cpp
       ${CMAKE_SOURCE_DIR}/src/rtl/db2/odbc_error.cpp
       ${CMAKE_SOURCE_DIR}/src/rtl/db2/query.cpp
@@ -353,6 +354,7 @@ if(LIBPQ_FOUND)
       ${CMAKE_SOURCE_DIR}/src/rtl/rtl.cpp
       ${CMAKE_SOURCE_DIR}/src/rtl/parameter_root.cpp
       ${CMAKE_SOURCE_DIR}/src/rtl/db_error.cpp
+      ${CMAKE_SOURCE_DIR}/src/rtl/async_db.cpp
       ${CMAKE_SOURCE_DIR}/src/rtl/psql/psql_rtl.cpp
       ${CMAKE_SOURCE_DIR}/src/rtl/psql/query.cpp
     )
@@ -649,6 +651,7 @@ function(add_crud_test_target backend rtl_library test_db_include_dir parallel_t
         ${CMAKE_SOURCE_DIR}/src/test/test_types.cpp
         ${CMAKE_SOURCE_DIR}/src/test/test_crud_batch.cpp
         ${CMAKE_SOURCE_DIR}/src/test/test_query_move.cpp
+        ${CMAKE_SOURCE_DIR}/src/test/test_async.cpp
         $<TARGET_OBJECTS:${parallel_test_obj}>
         ${extra_sources})
     target_include_directories(${target} PRIVATE ${out_dir} ${RTL_INCLUDE_DIRS}
