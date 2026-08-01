@@ -146,6 +146,61 @@ statements:
     psql: |
       insert into perf_test (id, name, created) values ($1, $2, $3)
 
+  - id: perf_truncate2
+    summary: empty the second perf table
+    db2: |
+      truncate table perf_test2 immediate
+    psql: |
+      truncate table perf_test2
+
+  - id: perf_truncate3
+    summary: empty the third perf table
+    db2: |
+      truncate table perf_test3 immediate
+    psql: |
+      truncate table perf_test3
+
+  - id: perf_ins2
+    summary: insert one row of the second perf table
+    dscr: |
+      Same shape as perf_ins, against a second table. The multi-table
+      benchmark writes one block into each of the three before committing,
+      which is what a generator run actually does - several related tables
+      filled together inside one transaction.
+    par-buf-size: 1
+    parameter-names: [id, name, created]
+    db2: |
+      insert into perf_test2 (id, name, created) values (?, ?, ?)
+    psql: |
+      insert into perf_test2 (id, name, created) values ($1, $2, $3)
+
+  - id: perf_ins3
+    summary: insert one row of the third perf table
+    par-buf-size: 1
+    parameter-names: [id, name, created]
+    db2: |
+      insert into perf_test3 (id, name, created) values (?, ?, ?)
+    psql: |
+      insert into perf_test3 (id, name, created) values ($1, $2, $3)
+
+  - id: perf_count2
+    summary: how many rows the second perf table holds
+    res-buf-size: 1
+    result-names: [cnt]
+    db2: |
+      select count(*) from perf_test2
+    psql: |
+      select count(*) from perf_test2
+
+  - id: perf_count3
+    summary: how many rows the third perf table holds
+    res-buf-size: 1
+    result-names: [cnt]
+    db2: |
+      select count(*) from perf_test3
+    psql: |
+      select count(*) from perf_test3
+
   - id: perf_sel_all
     summary: read the perf table in key order
     res-buf-size: 1

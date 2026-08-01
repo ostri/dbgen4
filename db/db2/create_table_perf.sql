@@ -14,3 +14,22 @@ CREATE TABLE perf_test (
   name    VARCHAR(255),
   created DATE
 );
+
+-- Two more of the same shape, for the multi-table benchmark: one block goes
+-- into each of the three before a commit, which is what a real generator run
+-- does - several related tables filled together inside one transaction.
+DROP TABLE perf_test2;
+
+CREATE TABLE perf_test2 (
+  id      INTEGER      NOT NULL PRIMARY KEY,
+  name    VARCHAR(255),
+  created DATE
+);
+
+DROP TABLE perf_test3;
+
+CREATE TABLE perf_test3 (
+  id      INTEGER      NOT NULL PRIMARY KEY,
+  name    VARCHAR(255),
+  created DATE
+);

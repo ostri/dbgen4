@@ -720,6 +720,7 @@ if(DB2_FOUND AND BUILD_TESTING)
         ${CMAKE_SOURCE_DIR}/yaml/t1.yaml
         ${CMAKE_SOURCE_DIR}/src/test/test_perf.cpp
         ${CMAKE_SOURCE_DIR}/src/test/test_bench.cpp
+        ${CMAKE_SOURCE_DIR}/src/test/test_bench_async.cpp
         ${CMAKE_SOURCE_DIR}/src/test/test_crud_batch_db2.cpp)
 endif()
 
@@ -737,6 +738,7 @@ if(LIBPQ_FOUND AND BUILD_TESTING)
         ${CMAKE_SOURCE_DIR}/yaml/t1.yaml
         ${CMAKE_SOURCE_DIR}/src/test/test_perf.cpp
         ${CMAKE_SOURCE_DIR}/src/test/test_bench.cpp
+        ${CMAKE_SOURCE_DIR}/src/test/test_bench_async.cpp
         ${CMAKE_SOURCE_DIR}/src/test/test_crud_batch_psql.cpp)
 endif()
 
