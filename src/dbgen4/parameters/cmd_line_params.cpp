@@ -126,7 +126,10 @@ namespace dbgen4
     app.add_option("-u,--username", user_, "database user")
       ->required();
     /// database user password
-    app.add_option("-p,--password", pass_, "database user password")
+    app.add_option("-p,--password", pass_,
+                   "database user password. Can also be supplied via the DBGEN4_PASSWORD "
+                   "environment variable; the command line option takes precedence.")
+      ->envname("DBGEN4_PASSWORD")
       ->required();
     /// fallback width for columns the database reports no length for
     app.add_option("-l,--max-field-len", max_field_len_,

@@ -153,6 +153,38 @@ Timings are reported, never asserted on: a wall clock threshold would fail on a
 loaded machine or a slow link without saying anything about whether the code is
 correct. The row counts and the ordering *are* asserted.
 
+## usage
+
+The generator is built once per available backend, as `dbgen4-db2` and
+`dbgen4-psql`. Each takes the same command line:
+
+    dbgen4-psql -t psql -n mydb -u dbuser -p secret --host localhost --port 5432 \
+      -o ./generated schema.yaml
+
+| option | short | required | default | meaning |
+| --- | --- | --- | --- | --- |
+| `--db-type` | `-t` | no | `sql` | target RDBMS: `sql`, `mariadb`, `psql`, `db2` |
+| `--host` | | no | `localhost` | database host |
+| `--port` | | no | backend's default (e.g. 5432 for psql) | database port |
+| `--db-name` | `-n` | yes | | database name |
+| `--username` | `-u` | yes | | database user |
+| `--password` | `-p` | yes* | | database user password |
+| `--max-field-len` | `-l` | no | 4096 | fallback width for columns with no declared length (text, json, bytea, ...); override per column with `field-len` in the YAML file |
+| `--out-folder` | `-o` | no | `./` | output folder for generated files |
+| `--verbose` | `-v` | no | off | verbose output |
+| `files` (positional) | | yes | | one or more YAML files to process; each must exist |
+
+\* `--password` can be omitted from the command line if the `DBGEN4_PASSWORD`
+environment variable is set instead:
+
+    DBGEN4_PASSWORD=secret dbgen4-psql -n mydb -u dbuser --host localhost schema.yaml
+
+An explicit `-p/--password` on the command line takes precedence over
+`DBGEN4_PASSWORD` when both are present. Preferring the environment variable
+keeps the password out of the shell history and process listing.
+
+Running with no arguments prints the help text.
+
 ## build dependencies
 
 ### C++ libraries
