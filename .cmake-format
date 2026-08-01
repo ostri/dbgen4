@@ -1,0 +1,8 @@
+# .cmake-format
+line_width: 80
+tab_size: 2
+command_case: lower
+use_tabchars: false
+keyword_case: lower
+separate_ctrl_name_with_space: false
+separate_fn_name_with_space: false
