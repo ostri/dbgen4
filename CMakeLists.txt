@@ -600,6 +600,7 @@ function(add_crud_test_target backend rtl_library test_db_include_dir)
     add_executable(${target} ${crud_cpp}
         ${CMAKE_SOURCE_DIR}/src/test/test_crud.cpp
         ${CMAKE_SOURCE_DIR}/src/test/test_types.cpp
+        ${CMAKE_SOURCE_DIR}/src/test/test_crud_batch.cpp
         ${extra_sources})
     target_include_directories(${target} PRIVATE ${out_dir} ${RTL_INCLUDE_DIRS}
                                ${CMAKE_SOURCE_DIR}/src/rtl/${backend} ${test_db_include_dir} $ENV{IBM_DB_INCLUDE})
@@ -666,7 +667,7 @@ if(DB2_FOUND AND BUILD_TESTING)
     add_crud_test_target(db2 db2_rtl ${CMAKE_SOURCE_DIR}/src/test/db2
         ${CMAKE_SOURCE_DIR}/src/test/test_perf.cpp
         ${CMAKE_SOURCE_DIR}/src/test/test_bench.cpp
-        ${CMAKE_SOURCE_DIR}/src/test/test_crud_batch.cpp)
+        ${CMAKE_SOURCE_DIR}/src/test/test_crud_batch_db2.cpp)
 endif()
 
 if(LIBPQ_FOUND AND BUILD_TESTING)
@@ -679,10 +680,11 @@ if(LIBPQ_FOUND AND BUILD_TESTING)
     set(PSQL_TEST_USER "dbgen4"       CACHE STRING "user for the test database")
     set(PSQL_TEST_PASS "dbgen4"       CACHE STRING "password for the test database")
 
-    # test_perf.cpp/test_bench.cpp/test_crud_batch.cpp are not passed here: they
-    # exercise multi-row batch execute, which the psql runtime's query<> does not
-    # implement yet - it sends only row 0 of the parameter buffer per execute().
-    add_crud_test_target(psql psql_rtl ${CMAKE_SOURCE_DIR}/src/test/psql)
+    # test_perf.cpp/test_bench.cpp are not passed here: they measure batch
+    # throughput at scale (hundreds/thousands of rows), which is a separate
+    # question from the correctness test_crud_batch.cpp/execute_batch() cover.
+    add_crud_test_target(psql psql_rtl ${CMAKE_SOURCE_DIR}/src/test/psql
+        ${CMAKE_SOURCE_DIR}/src/test/test_crud_batch_psql.cpp)
 endif()
 
 # === common headers – interface library

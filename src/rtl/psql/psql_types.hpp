@@ -18,6 +18,19 @@ namespace rtl::psql
 {
   using oid_t = uint32_t;
 
+  /**
+   * @brief per row outcome written to parameter_root::row_status()
+   *
+   * Values match ODBC's SQL_PARAM_SUCCESS/SQL_PARAM_ERROR (<sqlext.h>) since
+   * that is the contract row_status() was written against - but spelled out
+   * here so the psql backend never has to include an ODBC header for two
+   * integers. There is no SQL_PARAM_SUCCESS_WITH_INFO equivalent: psql batch
+   * execute is all-or-nothing (see query.hpp), so every row is either ok or
+   * never ran.
+   */
+  constexpr uint16_t param_status_ok    = 0;
+  constexpr uint16_t param_status_error = 5;
+
   /// OIDs of the built-in types we know how to map
   enum class pg_oid : oid_t // NOLINT(performance-enum-size)
   {

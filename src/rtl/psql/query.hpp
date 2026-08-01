@@ -29,6 +29,7 @@
 #include <cstring>
 #include <expected>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -193,7 +194,31 @@ namespace rtl
 
     [[nodiscard]] bool    is_prepared() const noexcept { return prepared_; }
     [[nodiscard]] int64_t affected_rows() const noexcept { return affected_rows_; }
-
+  private:
+    /// marshal one row of the parameter buffer into text, ready for
+    /// PQexecPrepared/PQsendQueryPrepared. holders owns the storage;
+    /// values points into it (nullptr for a null column) and is what the
+    /// caller hands to libpq - repointed after holders stops growing, since
+    /// push_back may have reallocated while filling it in.
+    template <typename param_dscr, typename param_init>
+    static void marshal_row(const param_dscr&         pd,
+                            const param_init&          pi,
+                            size_t                     row,
+                            std::vector<std::string>&  holders,
+                            std::vector<const char*>&  values)
+    {
+      holders.reserve(pd.size());
+      values.reserve(pd.size());
+      for (size_t i = 0; i < pd.size(); ++i)
+      {
+        const bool is_null = pi[i].indicator_ptr[row] == null_data;
+        holders.push_back(is_null ? std::string{} : detail::load_value(pd[i], pi[i], row));
+        values.push_back(is_null ? nullptr : holders.back().c_str());
+      }
+      for (size_t i = 0; i < pd.size(); ++i)
+        if (values[i] != nullptr) values[i] = holders[i].c_str(); // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
+    }
+  public:
     /**
      * @brief parse and plan the statement on the server
      */
@@ -262,27 +287,21 @@ namespace rtl
       if (! prepared_) return std::unexpected(psql_error{.message = "statement is not prepared", .sql_state = ""});
       if (auto layout = check_layout(); ! layout) return std::unexpected(layout.error());
 
+      /// a batch of parameter rows has no protocol level equivalent to send in
+      /// one message - see execute_batch() for how it is still done in one
+      /// round trip's worth of network latency
+      if constexpr (has_params)
+        if (par_->buffer_size() > 1) return execute_batch();
+
       PGconn* conn = db_->get_conn();
 
-      /// marshal row 0 of the parameter buffer into text
-      /// (batches send one row at a time - see execute_row below)
       std::vector<std::string> holders;
       std::vector<const char*> values;
       if constexpr (has_params)
       {
         constexpr auto pd = params::buffer_description_const();
         auto           pi = par_->buffer_description_init();
-        holders.reserve(pd.size());
-        values.reserve(pd.size());
-        for (size_t i = 0; i < pd.size(); ++i)
-        {
-          const bool is_null = pi[i].indicator_ptr[0] == null_data;
-          holders.push_back(is_null ? std::string{} : detail::load_value(pd[i], pi[i], 0));
-          values.push_back(is_null ? nullptr : holders.back().c_str());
-        }
-        /// holders may have reallocated while being filled - repoint
-        for (size_t i = 0; i < pd.size(); ++i)
-          if (values[i] != nullptr) values[i] = holders[i].c_str(); // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
+        marshal_row(pd, pi, 0, holders, values);
       }
 
       detail::result_holder res{PQexecPrepared(conn,
@@ -316,7 +335,97 @@ namespace rtl
     {
       return std::unexpected(psql_error{.message = e.what(), .sql_state = ""});
     }
+  private:
+    /**
+     * @brief send every row of the parameter buffer in one round trip
+     *
+     * PostgreSQL's wire protocol has no "one Bind+Execute, N parameter sets"
+     * message the way ODBC does - each Bind+Execute is for one row. Pipeline
+     * mode gets the same round trip saving a different way: every row's
+     * Bind+Execute is sent without waiting for a reply, then all the replies
+     * are read back together.
+     *
+     * All or nothing: PostgreSQL aborts the rest of a pipelined transaction
+     * after the first error, with no implicit per-row savepoint. Adding one
+     * would cost a round trip per row and defeat the point of pipelining, so
+     * this does not attempt db2's "nine landed, one was refused" semantics -
+     * one bad row fails the whole batch, and nothing from it lands. Callers
+     * that need to know which row was bad still get it: row_status() marks
+     * every row queued after the first failure as never having run, which is
+     * different from db2's SQL_PARAM_ERROR-on-the-bad-row-only meaning of the
+     * same array. See test_crud_batch_psql.cpp for the case this is written
+     * against.
+     */
+    [[nodiscard]] std::expected<void, psql_error> execute_batch() noexcept
+    try
+    {
+      PGconn*        conn = db_->get_conn();
+      const size_t   rows = par_->buffer_size();
+      constexpr auto pd   = params::buffer_description_const();
+      auto           pi   = par_->buffer_description_init();
 
+      if (PQenterPipelineMode(conn) != 1)
+        return std::unexpected(psql_error{.message = "could not enter libpq pipeline mode", .sql_state = ""});
+
+      /// how many rows were actually queued before a send failed - a send
+      /// failure (e.g. the socket buffer is full and PQflush would be needed)
+      /// still has to be synced and drained for exactly that many rows before
+      /// the pipeline can be exited cleanly; rows after it were never sent, so
+      /// row_status() is left untouched rather than guessed at for them
+      size_t                     sent = 0;
+      std::optional<psql_error> send_error;
+      for (; sent < rows; ++sent)
+      {
+        std::vector<std::string> holders;
+        std::vector<const char*> values;
+        marshal_row(pd, pi, sent, holders, values);
+        if (PQsendQueryPrepared(conn,
+                                stmt_name_.c_str(),
+                                static_cast<int>(values.size()),
+                                values.empty() ? nullptr : values.data(),
+                                nullptr,
+                                nullptr,
+                                0) != 1)
+        {
+          send_error = psql_error{.message = PQerrorMessage(conn), .sql_state = ""};
+          break;
+        }
+      }
+      PQpipelineSync(conn);
+
+      par_->clear_row_status();
+      auto                       status_span = par_->row_status();
+      std::optional<psql_error> first_error;
+      for (size_t r = 0; r < sent; ++r)
+      {
+        detail::result_holder res{PQgetResult(conn)};
+        const auto             est = PQresultStatus(res.get());
+        if (! first_error && est != PGRES_COMMAND_OK && est != PGRES_TUPLES_OK) first_error = psql_error::from_result(res.get(), conn);
+        status_span[r] = (! first_error) ? psql::param_status_ok : psql::param_status_error;
+        { const detail::result_holder end_of_command{PQgetResult(conn)}; } // nullptr - marks the end of this row's result
+      }
+      { const detail::result_holder sync{PQgetResult(conn)}; }             // PGRES_PIPELINE_SYNC
+      { const detail::result_holder end_of_sync{PQgetResult(conn)}; }      // nullptr again
+
+      PQexitPipelineMode(conn);
+
+      /// a send failure is reported even when every row that did get sent
+      /// came back clean - the batch as a whole did not go through
+      if (send_error) return std::unexpected(*send_error);
+      if (first_error) return std::unexpected(*first_error);
+
+      total_rows_    = 0;
+      next_row_      = 0;
+      affected_rows_ = static_cast<int64_t>(rows);
+      rows_          = detail::result_holder{nullptr};
+      db_->get_logger()->info("Batch of {} rows executed.", rows);
+      return {};
+    }
+    catch (const std::exception& e)
+    {
+      return std::unexpected(psql_error{.message = e.what(), .sql_state = ""});
+    }
+  public:
     /**
      * @brief copy the next batch of rows into the result buffer
      *
