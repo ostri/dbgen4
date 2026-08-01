@@ -97,7 +97,7 @@ namespace dbgen4
     if (! rtl::is_success(r))
     {
       log_()->error("Worker {} unable to connect to database '{}'", worker_id, p_.db_name());
-      const std::lock_guard<std::mutex> lock(sts_mutex);
+      const std::scoped_lock lock(sts_mutex);
       if (first_error == exit_status_enum::ok) first_error = exit_status_enum::connection_error;
       return stats;
     }
@@ -108,7 +108,7 @@ namespace dbgen4
 
     for (size_t idx = next_file_idx.fetch_add(1); idx < all_files.size(); idx = next_file_idx.fetch_add(1))
     {
-      const auto& filename = all_files[idx];
+      const auto& filename = all_files.at(idx);
       gen.set_yaml_fn_and_barename(filename);
 
       const auto file_start = clock_t::now();
@@ -118,7 +118,7 @@ namespace dbgen4
       if (! res)
       {
         log_()->error("Worker {} error processing file '{}' error {}", worker_id, filename, ME::enum_name(res.error()));
-        const std::lock_guard<std::mutex> lock(sts_mutex);
+        const std::scoped_lock lock(sts_mutex);
         if (first_error == exit_status_enum::ok) first_error = res.error();
       }
       else
@@ -208,7 +208,7 @@ namespace dbgen4
       for (size_t w = 0; w < worker_count; ++w)
       {
         workers.emplace_back([this, w, &gen, &next_file_idx, &sts_mutex, &first_error, &results]()
-                             { results[w] = worker_run(w, gen, next_file_idx, sts_mutex, first_error); });
+                             { results.at(w) = worker_run(w, gen, next_file_idx, sts_mutex, first_error); });
       }
       for (auto& t : workers) t.join();
       const auto run_time = clock_t::now() - run_start;

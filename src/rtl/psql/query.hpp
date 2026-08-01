@@ -390,7 +390,7 @@ namespace rtl
       std::optional<psql_error> first_error;
       for (size_t r = 0; r < sent; ++r)
       {
-        detail::result_holder res{PQgetResult(conn)};
+        const detail::result_holder res{PQgetResult(conn)};
         const auto            est = PQresultStatus(res.get());
         if (! first_error && est != PGRES_COMMAND_OK && est != PGRES_TUPLES_OK) first_error = psql_error::from_result(res.get(), conn);
         status_span[r] = (! first_error) ? psql::param_status_ok : psql::param_status_error;

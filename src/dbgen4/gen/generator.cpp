@@ -32,7 +32,7 @@ namespace
     if (args.size() < 2) throw std::runtime_error("pad needs at least 2 args");
     // required arguments
     std::string str = to_str(args.at(0));
-    size_t      len = args.at(1)->get<size_t>();
+    const size_t len = args.at(1)->get<size_t>();
 
     // optional arguments
     const std::string leading   = (args.size() > 2) ? args.at(2)->get<std::string>() : "";
@@ -46,7 +46,7 @@ namespace
     // combine leading string and trailing
     str = leading + str + trailing;
     if (str.size() >= len) return str;
-    std::string pad(len - str.size(), pad_char);
+    const std::string pad(len - str.size(), pad_char);
     auto        tmp = str + pad;
     rtl::logger::get()->trace("Padded value: '{}' len: {} pad_char: '{}' pad '{}'", tmp, len, pad_char, pad);
     return tmp;
@@ -56,7 +56,7 @@ namespace
     if (args.size() < 2) throw std::runtime_error("pad needs at least 2 args");
     // required arguments
     std::string str = to_str(args.at(0));
-    size_t      len = args.at(1)->get<size_t>();
+    const size_t len = args.at(1)->get<size_t>();
 
     // optional arguments
     const std::string leading   = (args.size() > 2) ? args.at(2)->get<std::string>() : "";
@@ -70,7 +70,7 @@ namespace
     // combine leading string and trailing
     str = leading + str + trailing;
     if (str.size() >= len) return str;
-    std::string pad(len - str.size(), pad_char);
+    const std::string pad(len - str.size(), pad_char);
     auto        tmp = pad + str;
     rtl::logger::get()->trace("L Padded value: '{}' len: {} pad_char: '{}' pad '{}'", tmp, len, pad_char, pad);
     return tmp;
