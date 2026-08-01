@@ -25,6 +25,7 @@
 #include "result_root.hpp"
 #include "logger.hpp"
 #include <libpq-fe.h>
+#include <atomic>
 #include <charconv>
 #include <cstring>
 #include <expected>
@@ -126,6 +127,23 @@ namespace rtl
     size_t      decode_bytea(std::string_view sv, std::byte* dst, size_t capacity) noexcept;
     std::string encode_bytea(const std::byte* src, size_t len);
 
+    /**
+     * @brief a fresh number for every prepared statement name
+     *
+     * Deliberately not a static member of query<> - that would give every
+     * template instantiation a counter of its own, and two queries with
+     * different parameter types would then both start at zero and collide on
+     * the server with 42P05. One function, one counter, all instantiations.
+     *
+     * Atomic because the async facade prepares queries on a worker thread
+     * while the main thread may still be constructing others.
+     */
+    [[nodiscard]] inline uint64_t next_stmt_id() noexcept
+    {
+      static std::atomic<uint64_t> counter{0};
+      return counter.fetch_add(1, std::memory_order_relaxed);
+    }
+
     /// copy one text value into the storage slot of a buffer column
     bool store_value(const buffer_dscr_const& dscr, const buffer_dscr_init& init, size_t row, std::string_view text) noexcept;
     /// render the storage slot of a buffer column as text for the server
@@ -171,8 +189,12 @@ namespace rtl
     , sql_(sql)
     {
       if (db_ == nullptr) throw std::invalid_argument("db pointer cannot be null");
-      /// a name unique to this object - two queries may live at once
-      stmt_name_ = fmt::format("dbgen4_{}", static_cast<const void*>(this));
+      /// A name unique to this object - two queries may live at once. Drawn
+      /// from a counter rather than from `this`: an address is only unique
+      /// among objects alive at the same time, so a query destroyed and
+      /// another built in its place would share a name, and moving an object
+      /// would leave the name pointing at where it used to be.
+      stmt_name_ = fmt::format("dbgen4_{}", detail::next_stmt_id());
       if constexpr (has_p) par_ = std::make_shared<params>();
       if constexpr (has_r) res_ = std::make_shared<results>();
     }
@@ -187,8 +209,35 @@ namespace rtl
 
     query(const query&)            = delete;
     query& operator=(const query&) = delete;
-    query(query&&) noexcept        = default;
-    query& operator=(query&&)      = delete;
+    /**
+     * @brief move, leaving the source owning nothing
+     *
+     * Not `= default`: the prepared statement on the server is named by
+     * stmt_name_ and freed by whoever still has prepared_ set. A defaulted
+     * move copies both into the target and leaves prepared_ true in the
+     * source, so both destructors DEALLOCATE the same name - the second one
+     * fails with 26000, which on PostgreSQL puts the whole transaction into
+     * 25P02 and takes every later statement down with it.
+     */
+    query(query&& o) noexcept
+    : db_(o.db_)
+    , sql_(std::move(o.sql_))
+    , stmt_name_(std::move(o.stmt_name_))
+    , prepared_(o.prepared_)
+    , bound_par_layout_(o.bound_par_layout_)
+    , bound_res_layout_(o.bound_res_layout_)
+    , rows_(std::move(o.rows_))
+    , next_row_(o.next_row_)
+    , total_rows_(o.total_rows_)
+    , rows_fetched_(o.rows_fetched_)
+    , affected_rows_(o.affected_rows_)
+    , par_(std::move(o.par_))
+    , res_(std::move(o.res_))
+    {
+      o.prepared_ = false; ///< the statement is ours now - the source must not free it
+      o.db_       = nullptr;
+    }
+    query& operator=(query&&) = delete;
 
     [[nodiscard]] bool    is_prepared() const noexcept { return prepared_; }
     [[nodiscard]] int64_t affected_rows() const noexcept { return affected_rows_; }

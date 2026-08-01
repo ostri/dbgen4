@@ -35,10 +35,21 @@ namespace rtl
   public:
     explicit query(const database* db, std::string_view sql);
     ~query();
-    query(const query&)                               = delete;
-    query& operator=(const query&)                    = delete;
-    query(query&&) noexcept                           = default;
-    query&                operator=(query&&) noexcept = default;
+    query(const query&)            = delete;
+    query& operator=(const query&) = delete;
+    /**
+     * @brief move, leaving the source owning no statement handle
+     *
+     * Not `= default`: stmt_ is a raw SQLHSTMT that the destructor frees. A
+     * defaulted move copies the handle into the target and leaves the source
+     * holding the same value, so both destructors call SQLFreeHandle on it -
+     * a double free of a driver handle, which is undefined behaviour rather
+     * than a diagnosable error.
+     */
+    query(query&& o) noexcept;
+    /// deleted rather than written: assigning over a live query would have to
+    /// free the target's handle first, and nothing in the codebase needs it
+    query& operator=(query&&) noexcept = delete;
     [[nodiscard]] bool    is_prepared() const noexcept;               //< has prepare() been called successfully?
     [[nodiscard]] int64_t affected_rows() const noexcept;             //< number of row affected by the last execute;
                                                                       //< -1 when unavailable
@@ -76,6 +87,38 @@ namespace rtl
     if (db_ == nullptr) throw std::invalid_argument("db pointer cannot be null");
     if constexpr (has_p) par_ = std::make_shared<params>();
     if constexpr (has_r) res_ = std::make_shared<results>();
+  }
+
+  template <typename params, typename results>
+  inline query<params, results>::query(query&& o) noexcept
+  : db_(o.db_)
+  , stmt_(o.stmt_)
+  , sql_(std::move(o.sql_))
+  , par_(std::move(o.par_))
+  , res_(std::move(o.res_))
+  , bound_par_layout_(o.bound_par_layout_)
+  , bound_res_layout_(o.bound_res_layout_)
+  , params_processed_(o.params_processed_)
+  , rows_fetched_(o.rows_fetched_)
+  , affected_rows_(o.affected_rows_)
+  {
+    o.stmt_ = SQL_NULL_HSTMT; ///< the handle is ours now - the source must not free it
+    o.db_   = nullptr;
+
+    /// The column and parameter buffers live behind shared_ptr, so the
+    /// addresses SQLBindCol/SQLBindParameter gave the driver survive this
+    /// move. These two do not: they are members, and prepare() handed the
+    /// driver their addresses inside the object that is being moved out of.
+    /// Left alone, the driver would keep writing the fetched row count into
+    /// storage that is about to die, and fetch() here would read a counter
+    /// nobody updates - which looks exactly like a query that returns no
+    /// rows. Rebinding is the whole reason this move constructor cannot be
+    /// a simple member-wise copy plus handle transfer.
+    if (stmt_ != SQL_NULL_HSTMT)
+    {
+      if constexpr (has_p) SQLSetStmtAttr(stmt_, SQL_ATTR_PARAMS_PROCESSED_PTR, &params_processed_, 0);
+      if constexpr (has_r) SQLSetStmtAttr(stmt_, SQL_ATTR_ROWS_FETCHED_PTR, &rows_fetched_, 0);
+    }
   }
 
   template <typename params, typename results>
