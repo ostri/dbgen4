@@ -1,4 +1,4 @@
-# dbgen4
+# dbgen4x
 
 database access layer generator
 
@@ -149,19 +149,41 @@ backends (see "what each test file covers" above). They are tagged
 by tag - they move a million rows with the default settings, and `ctest` should
 not pay for that.
 
-    ./build/release/test_crud_db2  "[.benchmark]" -s   # against DB2
-    ./build/release/test_crud_psql "[.benchmark]" -s   # against PostgreSQL
+DB2 and PostgreSQL are two separate servers, not necessarily on the same
+machine or port, so each binary needs its own `DBGEN4_TEST_*` connection
+details (see "the database account the tests use" / `PSQL_TEST_*` above for
+what each defaults to):
 
-Each picks up its own `DBGEN4_TEST_*` connection defaults (see "the database
-account the tests use" / `PSQL_TEST_*` above); override them the same way as
-any other run against a live database, e.g.:
+    DBGEN4_TEST_HOST=localhost DBGEN4_TEST_PORT=50000 DBGEN4_TEST_DB=test \
+    DBGEN4_TEST_USER=dbgen4 DBGEN4_TEST_PASS=dbgen4 \
+      ./build/release/test_crud_db2 "[.benchmark]" -s
 
     DBGEN4_TEST_HOST=postgres.lan DBGEN4_TEST_PORT=5432 DBGEN4_TEST_DB=dbgen4 \
     DBGEN4_TEST_USER=dbgen4 DBGEN4_TEST_PASS=dbgen4 \
       ./build/release/test_crud_psql "[.benchmark]" -s
 
-`-s` matters: the timings are reported through `WARN`, which is only printed
-when successful assertions are shown.
+`-s` matters: the row counts are checked with `CHECK`, and Catch2 only prints
+passing assertions when `-s` is given.
+
+The actual timings ("... rows/s") go through `rtl::logger`, not Catch2, and
+`test_db.hpp`'s fixture drops the console level to `warn` for every test to
+keep ordinary output quiet - the benchmarks raise the *logger*'s level back to
+`debug`, but the console sink's own level is set separately, from
+`config/log.debug.conf`/`config/log.release.conf`, and stays at `warn`
+regardless. To actually see the timings, point `LOG_CONFIG` at a copy of that
+file with `console_level` raised to `info` (for the "rows/s" summary lines) or
+`debug` (to also see the per-commit/per-fetch breakdown - release builds compile
+`debug()`/`trace()` calls out entirely, so `debug` only adds anything in a debug
+build):
+
+    cp config/log.release.conf /tmp/log.bench.conf
+    sed -i 's/"console_level": "warn"/"console_level": "info"/' /tmp/log.bench.conf
+
+    LOG_CONFIG=/tmp/log.bench.conf \
+    DBGEN4_TEST_HOST=postgres.lan DBGEN4_TEST_PORT=5432 DBGEN4_TEST_DB=dbgen4 \
+    DBGEN4_TEST_USER=dbgen4 DBGEN4_TEST_PASS=dbgen4 \
+    DBGEN4_BUFFER_SIZE=100 DBGEN4_ITERATIONS=3 \
+      ./build/release/test_crud_psql "[.benchmark]" -s
 
 Three environment variables tune them:
 
@@ -198,8 +220,15 @@ the database deactivated and reactivated before it takes effect.
 
 A smaller run, for a quick check:
 
-    DBGEN4_BUFFER_SIZE=100 DBGEN4_ITERATIONS=3 ./build/debug/test_crud_db2  "[.benchmark]" -s
-    DBGEN4_BUFFER_SIZE=100 DBGEN4_ITERATIONS=3 ./build/debug/test_crud_psql "[.benchmark]" -s
+    DBGEN4_TEST_HOST=localhost DBGEN4_TEST_PORT=50000 DBGEN4_TEST_DB=test \
+    DBGEN4_TEST_USER=dbgen4 DBGEN4_TEST_PASS=dbgen4 \
+    DBGEN4_BUFFER_SIZE=100 DBGEN4_ITERATIONS=3 \
+      ./build/debug/test_crud_db2 "[.benchmark]" -s
+
+    DBGEN4_TEST_HOST=postgres.lan DBGEN4_TEST_PORT=5432 DBGEN4_TEST_DB=dbgen4 \
+    DBGEN4_TEST_USER=dbgen4 DBGEN4_TEST_PASS=dbgen4 \
+    DBGEN4_BUFFER_SIZE=100 DBGEN4_ITERATIONS=3 \
+      ./build/debug/test_crud_psql "[.benchmark]" -s
 
 Timings are reported, never asserted on: a wall clock threshold would fail on a
 loaded machine or a slow link without saying anything about whether the code is

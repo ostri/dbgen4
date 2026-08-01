@@ -727,11 +727,10 @@ if(LIBPQ_FOUND AND BUILD_TESTING)
     set(PSQL_TEST_USER "dbgen4"       CACHE STRING "user for the test database")
     set(PSQL_TEST_PASS "dbgen4"       CACHE STRING "password for the test database")
 
-    # test_perf.cpp/test_bench.cpp are not passed here: they measure batch
-    # throughput at scale (hundreds/thousands of rows), which is a separate
-    # question from the correctness test_crud_batch.cpp/execute_batch() cover.
     add_crud_test_target(psql psql_rtl ${CMAKE_SOURCE_DIR}/src/test/psql
         ${CMAKE_SOURCE_DIR}/yaml/t1.yaml
+        ${CMAKE_SOURCE_DIR}/src/test/test_perf.cpp
+        ${CMAKE_SOURCE_DIR}/src/test/test_bench.cpp
         ${CMAKE_SOURCE_DIR}/src/test/test_crud_batch_psql.cpp)
 endif()
 
