@@ -7,7 +7,10 @@
 #include "generator.hpp"
 #include "parser.hpp"
 #include "parser_errors.hpp"
+#include <atomic>
+#include <chrono>
 #include <expected>
+#include <mutex>
 namespace dbgen4
 {
   using e_data_statements = ::std::expected<data_statements, exit_status_enum>;
@@ -22,13 +25,24 @@ namespace dbgen4
     appl&            operator=(appl&&)      = delete;
     exit_status_enum exec(int argc, char** argv, char** env); /// execute application
   private:
+    /// per-worker-thread processing statistics, reported when the thread finishes
+    struct worker_stats
+    {
+      size_t                   files_processed{};
+      std::chrono::nanoseconds total_time{};
+    };
     static class rtl::logger* log_() { return rtl::logger::get(); };
     /// method logs raw command line
-    void              display_raw_command_line_log(int argc, char** argv);
-    e_data_statements process_one_file(rtl::db& db, generator& gen);
+    void display_raw_command_line_log(int argc, char** argv);
+    /// process one yaml file with a dedicated parser instance (thread-safe, no shared state)
+    e_data_statements process_one_file(parser& prsr, rtl::db& db, generator& gen);
+    /// body of one worker thread: pulls filenames off the shared queue until it is empty
+    worker_stats worker_run(size_t               worker_id,
+                            const generator&     gen_prototype,
+                            std::atomic<size_t>& next_file_idx,
+                            std::mutex&          sts_mutex,
+                            exit_status_enum&    first_error);
     /// member(s)
-    cmd_line_params p_;      /// comand line parameter structure
-    parser          parser_; /// parser object
-    // generator       gen_;    /// code generator object
+    cmd_line_params p_; /// comand line parameter structure
   };
 }; // namespace dbgen4

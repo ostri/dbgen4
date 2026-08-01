@@ -18,6 +18,8 @@ namespace ME = magic_enum; // NOLINT(misc-unused-alias-decls)
 #include "CLI/Formatter.hpp" // IWYU pragma: export
 #include <CLI/Error.hpp>
 #include <CLI/Validators.hpp>
+#include <algorithm>
+#include <thread>
 
 namespace dbgen4
 {
@@ -32,6 +34,7 @@ namespace dbgen4
   str_t        cmd_line_params::host() const { return host_; }
   size_t       cmd_line_params::port() const { return port_; }
   size_t       cmd_line_params::max_field_len() const { return max_field_len_; }
+  size_t       cmd_line_params::parallel() const { return parallel_; }
   /**
    * @brief Method returns string that describes the object attribute values
    *
@@ -60,6 +63,7 @@ namespace dbgen4
 {}pass:       {}
 {}out folder: {}
 {}verbose:    {}
+{}parallel:   {}
 {}files:
 {}
 )",
@@ -79,6 +83,8 @@ namespace dbgen4
                            out_folder_,
                            left_padding,
                            verbose_,
+                           left_padding,
+                           parallel_,
                            left_padding,
                            s);
     return msg;
@@ -143,6 +149,19 @@ namespace dbgen4
     /// verbose
     app.add_flag("-v,--verbose", verbose_, "verbose output")
       ->default_val(false);
+    /// number of worker threads used to process the yaml files
+    int parallel_opt = 0;
+    app.add_option("-j,--parallel", parallel_opt,
+                   "process the yaml files using N worker threads. If N is omitted "
+                   "(bare -j or --parallel), the number of threads available on this "
+                   "machine is used. Default is -j1 (sequential). A bare -j/--parallel "
+                   "placed ahead of the yaml files on the command line is parsed as if "
+                   "the first filename were its value and fails; place it after the "
+                   "file list instead, or give an explicit N (-jN, -j N or "
+                   "--parallel=N), which works in any position.")
+      ->expected(0, 1)
+      ->default_val(0)
+      ->check(CLI::NonNegativeNumber);
     /// YAML files
     app.add_option("files", files_, "YAML files to be processed")
       ->check(CLI::ExistingFile) // the file provided must exist
@@ -161,6 +180,14 @@ namespace dbgen4
         app.parse(arg.size() - 1, arg.data());
       }
       else app.parse(argc, argv); // NOLINT(readability-inconsistent-ifelse-braces)
+
+      /// resolve the number of worker threads: option absent -> 1 (sequential),
+      /// option present with no value -> hardware concurrency, option present
+      /// with a value -> that value
+      if (app.count("--parallel") == 0) parallel_ = 1;
+      else if (parallel_opt == 0) parallel_ = std::max(1U, std::thread::hardware_concurrency());
+      else parallel_ = static_cast<size_t>(parallel_opt);
+
       set_log_level(verbose_);
 
       log_()->info(R"(Command line parameter values :
@@ -205,7 +232,8 @@ namespace dbgen4
   void cmd_line_params::set_log_level(bool verbose) const
   {
     if (is_debug_build()) { log_()->set_level(verbose ? rtl::logger::level::trace : rtl::logger::level::info); }
-    else {
+    else
+    {
       log_()->set_level(verbose ? rtl::logger::level::info : rtl::logger::level::warn);
     };
   }

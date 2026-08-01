@@ -31,6 +31,8 @@ namespace dbgen4
     [[nodiscard]] size_t       port() const;
     /// width to assume for columns the database reports no declared length for
     [[nodiscard]] size_t max_field_len() const;
+    /// number of worker threads to use for processing the yaml files (always >= 1)
+    [[nodiscard]] size_t parallel() const;
     /**
      * @brief dump the object content to the string
      *
@@ -56,6 +58,8 @@ namespace dbgen4
     /// json, bytea, MariaDB TEXT/BLOB. Without it those columns would size
     /// their buffers at the protocol maximum.
     size_t max_field_len_{default_max_field_len};
+    /// number of worker threads to process the yaml files with, resolved in load_parameters()
+    size_t parallel_{1};
 
   }; // namespace dbgen4
 

@@ -32,8 +32,18 @@ statements:
           col_smallint = $1
     res-buf-size: 5            # number of record allocated in result buffer
     par-buf-size: 2            # number of records allocated in param buffer
+    # PostgreSQL declares no width for text/jsonb/bytea-like columns, so
+    # those fall back to --max-field-len. Narrow the ones we know stay
+    # small. Harmless for the other backends: a field-len entry for a
+    # column that is not in the result/param set is silently ignored
+    # (see data_statement::apply_field_len).
+    field-len:
+      col_text: 128
+      col_binary: 32
+      col_dbclob: 128
+      col_jsonb: 64
   - id: sql_2
-    sql: select col_smallint, col_integer, col_decimal from test -- one liner sql
+    sql: select col_smallint, col_integer, col_numeric from test -- one liner sql, same column names on every backend
     result-names: [a, b, c, d] # to test the substitute names plus option when there are more names that is necessary
   - id: sql_3
     dscr: short description of the sql statement
@@ -42,4 +52,9 @@ statements:
         (col_smallint, col_integer)
         values
         (?, ?)
+    psql: |                    # postgres uses $1, $2 rather than ? for placeholders
+      insert into test
+        (col_smallint, col_integer)
+        values
+        ($1, $2)
     parameter-names: [a1]  # only one

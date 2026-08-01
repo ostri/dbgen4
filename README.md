@@ -171,6 +171,7 @@ The generator is built once per available backend, as `dbgen4-db2` and
 | `--password` | `-p` | yes* | | database user password |
 | `--max-field-len` | `-l` | no | 4096 | fallback width for columns with no declared length (text, json, bytea, ...); override per column with `field-len` in the YAML file |
 | `--out-folder` | `-o` | no | `./` | output folder for generated files |
+| `--parallel` | `-j` | no | `1` | number of worker threads used to process the YAML files, see below |
 | `--verbose` | `-v` | no | off | verbose output |
 | `files` (positional) | | yes | | one or more YAML files to process; each must exist |
 
@@ -182,6 +183,44 @@ environment variable is set instead:
 An explicit `-p/--password` on the command line takes precedence over
 `DBGEN4_PASSWORD` when both are present. Preferring the environment variable
 keeps the password out of the shell history and process listing.
+
+### parallel processing (`-j`/`--parallel`)
+
+By default (`-j1`) the YAML files are processed one after another. Passing
+`-j<n>` or `--parallel=<n>` processes them using `n` worker threads instead:
+
+    dbgen4-psql -n mydb -u dbuser -j4 -o ./generated a.yaml b.yaml c.yaml d.yaml e.yaml
+
+If `n` is omitted - a bare `-j` or `--parallel` - the number of threads
+available on the machine is used instead (capped at the number of files, so
+five files never start more than five workers).
+
+Each worker opens its own database connection and works through the shared
+list of files: whenever a worker finishes a file, it picks up the next
+not-yet-processed one, until none are left. This means the work is balanced
+across workers even when files take different amounts of time to process,
+without any file being handled by more than one worker.
+
+At `info` log level, the run reports:
+
+- when each worker starts,
+- for every file a worker processes: the file name, how long it took, and the
+  names of the generated `.hpp`/`.cpp` files,
+- when a worker finishes: how many files it processed and its total time,
+- a final summary once every worker is done: number of worker threads used,
+  total wall clock time, number of YAML files processed, and the average time
+  per file.
+
+If any file fails, the other workers keep draining the queue rather than
+stopping early; the program's exit code reflects the first error encountered.
+
+**Command line quirk:** a *bare* `-j`/`--parallel` (no number) placed
+*before* the file list is parsed as if the first filename were its value,
+and fails with a clear "not in range" error rather than silently doing the
+wrong thing. Giving an explicit count (`-j4`, `-j 4`, `--parallel=4`) never
+has this problem, in any position. To auto-detect the thread count, either
+put the bare `-j`/`--parallel` *after* the file list, or just give an
+explicit count.
 
 Running with no arguments prints the help text.
 

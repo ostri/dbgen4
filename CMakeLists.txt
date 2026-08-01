@@ -570,7 +570,7 @@ endif() # DB2_FOUND - smoke test
 # is what this function captures. Not nested inside DB2_FOUND: a psql-only
 # build (no DB2 CLI installed) must still get its crud test.
 # ===================================================================
-function(add_crud_test_target backend rtl_library test_db_include_dir)
+function(add_crud_test_target backend rtl_library test_db_include_dir parallel_test_yaml)
     set(extra_sources ${ARGN})
     set(out_dir     ${GEN_OUTPUT_DIR}/${backend})
     set(crud_yaml   ${CMAKE_SOURCE_DIR}/yaml/crud.yaml)
@@ -597,10 +597,29 @@ function(add_crud_test_target backend rtl_library test_db_include_dir)
     )
     add_custom_target(generate_crud_test_${backend} DEPENDS ${crud_stamp})
 
+    # test_parallel.cpp drives dbgen4-${backend} as a subprocess with -j2
+    # against copies of parallel_test_yaml, so needs the generator binary's
+    # path and the source yaml baked in per backend. Built as its own object
+    # library (rather than listed directly among ${target}'s sources) because
+    # it is compiled once for db2 and once for psql with different
+    # DBGEN4_* definitions - a plain source-level COMPILE_DEFINITIONS
+    # property is scoped to the directory the target was created in, and
+    # test_crud_db2/test_crud_psql share that directory, so the two
+    # target_compile_definitions calls below would otherwise collide.
+    set(parallel_test_obj parallel_test_${backend})
+    add_library(${parallel_test_obj} OBJECT ${CMAKE_SOURCE_DIR}/src/test/test_parallel.cpp)
+    target_compile_definitions(${parallel_test_obj} PRIVATE
+        "DBGEN4_GENERATOR_PATH=\"$<TARGET_FILE:${PROJECT_NAME}-${backend}>\""
+        "DBGEN4_SOURCE_YAML=\"${parallel_test_yaml}\""
+        "DBGEN4_BACKEND_NAME=\"${backend}\"")
+    target_link_libraries(${parallel_test_obj} PRIVATE Catch2::Catch2WithMain dbgen4_warnings)
+    add_dependencies(${parallel_test_obj} ${PROJECT_NAME}-${backend})
+
     add_executable(${target} ${crud_cpp}
         ${CMAKE_SOURCE_DIR}/src/test/test_crud.cpp
         ${CMAKE_SOURCE_DIR}/src/test/test_types.cpp
         ${CMAKE_SOURCE_DIR}/src/test/test_crud_batch.cpp
+        $<TARGET_OBJECTS:${parallel_test_obj}>
         ${extra_sources})
     target_include_directories(${target} PRIVATE ${out_dir} ${RTL_INCLUDE_DIRS}
                                ${CMAKE_SOURCE_DIR}/src/rtl/${backend} ${test_db_include_dir} $ENV{IBM_DB_INCLUDE})
@@ -665,6 +684,7 @@ endfunction()
 
 if(DB2_FOUND AND BUILD_TESTING)
     add_crud_test_target(db2 db2_rtl ${CMAKE_SOURCE_DIR}/src/test/db2
+        ${CMAKE_SOURCE_DIR}/yaml/t1.yaml
         ${CMAKE_SOURCE_DIR}/src/test/test_perf.cpp
         ${CMAKE_SOURCE_DIR}/src/test/test_bench.cpp
         ${CMAKE_SOURCE_DIR}/src/test/test_crud_batch_db2.cpp)
@@ -684,6 +704,7 @@ if(LIBPQ_FOUND AND BUILD_TESTING)
     # throughput at scale (hundreds/thousands of rows), which is a separate
     # question from the correctness test_crud_batch.cpp/execute_batch() cover.
     add_crud_test_target(psql psql_rtl ${CMAKE_SOURCE_DIR}/src/test/psql
+        ${CMAKE_SOURCE_DIR}/yaml/t1.yaml
         ${CMAKE_SOURCE_DIR}/src/test/test_crud_batch_psql.cpp)
 endif()
 
