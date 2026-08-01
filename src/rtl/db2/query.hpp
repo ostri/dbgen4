@@ -126,7 +126,7 @@ namespace rtl
                                          c.decimal_digits,
                                          r.value_ptr,
                                          /// the driver needs the room it may write into. Ignored for the
-                               /// fixed size C types, but a character or binary column bound with
+                                         /// fixed size C types, but a character or binary column bound with
                                /// 0 here comes back empty - stride is exactly the array's byte size
                                static_cast<SQLLEN>(r.stride),
                                reinterpret_cast<SQLLEN*>(r.indicator_ptr)); // NOLINT - width checked in db2_types.hpp
@@ -219,24 +219,31 @@ namespace rtl
     affected_rows_ = 0;
     if (SQLRowCount(stmt_, &affected_rows_) != SQL_SUCCESS) affected_rows_ = -1;
 
-    std::string info;
-    if constexpr (has_p)
+    try
     {
-      info = std::format(" {} params processed.", params_processed_);
-      if (par_->is_batch())
+      std::string info;
+      if constexpr (has_p)
       {
-        auto   status = par_->row_status();
-        size_t errors = 0;
-        for (auto s : status)
-          if (s == SQL_PARAM_ERROR) ++errors;
-        if (errors > 0)
+        info = std::format(" {} params processed.", params_processed_);
+        if (par_->is_batch())
         {
-          info += std::format(" {} errors.", errors);
-          logger->warn("Batch execute completed with {} errors.", errors);
+          auto   status = par_->row_status();
+          size_t errors = 0;
+          for (auto s : status)
+            if (s == SQL_PARAM_ERROR) ++errors;
+          if (errors > 0)
+          {
+            info += std::format(" {} errors.", errors);
+            logger->warn("Batch execute completed with {} errors.", errors);
+          }
         }
       }
+      logger->info("SQLExecute succeeded.{}", info);
     }
-    logger->info("SQLExecute succeeded.{}", info);
+    catch (const std::exception&) // NOLINT(bugprone-empty-catch)
+    {
+      /// logging/formatting failure must not turn a successful execute into a crash
+    }
     return {};
   }
 
@@ -266,12 +273,19 @@ namespace rtl
 
       if (reported > max_allowed)
       {
-        const std::string error_msg = std::format("FATAL ODBC DRIVER ERROR: SQLFetchScroll reported {} rows, "
-                                                  "but the buffer holds only {}. Buffer overflow detected. "
-                                                  "Data integrity compromised. Terminating application.",
-                                                  reported,
-                                                  max_allowed);
-        db_->get_logger()->critical("{}", error_msg);
+        try
+        {
+          const std::string error_msg = std::format("FATAL ODBC DRIVER ERROR: SQLFetchScroll reported {} rows, "
+                                                    "but the buffer holds only {}. Buffer overflow detected. "
+                                                    "Data integrity compromised. Terminating application.",
+                                                    reported,
+                                                    max_allowed);
+          db_->get_logger()->critical("{}", error_msg);
+        }
+        catch (const std::exception&) // NOLINT(bugprone-empty-catch)
+        {
+          /// logging/formatting failure must not mask the underlying buffer overflow error
+        }
         return std::unexpected(odbc_error(SQL_ERROR, SQL_NULL_HANDLE, handle_type_enum::stmt));
       }
 

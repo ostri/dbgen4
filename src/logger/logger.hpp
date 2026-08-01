@@ -20,8 +20,8 @@
 namespace rtl
 {
   const int             logger_keep_days_default = 7; ///< how long we keep the logs by default
-  constexpr const char* def_logger_cfg_path       = is_debug_build() ? "config/log.debug.conf" : "config/log.release.conf";
-  constexpr const char* def_logger_path           = is_debug_build() ? "logs/fallback.debug.log" : "logs/fallback.release.log";
+  constexpr const char* def_logger_cfg_path      = is_debug_build() ? "config/log.debug.conf" : "config/log.release.conf";
+  constexpr const char* def_logger_path          = is_debug_build() ? "logs/fallback.debug.log" : "logs/fallback.release.log";
 
   class logger
   {
@@ -53,15 +53,15 @@ namespace rtl
     void init_from_json(const std::string& config_path = def_logger_cfg_path);
 
     void init_raw(std::string_view app_name        = "app",
-                  mode             m                = mode::sync,
-                  enum level       console_lvl      = is_debug_build() ? level::info : level::warn,
-                  enum level       lvl              = is_debug_build() ? level::trace : level::info,
-                  int              rotation_hour    = 2,
-                  int              rotation_minute  = 0,
-                  int              keep_days        = logger_keep_days_default,
-                  std::string_view pattern          = "[%Y-%m-%d %H:%M:%S.%e] [%n] [%l] [%t] %v",
-                  std::string_view log_folder       = "logs",
-                  enum level       flush_lvl        = level::warn);
+                  mode             m               = mode::sync,
+                  enum level       console_lvl     = is_debug_build() ? level::info : level::warn,
+                  enum level       lvl             = is_debug_build() ? level::trace : level::info,
+                  int              rotation_hour   = 2,
+                  int              rotation_minute = 0,
+                  int              keep_days       = logger_keep_days_default,
+                  std::string_view pattern         = "[%Y-%m-%d %H:%M:%S.%e] [%n] [%l] [%t] %v",
+                  std::string_view log_folder      = "logs",
+                  enum level       flush_lvl       = level::warn);
 
     [[nodiscard]] enum level level() const;
     [[nodiscard]] enum level console_level() const;
@@ -85,12 +85,12 @@ namespace rtl
     static class logger* get() noexcept;
 
     // clang-format off
-    template <typename... Args> void trace   (fmt::format_string<Args...> fmt, Args&&... args);
-    template <typename... Args> void debug   (fmt::format_string<Args...> fmt, Args&&... args);
-    template <typename... Args> void info    (fmt::format_string<Args...> fmt, Args&&... args);
-    template <typename... Args> void warn    (fmt::format_string<Args...> fmt, Args&&... args);
-    template <typename... Args> void error   (fmt::format_string<Args...> fmt, Args&&... args);
-    template <typename... Args> void critical(fmt::format_string<Args...> fmt, Args&&... args);
+    template <typename... Args> void trace   (fmt::format_string<Args...> fmt, Args&&... args) noexcept;
+    template <typename... Args> void debug   (fmt::format_string<Args...> fmt, Args&&... args) noexcept;
+    template <typename... Args> void info    (fmt::format_string<Args...> fmt, Args&&... args) noexcept;
+    template <typename... Args> void warn    (fmt::format_string<Args...> fmt, Args&&... args) noexcept;
+    template <typename... Args> void error   (fmt::format_string<Args...> fmt, Args&&... args) noexcept;
+    template <typename... Args> void critical(fmt::format_string<Args...> fmt, Args&&... args) noexcept;
     // clang-format on
     void trace(std::string_view sv);
     void debug(std::string_view sv);
@@ -115,7 +115,7 @@ namespace rtl
   };
 
   template <typename... Args>
-  inline void logger::trace([[maybe_unused]] fmt::format_string<Args...> fmt, [[maybe_unused]] Args&&... args)
+  inline void logger::trace([[maybe_unused]] fmt::format_string<Args...> fmt, [[maybe_unused]] Args&&... args) noexcept
   {
     if constexpr (is_debug_build())
     {
@@ -130,7 +130,7 @@ namespace rtl
   }
 
   template <typename... Args>
-  inline void logger::debug([[maybe_unused]] fmt::format_string<Args...> fmt, [[maybe_unused]] Args&&... args)
+  inline void logger::debug([[maybe_unused]] fmt::format_string<Args...> fmt, [[maybe_unused]] Args&&... args) noexcept
   {
     if constexpr (is_debug_build())
     {
@@ -145,7 +145,7 @@ namespace rtl
   }
 
   template <typename... Args>
-  inline void logger::info(fmt::format_string<Args...> fmt, Args&&... args)
+  inline void logger::info(fmt::format_string<Args...> fmt, Args&&... args) noexcept
   {
     try
     {
@@ -157,7 +157,7 @@ namespace rtl
   }
 
   template <typename... Args>
-  inline void logger::warn(fmt::format_string<Args...> fmt, Args&&... args)
+  inline void logger::warn(fmt::format_string<Args...> fmt, Args&&... args) noexcept
   {
     try
     {
@@ -169,7 +169,7 @@ namespace rtl
   }
 
   template <typename... Args>
-  inline void logger::error(fmt::format_string<Args...> fmt, Args&&... args)
+  inline void logger::error(fmt::format_string<Args...> fmt, Args&&... args) noexcept
   {
     try
     {
@@ -181,7 +181,7 @@ namespace rtl
   }
 
   template <typename... Args>
-  inline void logger::critical(fmt::format_string<Args...> fmt, Args&&... args)
+  inline void logger::critical(fmt::format_string<Args...> fmt, Args&&... args) noexcept
   {
     try
     {

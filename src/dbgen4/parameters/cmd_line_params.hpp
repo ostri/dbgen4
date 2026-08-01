@@ -14,12 +14,12 @@ namespace dbgen4
   class cmd_line_params
   {
   public:
-    cmd_line_params()                                  = default;
-    virtual ~cmd_line_params()                         = default;
-    cmd_line_params& operator=(const cmd_line_params&) = default;
-    cmd_line_params& operator=(cmd_line_params&&)      = default;
-    cmd_line_params(const cmd_line_params& o)          = default;
-    cmd_line_params(cmd_line_params&& o) noexcept      = default;
+    cmd_line_params()                                      = default;
+    virtual ~cmd_line_params()                             = default;
+    cmd_line_params& operator=(const cmd_line_params&)     = default;
+    cmd_line_params& operator=(cmd_line_params&&) noexcept = default;
+    cmd_line_params(const cmd_line_params& o)              = default;
+    cmd_line_params(cmd_line_params&& o) noexcept          = default;
     [[nodiscard]] vec_str_t    files() const;      ///< fetch the list of YAML files to be processed
     [[nodiscard]] db_type_enum db_type() const;    ///< fetch the RDBMS type to generate code for
     [[nodiscard]] str_t        db_name() const;    ///< fetch database name
@@ -30,7 +30,7 @@ namespace dbgen4
     [[nodiscard]] str_t        host() const;
     [[nodiscard]] size_t       port() const;
     /// width to assume for columns the database reports no declared length for
-    [[nodiscard]] size_t       max_field_len() const;
+    [[nodiscard]] size_t max_field_len() const;
     /**
      * @brief dump the object content to the string
      *
@@ -43,15 +43,15 @@ namespace dbgen4
     void set_log_level(bool verbose) const;
   private:
     static class rtl::logger* log_() { return rtl::logger::get(); };
-    str_t                  db_name_;                    //< database name to connect to
-    db_type_enum           db_type_{db_type_enum::sql}; //< database type
-    str_t                  out_folder_;                 //< output folder for generated files
-    bool                   verbose_{false};             //< should we make verbose output
-    str_t                  user_;                       ///< db username
-    str_t                  pass_;                       ///< db password
-    size_t                 port_{};                     ///< port to which to connect
-    str_t                  host_;                       ///< host to which connect
-    vec_str_t              files_;                      //< set of files to be processed
+    str_t                     db_name_;                    //< database name to connect to
+    db_type_enum              db_type_{db_type_enum::sql}; //< database type
+    str_t                     out_folder_;                 //< output folder for generated files
+    bool                      verbose_{false};             //< should we make verbose output
+    str_t                     user_;                       ///< db username
+    str_t                     pass_;                       ///< db password
+    size_t                    port_{};                     ///< port to which to connect
+    str_t                     host_;                       ///< host to which connect
+    vec_str_t                 files_;                      //< set of files to be processed
     /// Fallback width for types with no declared length - PostgreSQL text,
     /// json, bytea, MariaDB TEXT/BLOB. Without it those columns would size
     /// their buffers at the protocol maximum.

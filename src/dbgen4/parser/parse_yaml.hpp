@@ -79,7 +79,7 @@ namespace dbgen4
     }
 
     template <typename T>
-    [[nodiscard]] T get_or(const std::string& key, const T& def) const noexcept
+    [[nodiscard]] T get_or(const std::string& key, const T& def) const
     {
       auto res = get<T>(key);
       if (! res)
