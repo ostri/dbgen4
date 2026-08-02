@@ -110,43 +110,44 @@ rather than by name - Catch2 reads the comma as a filter separator.
 
 ### the database account the tests use
 
-The DB2 tests connect as a dedicated `dbgen4` account rather than as whoever is
-logged in. DB2 authenticates against the operating system, so a database user
-here is an OS user, and putting a developer's own login password into a CMake
-cache variable would make the build personal to one machine.
+Both backends connect as a dedicated `dbgen4` account (database and password
+both `dbgen4`) rather than as whoever is logged in. DB2 authenticates against
+the operating system, so a database user there is also an OS user; putting a
+developer's own login password into a CMake cache variable would make the
+build personal to one machine. PostgreSQL needs no OS account, just the role.
 
-One script sets up both the account and the tables it owns:
+Two scripts per backend set this up, run in order:
 
-    ./db/db2/create_test_user.sh
+    ./db/db2/create_database.sh    # OS account, DB2 database, DBADM grant
+    ./db/db2/create_tables.sh      # crud_test, types_test, perf_test1/2/3, test
 
-It creates the OS user `dbgen4` (password `dbgen4`), grants it DBADM on the
-`test` database, and creates `crud_test`, `types_test`, `perf_test1`,
-`perf_test2`, `perf_test3` and `test` in its own schema. Everything the tests
-create, fill and truncate therefore belongs to `dbgen4` - no other schema is
-touched. Both password and username are deliberately trivial: the account only
-ever talks to a local development database.
+    ./db/psql/create_database.sh   # role and database
+    ./db/psql/create_tables.sh     # crud_test, types_test, perf_test1/2/3, test
 
-Override at configure time if your setup differs:
+`create_database.sh` is a one-off, run as an account with admin rights on the
+server (DB2 admin / sudo for db2, PostgreSQL superuser for psql - point it at
+the actual server through `PGHOST` etc. for psql). `create_tables.sh` connects
+as `dbgen4` itself and is safe to re-run any time the tables need to be reset;
+everything it creates, fills and truncates belongs to `dbgen4` alone - no
+other schema is touched.
+
+Override the DB2 side at configure time if your setup differs:
 
     cmake --preset ninja-debug -DDB2_TEST_USER=someone -DDB2_TEST_PASS=secret
 
-The PostgreSQL tests connect the same way (role and database both `dbgen4`,
-password `dbgen4`) but there is no equivalent setup script - create the role
-and database by hand, then run the `db/psql/create_table_*.sql` files below
-against it.
-
 ### the tables the database tests need
 
-`create_test_user.sh` creates all of them for DB2. There is no such script for
-PostgreSQL; create the role and database, then run every `db/psql/*.sql` file
-listed below by hand. The individual definitions, for reference or for a
-database set up manually:
+`create_tables.sh` creates all of them, for either backend. The individual
+definitions, for reference or for a database set up by hand:
 
     db/db2/create_table_crud.sql     # crud_test      - the round trip test
     db/db2/create_table_types.sql    # types_test     - one column per sql type
     db/db2/create_table_perf.sql     # perf_test1/2/3 - the batch and benchmark tests
+    db/db2/create_table_test.sql     # test           - the wide table yaml/t1.yaml describes
 
-with PostgreSQL counterparts under `db/psql/`.
+with PostgreSQL counterparts under `db/psql/`. Column names, order and types
+are kept aligned between the two backends wherever both support the type
+natively, so the same test logic applies to either.
 
 ### benchmarks
 
