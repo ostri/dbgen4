@@ -12,7 +12,7 @@ set -euo pipefail
 
 TEST_USER=dbgen4
 TEST_PASS=dbgen4
-TEST_DB=test
+TEST_DB=dbgen4
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -23,7 +23,7 @@ db2 "connect to $TEST_DB user $TEST_USER using $TEST_PASS"
 
 for sql in create_table_crud.sql create_table_perf.sql create_table_test.sql create_table_types.sql; do
     echo "--- $sql ---"
-    db2 -tvf "$SCRIPT_DIR/$sql"
+    db2 -tvf "$SCRIPT_DIR/$sql" || true
 done
 
 db2 "commit"

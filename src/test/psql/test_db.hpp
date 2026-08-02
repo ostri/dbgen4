@@ -93,7 +93,7 @@ public:
     const auto host = test_db::env_or("DBGEN4_TEST_HOST", "localhost");
     const auto port =
       static_cast<uint16_t>(std::stoi(test_db::env_or("DBGEN4_TEST_PORT", std::to_string(rtl::default_port()))));
-    const auto name = test_db::env_or("DBGEN4_TEST_DB", "test");
+    const auto name = test_db::env_or("DBGEN4_TEST_DB", "dbgen4");
     const auto user = test_db::env_or("DBGEN4_TEST_USER", "dbgen4");
     const auto pass = test_db::env_or("DBGEN4_TEST_PASS", "dbgen4");
 

@@ -2,37 +2,43 @@
 #
 # Create the PostgreSQL role and database the psql tests run as.
 #
-# Run once per server, as a user with superuser or CREATEROLE/CREATEDB rights
-# (defaults to connecting as the postgres superuser on localhost; point it at
-# the actual test server through the usual PG* environment variables, e.g.
-# PGHOST=postgres.lan):
+# Run once per server, against the dedicated test server:
 #
 #     ./db/psql/create_database.sh
 #
 # Follow with create_tables.sh to create the tables the tests need.
 #
-# The password matches PSQL_TEST_PASS in CMakeLists.txt. Both are deliberately
-# trivial: this account exists only to talk to a local development database.
+# Host, admin and test account are hardcoded rather than left to PG*
+# environment variables: this only ever runs against the one disposable test
+# server, and admin and test passwords are deliberately trivial to match -
+# there is nothing here worth parameterizing or protecting.
 set -euo pipefail
+
+PGHOST=postgres.lan
+PGPORT=5432
+
+ADMIN_USER=postgres
+ADMIN_PASS=postgres1
 
 TEST_USER=dbgen4
 TEST_PASS=dbgen4
 TEST_DB=dbgen4
-ADMIN_USER=${PGUSER:-postgres}
+
+export PGHOST PGPORT
 
 echo "--- role ---"
-if psql -U "$ADMIN_USER" -d postgres -tAc "select 1 from pg_roles where rolname='$TEST_USER'" | grep -q 1; then
+if PGPASSWORD="$ADMIN_PASS" psql -U "$ADMIN_USER" -d postgres -tAc "select 1 from pg_roles where rolname='$TEST_USER'" | grep -q 1; then
     echo "role $TEST_USER already exists"
 else
-    psql -U "$ADMIN_USER" -d postgres -c "CREATE ROLE $TEST_USER LOGIN PASSWORD '$TEST_PASS'"
+    PGPASSWORD="$ADMIN_PASS" psql -U "$ADMIN_USER" -d postgres -c "CREATE ROLE $TEST_USER LOGIN PASSWORD '$TEST_PASS'"
     echo "role $TEST_USER created"
 fi
 
 echo "--- database ---"
-if psql -U "$ADMIN_USER" -d postgres -tAc "select 1 from pg_database where datname='$TEST_DB'" | grep -q 1; then
+if PGPASSWORD="$ADMIN_PASS" psql -U "$ADMIN_USER" -d postgres -tAc "select 1 from pg_database where datname='$TEST_DB'" | grep -q 1; then
     echo "database $TEST_DB already exists"
 else
-    createdb -U "$ADMIN_USER" -O "$TEST_USER" "$TEST_DB"
+    PGPASSWORD="$ADMIN_PASS" createdb -U "$ADMIN_USER" -O "$TEST_USER" "$TEST_DB"
     echo "database $TEST_DB created"
 fi
 

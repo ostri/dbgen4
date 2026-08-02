@@ -2,15 +2,22 @@
 #
 # Create every table the psql tests need, owned by dbgen4.
 #
-# Run after create_database.sh (point it at the actual test server through
-# the usual PG* environment variables, e.g. PGHOST=postgres.lan):
+# Run after create_database.sh, against the same dedicated test server:
 #
 #     ./db/psql/create_tables.sh
+#
+# Host and test account are hardcoded rather than left to PG* environment
+# variables - see create_database.sh for why.
 set -euo pipefail
+
+PGHOST=postgres.lan
+PGPORT=5432
 
 TEST_USER=dbgen4
 TEST_PASS=dbgen4
 TEST_DB=dbgen4
+
+export PGHOST PGPORT
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 

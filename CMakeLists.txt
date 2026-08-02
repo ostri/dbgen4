@@ -491,7 +491,7 @@ if(DB2_FOUND)
 # else's. See README.md for how to set it up.
 set(DB2_TEST_HOST "localhost"  CACHE STRING "host of the DB2 used by the tests")
 set(DB2_TEST_PORT "50000"      CACHE STRING "port of the DB2 used by the tests")
-set(DB2_TEST_DB   "test"       CACHE STRING "database name used by the tests")
+set(DB2_TEST_DB   "dbgen4"     CACHE STRING "database name used by the tests")
 set(DB2_TEST_USER "dbgen4"     CACHE STRING "user for the test database")
 set(DB2_TEST_PASS "dbgen4"     CACHE STRING "password for the test database")
 

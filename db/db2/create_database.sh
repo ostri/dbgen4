@@ -23,7 +23,7 @@ set -euo pipefail
 
 TEST_USER=dbgen4
 TEST_PASS=dbgen4
-TEST_DB=test
+TEST_DB=dbgen4
 
 echo "--- operating system account ---"
 if id "$TEST_USER" >/dev/null 2>&1; then

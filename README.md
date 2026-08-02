@@ -97,9 +97,9 @@ One test by name (a regular expression):
 
 ctest passes the connection details in the environment. Running a binary by
 hand means supplying them, otherwise the built in defaults apply
-(`localhost:50000`, database `test`, user `dbgen4`, password `dbgen4`):
+(`localhost:50000`, database `dbgen4`, user `dbgen4`, password `dbgen4`):
 
-    DBGEN4_TEST_HOST=localhost DBGEN4_TEST_PORT=50000 DBGEN4_TEST_DB=test \
+    DBGEN4_TEST_HOST=localhost DBGEN4_TEST_PORT=50000 DBGEN4_TEST_DB=dbgen4 \
     DBGEN4_TEST_USER=dbgen4 DBGEN4_TEST_PASS=dbgen4 \
       ./build/debug/test_crud_db2 "crud round trip through the generated buffers"
 
@@ -162,7 +162,7 @@ machine or port, so each binary needs its own `DBGEN4_TEST_*` connection
 details (see "the database account the tests use" / `PSQL_TEST_*` above for
 what each defaults to):
 
-    DBGEN4_TEST_HOST=localhost DBGEN4_TEST_PORT=50000 DBGEN4_TEST_DB=test \
+    DBGEN4_TEST_HOST=localhost DBGEN4_TEST_PORT=50000 DBGEN4_TEST_DB=dbgen4 \
     DBGEN4_TEST_USER=dbgen4 DBGEN4_TEST_PASS=dbgen4 \
       ./build/release/test_crud_db2 "[.benchmark]" -s
 
@@ -228,7 +228,7 @@ the database deactivated and reactivated before it takes effect.
 
 A smaller run, for a quick check:
 
-    DBGEN4_TEST_HOST=localhost DBGEN4_TEST_PORT=50000 DBGEN4_TEST_DB=test \
+    DBGEN4_TEST_HOST=localhost DBGEN4_TEST_PORT=50000 DBGEN4_TEST_DB=dbgen4 \
     DBGEN4_TEST_USER=dbgen4 DBGEN4_TEST_PASS=dbgen4 \
     DBGEN4_BUFFER_SIZE=100 DBGEN4_ITERATIONS=3 \
       ./build/debug/test_crud_db2 "[.benchmark]" -s
