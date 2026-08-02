@@ -320,7 +320,10 @@ namespace rtl
       /// rather than followed - see check_layout().
       if constexpr (has_p) bound_par_layout_ = par_->layout_generation();
       if constexpr (has_r) bound_res_layout_ = res_->layout_generation();
-      logger->info("Query prepared: params={}, results={}", has_p ? "yes" : "no", has_r ? "yes" : "no");
+      logger->trace("Query prepared: params={}, results={} sql='{}'", //
+                    has_p ? "yes" : "no",
+                    has_r ? "yes" : "no",
+                    sql_.c_str());
       return {};
     }
     catch (const std::exception& e)
@@ -466,7 +469,7 @@ namespace rtl
       for (size_t r = 0; r < sent; ++r)
       {
         const detail::result_holder res{PQgetResult(conn)};
-        const auto            est = PQresultStatus(res.get());
+        const auto                  est = PQresultStatus(res.get());
         if (! first_error && est != PGRES_COMMAND_OK && est != PGRES_TUPLES_OK) first_error = psql_error::from_result(res.get(), conn);
         status_span[r] = (! first_error) ? psql::param_status_ok : psql::param_status_error;
         {
@@ -491,7 +494,7 @@ namespace rtl
       next_row_      = 0;
       affected_rows_ = static_cast<int64_t>(rows);
       rows_          = detail::result_holder{nullptr};
-      db_->get_logger()->info("Batch of {} rows executed.", rows);
+      db_->get_logger()->debug("Batch of {} rows executed.", rows);
       return {};
     }
     catch (const std::exception& e)

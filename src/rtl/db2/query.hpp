@@ -49,7 +49,7 @@ namespace rtl
     query(query&& o) noexcept;
     /// deleted rather than written: assigning over a live query would have to
     /// free the target's handle first, and nothing in the codebase needs it
-    query& operator=(query&&) noexcept = delete;
+    query&                operator=(query&&) noexcept = delete;
     [[nodiscard]] bool    is_prepared() const noexcept;               //< has prepare() been called successfully?
     [[nodiscard]] int64_t affected_rows() const noexcept;             //< number of row affected by the last execute;
                                                                       //< -1 when unavailable
@@ -66,17 +66,16 @@ namespace rtl
     void                               reset(this query& self) noexcept;
     [[nodiscard]] SQLHSTMT             stmt() const noexcept;
   private:
-    const database*                         db_   = nullptr;
-    SQLHSTMT                                stmt_ = SQL_NULL_HSTMT;
-    std::string                             sql_;
-    [[no_unique_address]] cond<has_p, sh_p> par_;
-    [[no_unique_address]] cond<has_r, sh_r> res_;
-    /// what layout_generation() said when prepare() bound the buffers; see check_layout()
-    [[no_unique_address]] cond<has_p, uint64_t> bound_par_layout_ = {};
-    [[no_unique_address]] cond<has_r, uint64_t> bound_res_layout_ = {};
-    [[no_unique_address]] cond<has_p, SQLULEN>  params_processed_ = {};
-    [[no_unique_address]] cond<has_r, SQLULEN>  rows_fetched_     = {};
-    SQLLEN                                      affected_rows_    = 0;
+    const database* db_   = nullptr;                  //< the database connection this query belongs to
+    SQLHSTMT        stmt_ = SQL_NULL_HSTMT;           //< the statement handle, allocated in prepare() and freed in the destructor
+    std::string     sql_;                             //< the SQL text, for logging and re-prepare
+    [[no_unique_address]] cond<has_p, sh_p>     par_; //< the parameter buffer, if any
+    [[no_unique_address]] cond<has_r, sh_r>     res_; //< the result buffer, if any
+    [[no_unique_address]] cond<has_p, uint64_t> bound_par_layout_ = {}; //< parameter layout_generation
+    [[no_unique_address]] cond<has_r, uint64_t> bound_res_layout_ = {}; //< result layout_generation
+    [[no_unique_address]] cond<has_p, SQLULEN>  params_processed_ = {}; //< # of parameter rows the last execute processed
+    [[no_unique_address]] cond<has_r, SQLULEN>  rows_fetched_     = {}; //< # of result rows the last fetch() returned
+    SQLLEN                                      affected_rows_    = 0;  //< rows the last execute ins, upd or del; -1 when unavailable
   };
 
   template <typename params, typename results>
@@ -169,7 +168,7 @@ namespace rtl
                                          c.decimal_digits,
                                          r.value_ptr,
                                          /// the driver needs the room it may write into. Ignored for the
-                                         /// fixed size C types, but a character or binary column bound with
+                               /// fixed size C types, but a character or binary column bound with
                                /// 0 here comes back empty - stride is exactly the array's byte size
                                static_cast<SQLLEN>(r.stride),
                                reinterpret_cast<SQLLEN*>(r.indicator_ptr)); // NOLINT - width checked in db2_types.hpp
@@ -181,16 +180,11 @@ namespace rtl
       {
         auto status_span = par_->row_status();
         SQLSetStmtAttr(stmt_, SQL_ATTR_PARAM_STATUS_PTR, status_span.data(), 0);
-        /// Without this the per row status array is useless. DB2 defaults to
-        /// SQL_ATOMIC_YES, which treats the whole array as one unit: a single
-        /// bad row fails the entire execute and the driver fills the status
-        /// array with SQL_PARAM_DIAG_UNAVAILABLE rather than saying which row
-        /// it was. SQL_ATOMIC_NO makes it process the rows one by one, so the
-        /// good ones land and the status array names the ones that did not.
-        SQLSetStmtAttr(stmt_,
-                       SQL_ATTR_PARAMOPT_ATOMIC,
-                       reinterpret_cast<SQLPOINTER>(SQL_ATOMIC_NO), // NOLINT
-                       0);                                          // NOLINT
+        /**
+         * @brief set atomicity of batch execution
+         * Unless set we won't get feedback on which individual rows fit ailed.
+         */
+        SQLSetStmtAttr(stmt_, SQL_ATTR_PARAMOPT_ATOMIC, reinterpret_cast<SQLPOINTER>(SQL_ATOMIC_NO), 0);
       }
     }
 
@@ -214,12 +208,13 @@ namespace rtl
       SQLSetStmtAttr(stmt_, SQL_ATTR_ROWS_FETCHED_PTR, &rows_fetched_, 0);
     }
 
-    /// The driver now holds raw pointers into the buffers. Remember how they
-    /// looked, so that a resize afterwards is caught rather than followed.
+    /// The driver now holds raw pointers into the buffers.
     if constexpr (has_p) bound_par_layout_ = par_->layout_generation();
     if constexpr (has_r) bound_res_layout_ = res_->layout_generation();
-
-    logger->info("Query prepared: params={}, results={}", has_p ? "yes" : "no", has_r ? "yes" : "no");
+    logger->trace("Query prepared: params={}, results={} sql='{}'", //
+                  has_p ? "yes" : "no",
+                  has_r ? "yes" : "no",
+                  sql_.c_str());
     return {};
   }
 
@@ -281,7 +276,7 @@ namespace rtl
           }
         }
       }
-      logger->info("SQLExecute succeeded.{}", info);
+      logger->debug("SQLExecute succeeded.{}", info);
     }
     catch (const std::exception&) // NOLINT(bugprone-empty-catch)
     {

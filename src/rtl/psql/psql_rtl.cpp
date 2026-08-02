@@ -30,9 +30,9 @@ namespace
     result_guard(result_guard&&)                 = delete;
     result_guard& operator=(result_guard&&)      = delete;
 
-    [[nodiscard]] PGresult*        get() const noexcept { return res_; }
-    [[nodiscard]] ExecStatusType   status() const noexcept { return PQresultStatus(res_); }
-    [[nodiscard]] std::string      error() const { return (res_ != nullptr) ? PQresultErrorMessage(res_) : "no result"; }
+    [[nodiscard]] PGresult*      get() const noexcept { return res_; }
+    [[nodiscard]] ExecStatusType status() const noexcept { return PQresultStatus(res_); }
+    [[nodiscard]] std::string    error() const { return (res_ != nullptr) ? PQresultErrorMessage(res_) : "no result"; }
   private:
     PGresult* res_;
   };
@@ -103,8 +103,7 @@ namespace rtl
     // clang-format on
 
     auto ret = connect(conn_str);
-    if (ret == db_sts::success)
-      log_()->info("Connected to db: host:'{}:{}' db:'{}' as user '{}'", host, port, database_name, user);
+    if (ret == db_sts::success) log_()->info("Connected to db: host:'{}:{}' db:'{}' as user '{}'", host, port, database_name, user);
     return ret;
   }
 
@@ -147,7 +146,7 @@ namespace rtl
   {
     auto ret = exec_command("COMMIT");
     if (ret != db_sts::success) return ret;
-    log_()->info("Transaction committed successfully.");
+    log_()->debug("Transaction committed successfully.");
     return begin_transaction(); // stay inside a transaction, as db2 does
   }
 
@@ -176,7 +175,9 @@ namespace rtl
     }
 
     /// a previous describe may have left the statement name taken
-    { const result_guard drop{PQexec(data()->conn, "DEALLOCATE ALL")}; }
+    {
+      const result_guard drop{PQexec(data()->conn, "DEALLOCATE ALL")};
+    }
 
     {
       /// param types all zero - let the server infer them from the statement
@@ -241,7 +242,9 @@ namespace rtl
       result.add_col_dscr(col);
     }
 
-    { const result_guard drop{PQexec(data()->conn, "DEALLOCATE ALL")}; }
+    {
+      const result_guard drop{PQexec(data()->conn, "DEALLOCATE ALL")};
+    }
     return result;
   }
 
