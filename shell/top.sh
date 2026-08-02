@@ -1,1 +1,1 @@
-dmctop -d test -u dbgen4 -p dbgen4 -insecure
+dmctop -d test -u dbgen4 -p dbgen4 -insecure -i 5 
