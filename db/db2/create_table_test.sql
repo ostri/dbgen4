@@ -33,7 +33,10 @@ CREATE TABLE test (
   col_uuid        char(36),                 -- stand-in: DB2 has no native UUID type, stored as its text form
   col_varbit      varbinary(16),            -- stand-in: DB2 has no bit varying type, stored as raw bytes
   col_jsonb       clob(1k)                  -- stand-in: DB2 has no native JSON type or validation
-);
+)
+IN TS_TBL_32K
+INDEX IN TS_NDX_32K
+;
 
 INSERT INTO test (
   col_smallint, col_integer, col_bigint, col_numeric, col_real, col_double,

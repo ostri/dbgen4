@@ -24,11 +24,11 @@ export DBGEN4_TEST_USER="${DBGEN4_TEST_USER:-dbgen4}"
 export DBGEN4_TEST_PASS="${DBGEN4_TEST_PASS:-dbgen4}"
 
 # --- benchmark workload knobs (see test_bench_async.cpp header comment) ---
-export DBGEN4_BUFFER_SIZE="${DBGEN4_BUFFER_SIZE:-100000}"     # rows per block per table
-export DBGEN4_ITERATIONS="${DBGEN4_ITERATIONS:-10}"        # iterations (blocks)
-export DBGEN4_COMMIT_EVERY="${DBGEN4_COMMIT_EVERY:-5}"      # iterations per commit
-export DBGEN4_FILL_DELAY_MS="${DBGEN4_FILL_DELAY_MS:-100}"  # simulated work per block
-export DBGEN4_REPORT_EVERY="${DBGEN4_REPORT_EVERY:-25}"     # commits between progress reports
+export DBGEN4_BUFFER_SIZE="${DBGEN4_BUFFER_SIZE:-400}"   # rows per block per table
+export DBGEN4_ITERATIONS="${DBGEN4_ITERATIONS:-10}"         # iterations (blocks)
+export DBGEN4_COMMIT_EVERY="${DBGEN4_COMMIT_EVERY:-1}"      # comit affter this many blocks
+export DBGEN4_FILL_DELAY_MS="${DBGEN4_FILL_DELAY_MS:-10}"  # simulated work per block
+export DBGEN4_REPORT_EVERY="${DBGEN4_REPORT_EVERY:-2}"     # commits between progress reports
 
 # --- logging config override -----------------------------------------------
 # The shipped config/log.debug.conf and config/log.release.conf pin

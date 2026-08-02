@@ -26,4 +26,7 @@ CREATE TABLE types_test (
   col_date     DATE,                              -- structure
   col_time     TIME,                              -- structure
   col_timestamp TIMESTAMP                         -- structure
-);
+)
+IN TS_TBL_32K
+INDEX IN TS_NDX_32K
+;

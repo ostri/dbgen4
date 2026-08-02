@@ -21,7 +21,10 @@ CREATE TABLE perf_test1 (
   name    VARCHAR(255),
   created DATE,
   tran    VARCHAR(32672)
-);
+)
+IN TS_TBL_32K
+INDEX IN TS_NDX_32K
+;
 
 -- Two more of the same shape, for the multi-table benchmark: one block goes
 -- into each of the three before a commit, which is what a real generator run
@@ -33,7 +36,10 @@ CREATE TABLE perf_test2 (
   name    VARCHAR(255),
   created DATE,
   tran    VARCHAR(32672)
-);
+)
+IN TS_TBL_32K
+INDEX IN TS_NDX_32K
+;
 
 DROP TABLE perf_test3;
 
@@ -42,4 +48,7 @@ CREATE TABLE perf_test3 (
   name    VARCHAR(255),
   created DATE,
   tran    VARCHAR(32672)
-);
+)
+IN TS_TBL_32K
+INDEX IN TS_NDX_32K
+;

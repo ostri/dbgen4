@@ -8,4 +8,7 @@ CREATE TABLE crud_test (
   id      INTEGER      NOT NULL PRIMARY KEY,  -- atomic
   name    VARCHAR(64),                        -- c_string
   created DATE                                -- structure
-);
+)
+IN TS_TBL_32K
+INDEX IN TS_NDX_32K
+;
