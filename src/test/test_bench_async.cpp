@@ -11,11 +11,12 @@
  *          while those are in flight, and only then commit
  *
  * Each iteration writes one block into each of three tables of identical
- * shape (integer, varchar(255), date) before the transaction ends. That is
- * what a generator run actually does - several related tables filled together
- * inside one unit of work - and it matters here for a reason beyond realism:
- * with one table there was nothing between submit() and commit() for the
- * worker to still be doing, so the overlap had nowhere to happen.
+ * shape (integer, varchar(255), date, varchar(32672)) before the transaction
+ * ends. That is what a generator run actually does - several related tables
+ * filled together inside one unit of work - and it matters here for a reason
+ * beyond realism: with one table there was nothing between submit() and
+ * commit() for the worker to still be doing, so the overlap had nowhere to
+ * happen.
  *
  * Filling a block is made to cost DBGEN4_FILL_DELAY_MS (default 100) of wall
  * clock, standing in for the work a real generator does to produce the values.
@@ -28,14 +29,16 @@
  * Parameters, all from the environment:
  *
  *   DBGEN4_BUFFER_SIZE     rows per block per table   (default 4000)
- *   DBGEN4_ITERATIONS      iterations                 (default  250)
+ *   DBGEN4_ITERATIONS      iterations                 (default    3)
  *   DBGEN4_COMMIT_EVERY    iterations per commit      (default    1)
  *   DBGEN4_FILL_DELAY_MS   simulated work per block   (default  100)
  *   DBGEN4_REPORT_EVERY    commits between reports    (default   25)
  *
- * Note that the default writes 3 x 4000 x 250 = 3M rows per run and, with the
- * fill delay, takes on the order of a minute and a half in each mode. Turn
- * DBGEN4_ITERATIONS down for a quick check.
+ * Note that the default writes 3 x 4000 x 3 = 36000 rows per run, each
+ * carrying a full 32672 character tran (a bit over 1 GB in all). Raise
+ * DBGEN4_ITERATIONS for a heavier run - at 250 (the previous default) this
+ * moves 3M rows and, with the fill delay, takes on the order of a minute and
+ * a half in each mode.
  *
  * Timings are reported, never asserted on. A wall clock threshold would fail
  * on a loaded machine or a slow link and would say nothing about whether the
@@ -53,13 +56,14 @@
 #include <cstddef>
 #include <cstdint>
 #include <fmt/format.h>
+#include <random>
 #include <string>
 #include <thread>
 
 namespace
 {
   constexpr std::size_t c_buffer_size   = 4000;
-  constexpr std::size_t c_iterations    = 250;
+  constexpr std::size_t c_iterations    = 3;
   constexpr std::size_t c_commit_every  = 1;
   constexpr std::size_t c_fill_delay_ms = 100;
   constexpr std::size_t c_report_every  = 25;
@@ -86,7 +90,8 @@ namespace
   size_t fill_delay_ms() { return test_db::env_size("DBGEN4_FILL_DELAY_MS", c_fill_delay_ms); }
 
   constexpr auto   bench_date = rtl::date{.year = 2026, .month = 7, .day = 31};
-  constexpr size_t name_width = 255; ///< full declared width of the name column
+  constexpr size_t name_width = 255;   ///< full declared width of the name column
+  constexpr size_t tran_width = 32672; ///< full declared width of the tran column
 
   /// the name column of row `id` - own number, padded out to the full column
   /// width, '!' last so that a row bleeding into its neighbour is visible
@@ -95,6 +100,19 @@ namespace
     auto s = fmt::format("{:05d}", id);
     s.resize(name_width - 1, '*');
     s.push_back('!');
+    return s;
+  }
+
+  /// tran_width random printable characters - see test_bench.cpp::bench_tran
+  /// for why random rather than repeated content
+  std::string bench_tran(std::mt19937& gen)
+  {
+    constexpr int                      first_printable = 0x20;
+    constexpr int                      last_printable  = 0x7E;
+    std::uniform_int_distribution<int> dist(first_printable, last_printable);
+
+    std::string s(tran_width, '\0');
+    for (auto& c : s) c = static_cast<char>(dist(gen));
     return s;
   }
 
@@ -188,7 +206,7 @@ namespace
    * libpq's parameter marshalling - see the file comment.
    */
   template <typename Params>
-  void fill_block(Params* par, size_t rows_per_block, int32_t& next_id, size_t delay_ms)
+  void fill_block(Params* par, size_t rows_per_block, int32_t& next_id, size_t delay_ms, std::mt19937& tran_gen)
   {
     for (size_t row = 0; row < rows_per_block; ++row)
     {
@@ -196,6 +214,7 @@ namespace
       par->set_id(id, row);
       par->set_name(bench_name(id), row);
       par->set_created(bench_date, row);
+      par->set_tran(bench_tran(tran_gen), row);
     }
     if (delay_ms > 0) std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms));
   }
@@ -231,27 +250,28 @@ namespace
     const size_t delay        = fill_delay_ms();
     size_t       rows_written = 0;
     int32_t      next_id      = 1;
+    std::mt19937 tran_gen{std::random_device{}()};
 
     for (size_t block = 0; block < blocks; ++block)
     {
       /// one block into each table, filling and writing them one at a time -
       /// the main thread does nothing else while each execute is on the wire
       const auto fill1 = std::chrono::steady_clock::now();
-      fill_block(p1.get(), rows_per_block, next_id, delay);
+      fill_block(p1.get(), rows_per_block, next_id, delay, tran_gen);
       const auto write1 = std::chrono::steady_clock::now();
       t.filling += std::chrono::duration_cast<std::chrono::microseconds>(write1 - fill1);
       require_ok(ins1.execute(), "execute(perf_ins sync)");
       t.writing += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - write1);
 
       const auto fill2 = std::chrono::steady_clock::now();
-      fill_block(p2.get(), rows_per_block, next_id, delay);
+      fill_block(p2.get(), rows_per_block, next_id, delay, tran_gen);
       const auto write2 = std::chrono::steady_clock::now();
       t.filling += std::chrono::duration_cast<std::chrono::microseconds>(write2 - fill2);
       require_ok(ins2.execute(), "execute(perf_ins2 sync)");
       t.writing += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - write2);
 
       const auto fill3 = std::chrono::steady_clock::now();
-      fill_block(p3.get(), rows_per_block, next_id, delay);
+      fill_block(p3.get(), rows_per_block, next_id, delay, tran_gen);
       const auto write3 = std::chrono::steady_clock::now();
       t.filling += std::chrono::duration_cast<std::chrono::microseconds>(write3 - fill3);
       require_ok(ins3.execute(), "execute(perf_ins3 sync)");
@@ -332,13 +352,14 @@ namespace
     const size_t delay        = fill_delay_ms();
     size_t       rows_written = 0;
     int32_t      next_id      = 1;
+    std::mt19937 tran_gen{std::random_device{}()};
 
     for (size_t block = 0; block < blocks; ++block)
     {
       const auto fill_from = std::chrono::steady_clock::now();
-      fill_block(ins1->param(), rows_per_block, next_id, delay);
-      fill_block(ins2->param(), rows_per_block, next_id, delay);
-      fill_block(ins3->param(), rows_per_block, next_id, delay);
+      fill_block(ins1->param(), rows_per_block, next_id, delay, tran_gen);
+      fill_block(ins2->param(), rows_per_block, next_id, delay, tran_gen);
+      fill_block(ins3->param(), rows_per_block, next_id, delay, tran_gen);
       const auto write_from = std::chrono::steady_clock::now();
       t.filling += std::chrono::duration_cast<std::chrono::microseconds>(write_from - fill_from);
 

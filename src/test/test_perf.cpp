@@ -29,6 +29,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <fmt/format.h>
+#include <random>
 #include <string>
 
 namespace
@@ -46,6 +47,9 @@ namespace
   /// full declared width of perf_test1.name
   constexpr size_t name_width = 255;
 
+  /// full declared width of perf_test1.tran
+  constexpr size_t tran_width = 32672;
+
   /**
    * @brief the name column of row `id`
    *
@@ -59,6 +63,30 @@ namespace
     auto s = fmt::format("{:05d}", id);
     s.resize(name_width - 1, '*');
     s.push_back('!');
+    return s;
+  }
+
+  /**
+   * @brief the tran column of row `id`: tran_width random printable characters
+   *
+   * Seeded from id rather than truly random, so the value is reproducible: the
+   * select tests regenerate it from the same id and compare. Random rather
+   * than repeated content is the point of the column - see
+   * db/db2/create_table_perf.sql for why - so each character is drawn
+   * independently from the printable ASCII range (0x20 '!' through 0x7E '~')
+   * instead of being some fixed or slowly varying pattern that a database
+   * would compress well.
+   */
+  std::string perf_tran(int32_t id)
+  {
+    constexpr int first_printable = 0x20;
+    constexpr int last_printable  = 0x7E;
+
+    std::mt19937                      gen(static_cast<uint32_t>(id));
+    std::uniform_int_distribution<int> dist(first_printable, last_printable);
+
+    std::string s(tran_width, '\0');
+    for (auto& c : s) c = static_cast<char>(dist(gen));
     return s;
   }
 
@@ -88,6 +116,7 @@ namespace
       par->set_id(id, row);
       par->set_name(perf_name(id), row);
       par->set_created(fixed_date, row);
+      par->set_tran(perf_tran(id), row);
     }
 
     require_ok(ins.execute(), "execute(perf_ins batch)");
@@ -117,6 +146,7 @@ namespace
     CHECK(rows.id(row) == expected_id);
     CHECK(rows.name(row) == perf_name(expected_id));
     CHECK(rows.created(row) == fixed_date);
+    CHECK(rows.tran(row) == perf_tran(expected_id));
   }
 
   /**
@@ -176,9 +206,10 @@ namespace
     const auto id = rows.id(row);
     INFO("row with key " << id);
 
-    /// the name is the row's own whichever date it now carries - an update
-    /// that touched the wrong column shows up here
+    /// the name and tran are the row's own whichever date it now carries - an
+    /// update that touched the wrong column shows up here
     CHECK(rows.name(row) == perf_name(id));
+    CHECK(rows.tran(row) == perf_tran(id));
 
     const bool is_even = (id % 2 == 0);
     CHECK(rows.created(row) == (is_even ? updated_date : fixed_date));

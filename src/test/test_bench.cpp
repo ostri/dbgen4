@@ -7,14 +7,16 @@
  * pointed at a different working set without rebuilding:
  *
  *   DBGEN4_BUFFER_SIZE   rows per execute        (default 4000)
- *   DBGEN4_ITERATIONS    executes to perform     (default  250)
+ *   DBGEN4_ITERATIONS    executes to perform     (default    3)
  *   DBGEN4_COMMIT_EVERY  executes per commit     (default    1)
  *
  * The insert writes DBGEN4_BUFFER_SIZE rows per execute, DBGEN4_ITERATIONS
- * times - a million rows (4000 x 250) with the defaults - committing after every block,
- * because one transaction that size does not fit in the database's log (see
- * commit_every()). The select then reads the whole table back through a buffer
- * of the same size, fetching until the result set runs out.
+ * times - 12000 rows (4000 x 3) with the defaults, each carrying a full 32672
+ * character tran (roughly 390 MB in all) - committing after every block,
+ * because a run large enough does not fit in the database's log in one
+ * transaction (see commit_every()). The select then reads the whole table
+ * back through a buffer of the same size, fetching until the result set runs
+ * out.
  *
  * Both leave perf_test1 empty when they finish, so that an ordinary ctest run
  * afterwards finds the table the way the other tests expect it.
@@ -25,8 +27,9 @@
  * that every row arrives exactly once in key order.
  *
  * Tagged [.benchmark], so Catch2 skips them unless they are asked for by name
- * or by tag. With the defaults these move a million rows, which is not
- * something an ordinary `ctest` run should pay for.
+ * or by tag. Raise DBGEN4_ITERATIONS for a heavier run - at 250 (the previous
+ * default) this moves a million rows and around 30 GB with tran included,
+ * which is not something an ordinary `ctest` run should pay for.
  */
 #include "crud.hpp"
 #include "rtl.hpp"
@@ -37,12 +40,13 @@
 #include <cstddef>
 #include <cstdint>
 #include <fmt/format.h>
+#include <random>
 #include <string>
 
 namespace
 {
   constexpr const std::size_t c_buffer_size = 4000;
-  constexpr const std::size_t c_iterations  = 250;
+  constexpr const std::size_t c_iterations  = 3;
   constexpr const std::size_t c_commit_size = 100;
   constexpr const std::size_t us_per_ms     = 1000; ///< microseconds per millisecond, for the timing reports
   /// rows per execute, and how many executes - both overridable from the
@@ -54,10 +58,11 @@ namespace
    * @brief how many executes to run before committing
    *
    * One per block. A single transaction over the whole run is the simpler
-   * benchmark but does not fit: a million rows of perf_test1 needs roughly
-   * 270 MB of log, and DB2 rolls the transaction back with SQL0964 once the
-   * log fills. Committing per block is also what bulk loading does, and it
-   * bounds how much work a failure throws away.
+   * benchmark but does not fit: a million rows of perf_test1, each carrying a
+   * full 32672 character tran, needs on the order of 30 GB of log, and DB2
+   * rolls the transaction back with SQL0964 once the log fills. Committing
+   * per block is also what bulk loading does, and it bounds how much work a
+   * failure throws away.
    *
    * Still a variable rather than a constant so that a run can measure what
    * commit frequency costs - the timing report breaks the commit out
@@ -66,7 +71,8 @@ namespace
   size_t commit_every() { return test_db::env_size("DBGEN4_COMMIT_EVERY", c_commit_size); }
 
   constexpr auto   bench_date = rtl::date{.year = 2026, .month = 7, .day = 31};
-  constexpr size_t name_width = 255; ///< full declared width of perf_test1.name
+  constexpr size_t name_width = 255;   ///< full declared width of perf_test1.name
+  constexpr size_t tran_width = 32672; ///< full declared width of perf_test1.tran
 
   /// the name column of row `id` - own number, padded out to the full column
   /// width, '!' last so that a row bleeding into its neighbour is visible
@@ -75,6 +81,27 @@ namespace
     auto s = fmt::format("{:05d}", id);
     s.resize(name_width - 1, '*');
     s.push_back('!');
+    return s;
+  }
+
+  /**
+   * @brief tran_width random printable characters
+   *
+   * Random content, not seeded or checked against id here: this benchmark
+   * does not read tran back to verify it, only writes and counts rows, so
+   * there is nothing to reproduce for. Random rather than repeated is still
+   * the point - see db/db2/create_table_perf.sql - a benchmark that wrote the
+   * same bytes into every row would let the database compress them away and
+   * measure something other than moving 32672 bytes of real row width.
+   */
+  std::string bench_tran(std::mt19937& gen)
+  {
+    constexpr int                      first_printable = 0x20;
+    constexpr int                      last_printable  = 0x7E;
+    std::uniform_int_distribution<int> dist(first_printable, last_printable);
+
+    std::string s(tran_width, '\0');
+    for (auto& c : s) c = static_cast<char>(dist(gen));
     return s;
   }
 
@@ -167,6 +194,7 @@ namespace
     const auto    started      = std::chrono::steady_clock::now();
     const size_t  commit_after = commit_every();
     size_t        rows_written = 0;
+    std::mt19937  tran_gen{std::random_device{}()};
 
     int32_t next_id = 1;
     for (size_t block = 0; block < blocks; ++block)
@@ -178,6 +206,7 @@ namespace
         par->set_id(id, row);
         par->set_name(bench_name(id), row);
         par->set_created(bench_date, row);
+        par->set_tran(bench_tran(tran_gen), row);
       }
       const auto exec_from = std::chrono::steady_clock::now();
       t.filling += std::chrono::duration_cast<std::chrono::microseconds>(exec_from - fill_from);
@@ -231,6 +260,7 @@ namespace
 
     const size_t commit_after = commit_every();
     int32_t      next_id      = 1;
+    std::mt19937 tran_gen{std::random_device{}()};
     for (size_t block = 0; block < blocks; ++block)
     {
       for (size_t row = 0; row < rows_per_block; ++row)
@@ -239,6 +269,7 @@ namespace
         par->set_id(id, row);
         par->set_name(bench_name(id), row);
         par->set_created(bench_date, row);
+        par->set_tran(bench_tran(tran_gen), row);
       }
       require_ok(ins.execute(), "execute(perf_ins setup)");
       /// as in the insert benchmark: the log will not hold it all at once

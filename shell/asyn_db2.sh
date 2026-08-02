@@ -19,7 +19,7 @@ fi
 # --- connection to the DB2 test database (CMakeLists.txt DB2_TEST_* defaults) ---
 export DBGEN4_TEST_HOST="${DBGEN4_TEST_HOST:-localhost}"
 export DBGEN4_TEST_PORT="${DBGEN4_TEST_PORT:-50000}"
-export DBGEN4_TEST_DB="${DBGEN4_TEST_DB:-test}"
+export DBGEN4_TEST_DB="${DBGEN4_TEST_DB:-dbgen4}"
 export DBGEN4_TEST_USER="${DBGEN4_TEST_USER:-dbgen4}"
 export DBGEN4_TEST_PASS="${DBGEN4_TEST_PASS:-dbgen4}"
 

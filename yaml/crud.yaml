@@ -140,11 +140,21 @@ statements:
     # The batch test resizes this buffer at run time - the default is only
     # what a caller gets when it says nothing.
     par-buf-size: 1
-    parameter-names: [id, name, created]
+    parameter-names: [id, name, created, tran]
+    # libpq's PQdescribePrepared reports no type modifier for parameters, only
+    # the resolved type (see psql_rtl.cpp), so tran's declared width never
+    # reaches the generator through the psql path the way it does for a result
+    # column - it would otherwise fall back to --max-field-len (4096) and
+    # truncate every row's tran to that. DB2 does report the parameter's
+    # declared width and does not need this, but a field-len entry for a
+    # column that is not in the result/param set is silently ignored, so
+    # stating it unconditionally is harmless there.
+    field-len:
+      tran: 32672
     db2: |
-      insert into perf_test1 (id, name, created) values (?, ?, ?)
+      insert into perf_test1 (id, name, created, tran) values (?, ?, ?, ?)
     psql: |
-      insert into perf_test1 (id, name, created) values ($1, $2, $3)
+      insert into perf_test1 (id, name, created, tran) values ($1, $2, $3, $4)
 
   - id: perf_truncate2
     summary: empty the second perf table
@@ -168,20 +178,26 @@ statements:
       which is what a generator run actually does - several related tables
       filled together inside one transaction.
     par-buf-size: 1
-    parameter-names: [id, name, created]
+    parameter-names: [id, name, created, tran]
+    # see perf_ins for why this is needed on the psql side
+    field-len:
+      tran: 32672
     db2: |
-      insert into perf_test2 (id, name, created) values (?, ?, ?)
+      insert into perf_test2 (id, name, created, tran) values (?, ?, ?, ?)
     psql: |
-      insert into perf_test2 (id, name, created) values ($1, $2, $3)
+      insert into perf_test2 (id, name, created, tran) values ($1, $2, $3, $4)
 
   - id: perf_ins3
     summary: insert one row of the third perf table
     par-buf-size: 1
-    parameter-names: [id, name, created]
+    parameter-names: [id, name, created, tran]
+    # see perf_ins for why this is needed on the psql side
+    field-len:
+      tran: 32672
     db2: |
-      insert into perf_test3 (id, name, created) values (?, ?, ?)
+      insert into perf_test3 (id, name, created, tran) values (?, ?, ?, ?)
     psql: |
-      insert into perf_test3 (id, name, created) values ($1, $2, $3)
+      insert into perf_test3 (id, name, created, tran) values ($1, $2, $3, $4)
 
   - id: perf_count2
     summary: how many rows the second perf table holds
@@ -205,9 +221,9 @@ statements:
     summary: read the perf table in key order
     res-buf-size: 1
     db2: |
-      select id, name, created from perf_test1 order by id
+      select id, name, created, tran from perf_test1 order by id
     psql: |
-      select id, name, created from perf_test1 order by id
+      select id, name, created, tran from perf_test1 order by id
 
   - id: perf_count
     summary: how many rows the perf table holds
@@ -233,6 +249,6 @@ statements:
     par-buf-size: 1
     parameter-names: [id]
     db2: |
-      select id, name, created from perf_test1 where id = ?
+      select id, name, created, tran from perf_test1 where id = ?
     psql: |
-      select id, name, created from perf_test1 where id = $1
+      select id, name, created, tran from perf_test1 where id = $1
