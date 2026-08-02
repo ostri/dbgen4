@@ -120,24 +120,31 @@ One script sets up both the account and the tables it owns:
     ./db/db2/create_test_user.sh
 
 It creates the OS user `dbgen4` (password `dbgen4`), grants it DBADM on the
-`test` database, and creates `crud_test`, `types_test`, `perf_test` and `test`
-in its own schema. Everything the tests create, fill and truncate therefore
-belongs to `dbgen4` - no other schema is touched. Both password and username are
-deliberately trivial: the account only ever talks to a local development
-database.
+`test` database, and creates `crud_test`, `types_test`, `perf_test1`,
+`perf_test2`, `perf_test3` and `test` in its own schema. Everything the tests
+create, fill and truncate therefore belongs to `dbgen4` - no other schema is
+touched. Both password and username are deliberately trivial: the account only
+ever talks to a local development database.
 
 Override at configure time if your setup differs:
 
     cmake --preset ninja-debug -DDB2_TEST_USER=someone -DDB2_TEST_PASS=secret
 
+The PostgreSQL tests connect the same way (role and database both `dbgen4`,
+password `dbgen4`) but there is no equivalent setup script - create the role
+and database by hand, then run the `db/psql/create_table_*.sql` files below
+against it.
+
 ### the tables the database tests need
 
-`create_test_user.sh` creates all of them. The individual definitions, for
-reference or for a database set up by hand:
+`create_test_user.sh` creates all of them for DB2. There is no such script for
+PostgreSQL; create the role and database, then run every `db/psql/*.sql` file
+listed below by hand. The individual definitions, for reference or for a
+database set up manually:
 
-    db/db2/create_table_crud.sql     # crud_test  - the round trip test
-    db/db2/create_table_types.sql    # types_test - one column per sql type
-    db/db2/create_table_perf.sql     # perf_test  - the batch and benchmark tests
+    db/db2/create_table_crud.sql     # crud_test      - the round trip test
+    db/db2/create_table_types.sql    # types_test     - one column per sql type
+    db/db2/create_table_perf.sql     # perf_test1/2/3 - the batch and benchmark tests
 
 with PostgreSQL counterparts under `db/psql/`.
 
@@ -204,7 +211,7 @@ same size, fetching until the result set is exhausted, and checks that every
 row arrived exactly once in key order.
 
 `DBGEN4_COMMIT_EVERY` defaults to a commit after every block. A single
-transaction over the whole run does not fit: a million rows of `perf_test`
+transaction over the whole run does not fit: a million rows of `perf_test1`
 needs roughly 270 MB of transaction log, and DB2 rolls the transaction back
 with SQL0964 once the log fills. Committing per block is what bulk loading does
 in practice, and it bounds how much work a failure discards. Raise it to
