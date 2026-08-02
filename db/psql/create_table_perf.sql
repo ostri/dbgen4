@@ -1,7 +1,7 @@
 -- PostgreSQL counterpart of db/db2/create_table_perf.sql.
-DROP TABLE IF EXISTS perf_test;
+DROP TABLE IF EXISTS perf_test1;
 
-CREATE TABLE perf_test (
+CREATE TABLE perf_test1 (
   id      integer      NOT NULL PRIMARY KEY,
   name    varchar(255),
   created date

@@ -16,7 +16,7 @@
  * commit_every()). The select then reads the whole table back through a buffer
  * of the same size, fetching until the result set runs out.
  *
- * Both leave perf_test empty when they finish, so that an ordinary ctest run
+ * Both leave perf_test1 empty when they finish, so that an ordinary ctest run
  * afterwards finds the table the way the other tests expect it.
  *
  * Both report timings rather than assert on them: a wall clock threshold would
@@ -54,7 +54,7 @@ namespace
    * @brief how many executes to run before committing
    *
    * One per block. A single transaction over the whole run is the simpler
-   * benchmark but does not fit: a million rows of perf_test needs roughly
+   * benchmark but does not fit: a million rows of perf_test1 needs roughly
    * 270 MB of log, and DB2 rolls the transaction back with SQL0964 once the
    * log fills. Committing per block is also what bulk loading does, and it
    * bounds how much work a failure throws away.
@@ -66,7 +66,7 @@ namespace
   size_t commit_every() { return test_db::env_size("DBGEN4_COMMIT_EVERY", c_commit_size); }
 
   constexpr auto   bench_date = rtl::date{.year = 2026, .month = 7, .day = 31};
-  constexpr size_t name_width = 255; ///< full declared width of perf_test.name
+  constexpr size_t name_width = 255; ///< full declared width of perf_test1.name
 
   /// the name column of row `id` - own number, padded out to the full column
   /// width, '!' last so that a row bleeding into its neighbour is visible
@@ -87,7 +87,7 @@ namespace
   }
 
   /**
-   * @brief empty perf_test
+   * @brief empty perf_test1
    *
    * TRUNCATE rather than the generated DELETE. A delete of a million rows is
    * one transaction that logs every row, and it overruns the log the same way
@@ -215,7 +215,7 @@ namespace
   }
 
   /**
-   * @brief fill perf_test with rows_per_block x blocks rows
+   * @brief fill perf_test1 with rows_per_block x blocks rows
    *
    * The select benchmark needs a populated table but is not measuring how it
    * got that way, so it shares the insert benchmark's writing loop rather than
@@ -293,7 +293,7 @@ TEST_CASE("insert throughput: n rows per execute, m executes", "[.benchmark][per
   CHECK(count_rows(db) == total_rows);
 
   /// Leave the table as it was found. A million rows left behind is not just
-  /// untidy: the ordinary perf tests clear perf_test with a DELETE, and a
+  /// untidy: the ordinary perf tests clear perf_test1 with a DELETE, and a
   /// DELETE that size does not fit in the log, so the next plain ctest run
   /// would fail on a table this benchmark filled.
   clear_table(db);

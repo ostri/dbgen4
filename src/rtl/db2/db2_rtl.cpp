@@ -77,13 +77,13 @@ namespace rtl
     SQLCHAR     outConnStr[1024]; // NOLINT
     SQLSMALLINT outLen;
     auto        ret = SQLDriverConnect(data()->conn_handle,
-                                nullptr,
-                                (SQLCHAR*)connStr.c_str(), // NOLINT
-                                SQL_NTS,
-                                outConnStr, // NOLINT
-                                sizeof(outConnStr),
-                                &outLen,
-                                SQL_DRIVER_NOPROMPT);
+                                       nullptr,
+                                       (SQLCHAR*)connStr.c_str(), // NOLINT
+                                       SQL_NTS,
+                                       outConnStr, // NOLINT
+                                       sizeof(outConnStr),
+                                       &outLen,
+                                       SQL_DRIVER_NOPROMPT);
 
     if (! is_success(static_cast<db_sts>(ret)))
     {
@@ -203,8 +203,9 @@ namespace rtl
     const SQLRETURN ret = SQLEndTran(SQL_HANDLE_DBC, data()->conn_handle, SQL_COMMIT);
     chk_error(ret, SQL_HANDLE_DBC, data()->conn_handle, "commit transaction");
 
-    if (is_success(static_cast<db_sts>(ret))) { log_()->info("Transaction committed successfully."); }
-    else {
+    if (is_success(static_cast<db_sts>(ret))) { log_()->debug("Transaction committed successfully."); }
+    else
+    {
       log_()->error("Transaction commit failed.");
     }
 
@@ -228,7 +229,8 @@ namespace rtl
     chk_error(ret, SQL_HANDLE_DBC, data()->conn_handle, "rollback transaction");
 
     if (is_success(static_cast<db_sts>(ret))) [[likely]] { log_()->info("Transaction rolled back successfully."); }
-    else {
+    else
+    {
       log_()->error("Transaction rollback failed.");
     }
 
@@ -343,8 +345,7 @@ namespace rtl
       SQLSMALLINT digits      = 0;
       SQLSMALLINT nullable    = 0;
 
-      ret = SQLDescribeCol(
-        data()->stmt_handle, i, col_name.data(), col_name.size(), &name_len, &native_type, &size, &digits, &nullable);
+      ret = SQLDescribeCol(data()->stmt_handle, i, col_name.data(), col_name.size(), &name_len, &native_type, &size, &digits, &nullable);
       if (! is_success(static_cast<db_sts>(ret))) [[unlikely]]
       {
         auto msg = fmt::format("SQLDescribeCol for column {}", i);

@@ -7,9 +7,9 @@
 -- name is VARCHAR(255) and the test fills it to its full declared width, so
 -- that a row bleeding into its neighbour in the parameter buffer shows up as
 -- a wrong value rather than as nothing at all.
-DROP TABLE perf_test;
+DROP TABLE perf_test1;
 
-CREATE TABLE perf_test (
+CREATE TABLE perf_test1 (
   id      INTEGER      NOT NULL PRIMARY KEY,
   name    VARCHAR(255),
   created DATE

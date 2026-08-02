@@ -43,7 +43,7 @@ namespace
   /// the date every even numbered row is moved to
   constexpr auto updated_date = rtl::date{.year = 1970, .month = 9, .day = 1};
 
-  /// full declared width of perf_test.name
+  /// full declared width of perf_test1.name
   constexpr size_t name_width = 255;
 
   /**
@@ -97,7 +97,7 @@ namespace
     return elapsed;
   }
 
-  /// @return how many rows perf_test holds
+  /// @return how many rows perf_test1 holds
   template <typename Db>
   int32_t count_rows(Db& db)
   {

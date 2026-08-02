@@ -69,7 +69,17 @@ db2 "CREATE TABLE types_test (
   col_time      TIME,
   col_timestamp TIMESTAMP)"
 
-db2 "CREATE TABLE perf_test (
+db2 "CREATE TABLE perf_test1 (
+  id      INTEGER      NOT NULL PRIMARY KEY,
+  name    VARCHAR(255),
+  created DATE)"
+
+db2 "CREATE TABLE perf_test2 (
+  id      INTEGER      NOT NULL PRIMARY KEY,
+  name    VARCHAR(255),
+  created DATE)"
+
+db2 "CREATE TABLE perf_test3 (
   id      INTEGER      NOT NULL PRIMARY KEY,
   name    VARCHAR(255),
   created DATE)"

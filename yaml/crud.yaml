@@ -118,9 +118,9 @@ statements:
     summary: empty the perf table
     par-buf-size: 1
     db2: |
-      delete from perf_test
+      delete from perf_test1
     psql: |
-      delete from perf_test
+      delete from perf_test1
 
   - id: perf_truncate
     summary: empty the perf table without logging every row
@@ -131,9 +131,9 @@ statements:
       single operation regardless of row count. DB2 requires the IMMEDIATE
       keyword and refuses TRUNCATE without it; PostgreSQL has no such keyword.
     db2: |
-      truncate table perf_test immediate
+      truncate table perf_test1 immediate
     psql: |
-      truncate table perf_test
+      truncate table perf_test1
 
   - id: perf_ins
     summary: insert one row of the perf table
@@ -142,9 +142,9 @@ statements:
     par-buf-size: 1
     parameter-names: [id, name, created]
     db2: |
-      insert into perf_test (id, name, created) values (?, ?, ?)
+      insert into perf_test1 (id, name, created) values (?, ?, ?)
     psql: |
-      insert into perf_test (id, name, created) values ($1, $2, $3)
+      insert into perf_test1 (id, name, created) values ($1, $2, $3)
 
   - id: perf_truncate2
     summary: empty the second perf table
@@ -205,27 +205,27 @@ statements:
     summary: read the perf table in key order
     res-buf-size: 1
     db2: |
-      select id, name, created from perf_test order by id
+      select id, name, created from perf_test1 order by id
     psql: |
-      select id, name, created from perf_test order by id
+      select id, name, created from perf_test1 order by id
 
   - id: perf_count
     summary: how many rows the perf table holds
     res-buf-size: 1
     result-names: [cnt]
     db2: |
-      select count(*) from perf_test
+      select count(*) from perf_test1
     psql: |
-      select count(*) from perf_test
+      select count(*) from perf_test1
 
   - id: perf_upd_even
     summary: move every even numbered row to a fixed date
     par-buf-size: 1
     parameter-names: [created]
     db2: |
-      update perf_test set created = ? where mod(id, 2) = 0
+      update perf_test1 set created = ? where mod(id, 2) = 0
     psql: |
-      update perf_test set created = $1 where mod(id, 2) = 0
+      update perf_test1 set created = $1 where mod(id, 2) = 0
 
   - id: perf_sel_one
     summary: read one perf row back by key
@@ -233,6 +233,6 @@ statements:
     par-buf-size: 1
     parameter-names: [id]
     db2: |
-      select id, name, created from perf_test where id = ?
+      select id, name, created from perf_test1 where id = ?
     psql: |
-      select id, name, created from perf_test where id = $1
+      select id, name, created from perf_test1 where id = $1
