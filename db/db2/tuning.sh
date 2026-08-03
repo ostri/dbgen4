@@ -4,10 +4,12 @@ db2set DB2_USE_ALTERNATE_PAGE_CLEANING=ON # no need for the cleaner to wait for 
 
 db2 UPDATE DATABASE CONFIGURATION FOR dbgen4 USING SELF_TUNING_MEM OFF; # disable self-tuning memory (we set it manually below)
 db2 UPDATE DATABASE CONFIGURATION FOR dbgen4 USING LOGFILSIZ     32768; # log file size (normal 4096 4KB pages)
+db2 UPDATE DATABASE CONFIGURATION FOR dbgen4 USING LOGPRIMARY       26; # primary log files - 26+26 x 32768 x 4K =~ 6.5 GB total
+db2 UPDATE DATABASE CONFIGURATION FOR dbgen4 USING LOGSECOND        26; # secondary log files, allocated only as primary fills up
 db2 UPDATE DATABASE CONFIGURATION FOR dbgen4 USING LOGBUFSZ      32768; # buffer before dumping log to disk
-db2 UPDATE DATABASE CONFIGURATION FOR dbgen4 USING NUM_IOCLEANERS   12; # faster cleaner (normal 4)
+db2 UPDATE DATABASE CONFIGURATION FOR dbgen4 USING NUM_IOCLEANERS    8; # faster cleaner (normal 4)
 db2 UPDATE DATABASE CONFIGURATION FOR dbgen4 USING DBHEAP        40000; # database heap  must be :DBHEAP > LOGBUFSZ
-db2 ALTER BUFFERPOOL BP_TBL_32K SIZE 50000;                             # tbl buffer pool size (normal 1000 32KB pages)
+db2 ALTER BUFFERPOOL BP_TBL_32K SIZE 500000;                             # tbl buffer pool size (normal 1000 32KB pages)
 db2 ALTER BUFFERPOOL BP_NDX_32K SIZE 10000;                             # ndx buffer pool size (normal 1000 32KB pages)
 
 db2 AUTOCONFIGURE USING MEM_PERCENT 50 WORKLOAD_TYPE MIXED APPLY NONE;

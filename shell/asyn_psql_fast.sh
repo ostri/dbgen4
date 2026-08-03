@@ -1,34 +1,41 @@
 #!/usr/bin/env bash
-# asyn_db2.sh - run the sync-vs-async_db insert throughput benchmark
-# (test_bench_async.cpp) against the DB2 test database.
+# asyn_psql_fast.sh - fast, fixed-size run of the sync-vs-async_db insert
+# throughput benchmark (test_bench_async.cpp) against the PostgreSQL test
+# database.
+#
+# For correctness regression checking, not throughput measurement: buffer,
+# iteration and delay knobs are pinned rather than left at asyn_psql.sh's
+# heavier defaults, so a run finishes in a few seconds. A run of this script
+# taking longer than before is itself a regression signal - something is
+# slower even at this fixed, tiny workload.
 #
 # Run from wherever the binary lives: build/release, build/debug or
-# build/profile (e.g. `../../shell/asyn_db2.sh` from build/release).
+# build/profile (e.g. `../../shell/asyn_psql_fast.sh` from build/release).
 #
 # The test case is tagged [.benchmark] so an ordinary ctest/catch2 run
 # skips it; it must be requested explicitly by tag, as done below.
 set -euo pipefail
 
-BIN="./test_crud_db2"
+BIN="./test_crud_psql"
 
 if [[ ! -x "${BIN}" ]]; then
     echo "error: ${BIN} not found in $(pwd) - run this from build/release, build/debug or build/profile" >&2
     exit 1
 fi
 
-# --- connection to the DB2 test database (CMakeLists.txt DB2_TEST_* defaults) ---
-export DBGEN4_TEST_HOST="${DBGEN4_TEST_HOST:-localhost}"
-export DBGEN4_TEST_PORT="${DBGEN4_TEST_PORT:-50000}"
+# --- connection to the PostgreSQL test database (CMakeLists.txt PSQL_TEST_* defaults) ---
+export DBGEN4_TEST_HOST="${DBGEN4_TEST_HOST:-postgres.lan}"
+export DBGEN4_TEST_PORT="${DBGEN4_TEST_PORT:-5432}"
 export DBGEN4_TEST_DB="${DBGEN4_TEST_DB:-dbgen4}"
 export DBGEN4_TEST_USER="${DBGEN4_TEST_USER:-dbgen4}"
 export DBGEN4_TEST_PASS="${DBGEN4_TEST_PASS:-dbgen4}"
 
-# --- benchmark workload knobs (see test_bench_async.cpp header comment) ---
-export DBGEN4_BUFFER_SIZE="${DBGEN4_BUFFER_SIZE:-10000}"   # rows per block per table
-export DBGEN4_ITERATIONS="${DBGEN4_ITERATIONS:-100}"         # iterations (blocks)
-export DBGEN4_COMMIT_EVERY="${DBGEN4_COMMIT_EVERY:-2}"      # comit affter this many blocks
-export DBGEN4_FILL_DELAY_MS="${DBGEN4_FILL_DELAY_MS:-10}"  # simulated work per block
-export DBGEN4_REPORT_EVERY="${DBGEN4_REPORT_EVERY:-4}"     # commits between progress reports
+# --- benchmark workload knobs, pinned small and fixed for a fast run ---
+export DBGEN4_BUFFER_SIZE=10    # rows per block per table
+export DBGEN4_ITERATIONS=2      # iterations (blocks)
+export DBGEN4_COMMIT_EVERY=2    # commit after this many blocks
+export DBGEN4_FILL_DELAY_MS=10  # simulated work per block
+export DBGEN4_REPORT_EVERY=2    # commits between progress reports
 
 # --- logging config override -----------------------------------------------
 # The shipped config/log.debug.conf and config/log.release.conf pin
@@ -44,14 +51,14 @@ export DBGEN4_REPORT_EVERY="${DBGEN4_REPORT_EVERY:-4}"     # commits between pro
 # gets wiped periodically anyway, and this way there's nothing to clean up
 # by hand. The log file itself is left behind in /tmp on purpose, to look
 # at after the run; only the temporary config file is removed on exit.
-LOG_DIR="/tmp/dbgen4-bench-db2"
+LOG_DIR="/tmp/dbgen4-bench-psql-fast"
 mkdir -p "${LOG_DIR}"
-LOG_CONFIG_FILE="$(mktemp /tmp/dbgen4_log_bench_db2.XXXXXX.conf)"
+LOG_CONFIG_FILE="$(mktemp /tmp/dbgen4_log_bench_psql_fast.XXXXXX.conf)"
 trap 'rm -f "${LOG_CONFIG_FILE}"' EXIT
 
 cat > "${LOG_CONFIG_FILE}" <<EOF
 {
-  "app_name": "dbgen4-bench-db2",
+  "app_name": "dbgen4-bench-psql",
   "mode": "sync",
   "console_level": "info",
   "file_level": "info",
@@ -66,7 +73,7 @@ EOF
 
 export LOG_CONFIG="${LOG_CONFIG_FILE}"
 
-echo "log file: ${LOG_DIR}/dbgen4-bench-db2.log" >&2
+echo "log file: ${LOG_DIR}/dbgen4-bench-psql.log" >&2
 
 # --reporter compact keeps Catch2's own per-assertion PASSED/section noise
 # out of the run; only the logger's lines (via console_level=info above)

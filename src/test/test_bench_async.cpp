@@ -11,7 +11,7 @@
  *          while those are in flight, and only then commit
  *
  * Each iteration writes one block into each of three tables of identical
- * shape (integer, varchar(255), date, varchar(32672)) before the transaction
+ * shape (integer, varchar(255), date, varchar(5120)) before the transaction
  * ends. That is what a generator run actually does - several related tables
  * filled together inside one unit of work - and it matters here for a reason
  * beyond realism: with one table there was nothing between submit() and
@@ -35,7 +35,7 @@
  *   DBGEN4_REPORT_EVERY    commits between reports    (default   25)
  *
  * Note that the default writes 3 x 4000 x 3 = 36000 rows per run, each
- * carrying a full 32672 character tran (a bit over 1 GB in all). Raise
+ * carrying 5120 random characters of tran (roughly 185 MB in all). Raise
  * DBGEN4_ITERATIONS for a heavier run - at 250 (the previous default) this
  * moves 3M rows and, with the fill delay, takes on the order of a minute and
  * a half in each mode.
@@ -90,8 +90,8 @@ namespace
   size_t fill_delay_ms() { return test_db::env_size("DBGEN4_FILL_DELAY_MS", c_fill_delay_ms); }
 
   constexpr auto   bench_date = rtl::date{.year = 2026, .month = 7, .day = 31};
-  constexpr size_t name_width = 255;   ///< full declared width of the name column
-  constexpr size_t tran_width = 32672; ///< full declared width of the tran column
+  constexpr size_t name_width = 255;  ///< full declared width of the name column
+  constexpr size_t tran_width = 5120; ///< full declared width of the tran column
 
   /// the name column of row `id` - own number, padded out to the full column
   /// width, '!' last so that a row bleeding into its neighbour is visible
@@ -155,39 +155,49 @@ namespace
     }
   }
 
-  /// how many rows the three tables hold between them
-  template <typename Db>
-  size_t count_all(Db& db)
+  /// row count of each of the three tables, and their sum
+  struct table_counts
   {
-    size_t total = 0;
+    size_t perf_test1 = 0;
+    size_t perf_test2 = 0;
+    size_t perf_test3 = 0;
+    size_t total      = 0;
+  };
+
+  /// how many rows each of the three tables holds, and their sum
+  template <typename Db>
+  table_counts count_all(Db& db)
+  {
+    table_counts c;
     {
-      dbx::s_perf_count::stmt c(&db, dbx::s_perf_count::qry::sql());
-      require_ok(c.prepare(), "prepare(count 1)");
-      require_ok(c.execute(), "execute(count 1)");
-      auto got = c.fetch();
+      dbx::s_perf_count::stmt s(&db, dbx::s_perf_count::qry::sql());
+      require_ok(s.prepare(), "prepare(count 1)");
+      require_ok(s.execute(), "execute(count 1)");
+      auto got = s.fetch();
       require_ok(got, "fetch(count 1)");
       REQUIRE(*got);
-      total += static_cast<size_t>(c.get_result()->cnt());
+      c.perf_test1 = static_cast<size_t>(s.get_result()->cnt());
     }
     {
-      dbx::s_perf_count2::stmt c(&db, dbx::s_perf_count2::qry::sql());
-      require_ok(c.prepare(), "prepare(count 2)");
-      require_ok(c.execute(), "execute(count 2)");
-      auto got = c.fetch();
+      dbx::s_perf_count2::stmt s(&db, dbx::s_perf_count2::qry::sql());
+      require_ok(s.prepare(), "prepare(count 2)");
+      require_ok(s.execute(), "execute(count 2)");
+      auto got = s.fetch();
       require_ok(got, "fetch(count 2)");
       REQUIRE(*got);
-      total += static_cast<size_t>(c.get_result()->cnt());
+      c.perf_test2 = static_cast<size_t>(s.get_result()->cnt());
     }
     {
-      dbx::s_perf_count3::stmt c(&db, dbx::s_perf_count3::qry::sql());
-      require_ok(c.prepare(), "prepare(count 3)");
-      require_ok(c.execute(), "execute(count 3)");
-      auto got = c.fetch();
+      dbx::s_perf_count3::stmt s(&db, dbx::s_perf_count3::qry::sql());
+      require_ok(s.prepare(), "prepare(count 3)");
+      require_ok(s.execute(), "execute(count 3)");
+      auto got = s.fetch();
       require_ok(got, "fetch(count 3)");
       REQUIRE(*got);
-      total += static_cast<size_t>(c.get_result()->cnt());
+      c.perf_test3 = static_cast<size_t>(s.get_result()->cnt());
     }
-    return total;
+    c.total = c.perf_test1 + c.perf_test2 + c.perf_test3;
+    return c;
   }
 
   /// where the time went, in whichever of the two runs produced it
@@ -385,6 +395,14 @@ namespace
     return t;
   }
 
+  /// one line reporting the actual row count of each table after a run, same
+  /// shape for both backends so a db2 and a psql run diff identically
+  void report_counts(const char* what, const table_counts& c)
+  {
+    auto* log = rtl::logger::get();
+    log->info("{}: perf_test1={} perf_test2={} perf_test3={} total={}", what, c.perf_test1, c.perf_test2, c.perf_test3, c.total);
+  }
+
   /// one line per run, same shape for both, so they read side by side
   void report(const char* what, const run_timing& t, size_t rows)
   {
@@ -429,12 +447,16 @@ TEST_CASE("insert throughput: synchronous against async_db, three tables", "[.be
   clear_tables(db);
   const auto sync_t = sync_insert(db, rows_per_block, blocks);
   report("sync ", sync_t, total_rows);
-  CHECK(count_all(db) == total_rows);
+  const auto sync_counts = count_all(db);
+  report_counts("sync ", sync_counts);
+  CHECK(sync_counts.total == total_rows);
 
   clear_tables(db);
   const auto async_t = async_insert(db, rows_per_block, blocks);
   report("async", async_t, total_rows);
-  CHECK(count_all(db) == total_rows);
+  const auto async_counts = count_all(db);
+  report_counts("async", async_counts);
+  CHECK(async_counts.total == total_rows);
 
   /// The comparison the whole file exists for. Reported, not asserted: how
   /// much the overlap is worth depends on the link and on the machine, and a

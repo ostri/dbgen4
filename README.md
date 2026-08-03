@@ -154,7 +154,7 @@ natively, so the same test logic applies to either.
 `test_bench.cpp` holds two throughput benchmarks, shared between both
 backends (see "what each test file covers" above). They are tagged
 `[.benchmark]`, which means Catch2 does not run them unless they are asked for
-by tag - `ctest` should not pay for moving rows the size of a full `tran`.
+by tag - `ctest` should not pay for moving rows this size.
 
 DB2 and PostgreSQL are two separate servers, not necessarily on the same
 machine or port, so each binary needs its own `DBGEN4_TEST_*` connection
@@ -210,23 +210,22 @@ alongside the time spent filling the buffer, executing, and committing. The
 same size, fetching until the result set is exhausted, and checks that every
 row arrived exactly once in key order.
 
-Every row also carries a full `tran` - 32672 random printable characters, the
-widest `VARCHAR` DB2 allows in a row - so the default run is around 390 MB
-rather than the roughly 3 MB `id`/`name`/`created` alone would be. Raising
-`DBGEN4_ITERATIONS` to 250, the previous default, moves a million rows and
-around 30 GB. See `db/db2/create_table_perf.sql` for why the column is there
-and why its content is random rather than repeated.
+Every row also carries a full `tran` - 5120 random printable characters - so
+the default run is around 60 MB rather than the roughly 3 MB
+`id`/`name`/`created` alone would be. Raising `DBGEN4_ITERATIONS` to 250, the
+previous default, moves a million rows and around 5 GB. See
+`db/db2/create_table_perf.sql` for why the column is there and why its content
+is random rather than repeated.
 
 `DBGEN4_COMMIT_EVERY` defaults to a commit after every block. A single
 transaction over a large enough run does not fit - at 250 iterations it would
-need the full ~30 GB - and DB2 rolls the transaction back with SQL0964 once
-the log fills. Committing per block is what bulk loading does in practice,
-and it bounds how much work a failure discards. Raise it to measure what a
-less frequent commit buys - the timing report breaks the commit out
-separately - but each commit still has to
-fit in the log, so raising `DBGEN4_COMMIT_EVERY` risks SQL0964 on its own once
-`DBGEN4_BUFFER_SIZE` x `DBGEN4_COMMIT_EVERY` rows (at ~33 KB each, with tran)
-approach the log's ~1 GB capacity.
+need the full ~5 GB - and DB2 rolls the transaction back with SQL0964 once the
+log fills. Committing per block is what bulk loading does in practice, and it
+bounds how much work a failure discards. Raise it to measure what a less
+frequent commit buys - the timing report breaks the commit out separately -
+but each commit still has to fit in the log, so raising `DBGEN4_COMMIT_EVERY`
+risks SQL0964 on its own once `DBGEN4_BUFFER_SIZE` x `DBGEN4_COMMIT_EVERY`
+rows (at ~5.4 KB each, with tran) approach the log's ~1 GB capacity.
 
 The development database was configured for this with
 

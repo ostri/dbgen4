@@ -11,8 +11,8 @@
  *   DBGEN4_COMMIT_EVERY  executes per commit     (default    1)
  *
  * The insert writes DBGEN4_BUFFER_SIZE rows per execute, DBGEN4_ITERATIONS
- * times - 12000 rows (4000 x 3) with the defaults, each carrying a full 32672
- * character tran (roughly 390 MB in all) - committing after every block,
+ * times - 12000 rows (4000 x 3) with the defaults, each carrying a full 5120
+ * character tran (roughly 60 MB in all) - committing after every block,
  * because a run large enough does not fit in the database's log in one
  * transaction (see commit_every()). The select then reads the whole table
  * back through a buffer of the same size, fetching until the result set runs
@@ -28,8 +28,8 @@
  *
  * Tagged [.benchmark], so Catch2 skips them unless they are asked for by name
  * or by tag. Raise DBGEN4_ITERATIONS for a heavier run - at 250 (the previous
- * default) this moves a million rows and around 30 GB with tran included,
- * which is not something an ordinary `ctest` run should pay for.
+ * default) this moves a million rows and around 5 GB, which is not something
+ * an ordinary `ctest` run should pay for.
  */
 #include "crud.hpp"
 #include "rtl.hpp"
@@ -59,7 +59,7 @@ namespace
    *
    * One per block. A single transaction over the whole run is the simpler
    * benchmark but does not fit: a million rows of perf_test1, each carrying a
-   * full 32672 character tran, needs on the order of 30 GB of log, and DB2
+   * full 5120 character tran, needs on the order of 5 GB of log, and DB2
    * rolls the transaction back with SQL0964 once the log fills. Committing
    * per block is also what bulk loading does, and it bounds how much work a
    * failure throws away.
@@ -71,8 +71,8 @@ namespace
   size_t commit_every() { return test_db::env_size("DBGEN4_COMMIT_EVERY", c_commit_size); }
 
   constexpr auto   bench_date = rtl::date{.year = 2026, .month = 7, .day = 31};
-  constexpr size_t name_width = 255;   ///< full declared width of perf_test1.name
-  constexpr size_t tran_width = 32672; ///< full declared width of perf_test1.tran
+  constexpr size_t name_width = 255;  ///< full declared width of perf_test1.name
+  constexpr size_t tran_width = 5120; ///< full declared width of perf_test1.tran
 
   /// the name column of row `id` - own number, padded out to the full column
   /// width, '!' last so that a row bleeding into its neighbour is visible
@@ -92,7 +92,7 @@ namespace
    * there is nothing to reproduce for. Random rather than repeated is still
    * the point - see db/db2/create_table_perf.sql - a benchmark that wrote the
    * same bytes into every row would let the database compress them away and
-   * measure something other than moving 32672 bytes of real row width.
+   * measure something other than moving 5120 bytes of real row width.
    */
   std::string bench_tran(std::mt19937& gen)
   {

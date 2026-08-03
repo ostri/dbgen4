@@ -8,9 +8,8 @@
 -- that a row bleeding into its neighbour in the parameter buffer shows up as
 -- a wrong value rather than as nothing at all.
 --
--- tran is VARCHAR(32672) - the widest VARCHAR DB2 allows in a row (32768
--- overflows it with SQL0604N) - filled with 32672 random printable characters
--- per row. Random rather than repeated: a benchmark table's rows are typically
+-- tran is VARCHAR(5120), filled with 5120 random printable characters per
+-- row. Random rather than repeated: a benchmark table's rows are typically
 -- near-identical apart from name/id, which compresses extremely well and
 -- understates what a page of real, incompressible data costs to move. tran
 -- exists to keep that compression from flattering the numbers.
@@ -20,7 +19,7 @@ CREATE TABLE perf_test1 (
   id      INTEGER      NOT NULL PRIMARY KEY,
   name    VARCHAR(255),
   created DATE,
-  tran    VARCHAR(32672)
+  tran    VARCHAR(5120)
 )
 IN TS_TBL_32K
 INDEX IN TS_NDX_32K
@@ -35,7 +34,7 @@ CREATE TABLE perf_test2 (
   id      INTEGER      NOT NULL PRIMARY KEY,
   name    VARCHAR(255),
   created DATE,
-  tran    VARCHAR(32672)
+  tran    VARCHAR(5120)
 )
 IN TS_TBL_32K
 INDEX IN TS_NDX_32K
@@ -47,7 +46,7 @@ CREATE TABLE perf_test3 (
   id      INTEGER      NOT NULL PRIMARY KEY,
   name    VARCHAR(255),
   created DATE,
-  tran    VARCHAR(32672)
+  tran    VARCHAR(5120)
 )
 IN TS_TBL_32K
 INDEX IN TS_NDX_32K

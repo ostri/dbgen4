@@ -402,7 +402,7 @@ namespace rtl
 
       rows_ = std::move(res);
 
-      db_->get_logger()->info("Statement executed, {} rows available.", total_rows_);
+      db_->get_logger()->debug("Statement executed, {} rows available.", total_rows_);
       return {};
     }
     catch (const std::exception& e)

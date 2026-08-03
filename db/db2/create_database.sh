@@ -1,7 +1,7 @@
 #!/bin/bash
 #
-# Create the OS account, DB2 database, DB2 user, tablespace and bufferpool
-# for the db2 tests.
+# Create the OS account, DB2 database, DB2 user, tablespace, bufferpool and
+# log/memory tuning (via tuning.sh) for the db2 tests.
 #
 # DB2 authenticates against the operating system, so a "database user" here is
 # an OS user. The tests use a dedicated one rather than a developer's own login.
@@ -14,7 +14,9 @@
 #
 #     ./db/db2/create_database.sh
 #
-# Follow with create_tables.sh to create the tables the tests need.
+# Restarts the DB2 instance (via tuning.sh) before it returns - anything else
+# connected to it is disconnected. Follow with create_tables.sh to create the
+# tables the tests need.
 #
 set -euo pipefail
 
@@ -84,6 +86,14 @@ EOF
 set -e # Re-enable exit-on-error for the rest of the script
 
 # create the objects
+#
+# TS_TBL_NAME's INITIALSIZE is sized for a full-width benchmark run - three
+# perf tables filled with 200000+ rows each of a full 5120 byte tran is on
+# the order of 3 GB. A tablespace that starts near its working size avoids
+# the small, frequent AUTORESIZE extensions a low INITIALSIZE forces once it
+# fills up - each one is a synchronous allocation that stalls writes without
+# using CPU or showing up as disk throughput, which reads as the whole
+# benchmark mysteriously stalling.
 db2 -t <<-EOF >/dev/null
     CONNECT TO ${TEST_DB};
     CREATE BUFFERPOOL ${BP_TBL_NAME} PAGESIZE 32K;
@@ -95,8 +105,8 @@ db2 -t <<-EOF >/dev/null
         MANAGED BY AUTOMATIC STORAGE
         BUFFERPOOL ${BP_TBL_NAME}
         AUTORESIZE YES
-        INITIALSIZE 1000M
-        INCREASESIZE 10 PERCENT
+        INITIALSIZE 4000M
+        INCREASESIZE 20 PERCENT
         MAXSIZE NONE;
     COMMIT;
     CREATE TABLESPACE ${TS_NDX_NAME}
@@ -111,3 +121,12 @@ db2 -t <<-EOF >/dev/null
 EOF
 echo "--- buffer pool: ${BP_TBL_NAME} table space: ${TS_TBL_NAME} created ---"
 db2 terminate >/dev/null
+
+# CREATE DATABASE resets the transaction log and bufferpool sizing to DB2's
+# defaults (~100 MB of log total) regardless of what a previous run of this
+# script configured - a benchmark writing a full block of tran-sized rows
+# overruns that in one commit (SQL0964). tuning.sh raises both and restarts
+# the instance (db2stop force / db2start) for the change to take effect.
+echo "--- applying log/bufferpool tuning ---"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+bash "${SCRIPT_DIR}/tuning.sh"

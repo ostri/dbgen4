@@ -150,7 +150,7 @@ statements:
     # column that is not in the result/param set is silently ignored, so
     # stating it unconditionally is harmless there.
     field-len:
-      tran: 32672
+      tran: 5120
     db2: |
       insert into perf_test1 (id, name, created, tran) values (?, ?, ?, ?)
     psql: |
@@ -181,7 +181,7 @@ statements:
     parameter-names: [id, name, created, tran]
     # see perf_ins for why this is needed on the psql side
     field-len:
-      tran: 32672
+      tran: 5120
     db2: |
       insert into perf_test2 (id, name, created, tran) values (?, ?, ?, ?)
     psql: |
@@ -193,7 +193,7 @@ statements:
     parameter-names: [id, name, created, tran]
     # see perf_ins for why this is needed on the psql side
     field-len:
-      tran: 32672
+      tran: 5120
     db2: |
       insert into perf_test3 (id, name, created, tran) values (?, ?, ?, ?)
     psql: |

@@ -48,7 +48,7 @@ namespace
   constexpr size_t name_width = 255;
 
   /// full declared width of perf_test1.tran
-  constexpr size_t tran_width = 32672;
+  constexpr size_t tran_width = 5120;
 
   /**
    * @brief the name column of row `id`
