@@ -112,6 +112,54 @@ TEST_CASE("the per row status array follows the buffer dimension", "[generated][
   for (const auto s : par.row_status()) CHECK(s == 0);
 }
 
+TEST_CASE("row_wise mirrors the column-wise storage by reference", "[generated][t1]")
+{
+  p par;
+  par.set_buffer_size(4);
+
+  par.set_par_1(11, 0);
+  par.set_par_1(22, 3);
+
+  // row() and row_wise() agree with the column-wise getters
+  CHECK(par.row(0).par_1.get() == par.par_1(0));
+  CHECK(par.row(3).par_1.get() == par.par_1(3));
+  CHECK(par.row_wise().size() == par.buffer_size());
+
+  // the reference is live: a value written after the row was fetched is
+  // visible through the same row_t, no re-fetch needed
+  const auto& row0 = par.row(0);
+  par.set_par_1(99, 0);
+  CHECK(row0.par_1.get() == 99);
+
+  // same for the null indicator
+  CHECK(row0.is_par_1_null.get() != rtl::null_data); // not null yet
+  par.set_par_1_null(0);
+  CHECK(row0.is_par_1_null.get() == rtl::null_data);
+
+  par.reset_all_null();
+  for (const auto& row : par.row_wise()) CHECK(row.is_par_1_null.get() == rtl::null_data);
+}
+
+TEST_CASE("row_wise is rebuilt on resize", "[generated][t1]")
+{
+  p par;
+  par.set_buffer_size(2);
+  par.set_par_1(7, 1);
+  CHECK(par.row(1).par_1.get() == 7);
+
+  // growing the buffer moves the underlying vectors - row_wise() has to
+  // follow, not keep pointing at freed storage
+  par.set_buffer_size(50);
+  CHECK(par.row_wise().size() == 50);
+  par.set_par_1(42, 49);
+  CHECK(par.row(49).par_1.get() == 42);
+}
+
+// row_wise() for every supported result column type, exercised with a live
+// database round trip, lives in test_types.cpp: class r (the result buffer)
+// has no setters of its own any more (see below), so there is no way to put
+// values into one from here without a driver on the other end.
+
 TEST_CASE("dump renders every row and every column", "[generated][t1]")
 {
   p par;

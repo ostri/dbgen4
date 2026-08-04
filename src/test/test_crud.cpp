@@ -19,7 +19,6 @@
 #include "crud.hpp"
 #include "rtl.hpp"
 #include "rtl_fmt.hpp" // IWYU pragma: keep
-#include "query.hpp"   // rtl::query
 #include "test_db.hpp" // live_db and require_ok, shared with the other crud tests
 #include <catch2/catch_test_macros.hpp>
 #include <cstdint>

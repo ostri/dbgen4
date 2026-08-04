@@ -348,6 +348,12 @@ namespace dbgen4
     switch (col_cat)
     {
     case rtl::sql_cat::atomic:
+      /// bool is stored as uint8_t (see attr_storage_type) - an explicit cast
+      /// back to bool here, rather than the implicit narrowing conversion the
+      /// bare return would otherwise do, is what readability-implicit-bool-conversion
+      /// wants to see spelled out.
+      if (dscr->cpp_type_name == "bool") return fmt::format("{{ return static_cast<bool>({0}_.at(row));}}", name);
+      [[fallthrough]];
     case rtl::sql_cat::structure: return fmt::format("{{ return {0}_.at(row);}}", name);
     case rtl::sql_cat::c_string:
     case rtl::sql_cat::w_string:
@@ -384,8 +390,15 @@ namespace dbgen4
     /// cannot drift if the storage type changes - bool, for one, is stored as
     /// uint8_t.
     case rtl::sql_cat::atomic:
+      /// same cast back the other way as attr_getter_code(): v is bool, the
+      /// slot is uint8_t, and an explicit cast is what
+      /// readability-implicit-bool-conversion wants in place of the narrowing
+      /// conversion a bare assignment would do.
+      if (dscr->cpp_type_name == "bool")
+        return fmt::format("{{ {0}_.at(row) = static_cast<uint8_t>(v); len_{0}_.at(row) = static_cast<int32_t>(sizeof({0}_.at(0)));}}", name);
+      [[fallthrough]];
     case rtl::sql_cat::structure:
-      return fmt::format("{{ {0}_.at(row) = v; len_{0}_.at(row) = static_cast<int32_t>(sizeof({0}_[0]));}}", name);
+      return fmt::format("{{ {0}_.at(row) = v; len_{0}_.at(row) = static_cast<int32_t>(sizeof({0}_.at(0)));}}", name);
     case rtl::sql_cat::c_string:
       return fmt::format( //
         "{{"

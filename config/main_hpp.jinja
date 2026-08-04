@@ -12,6 +12,9 @@
    refers to a driver symbol. -#}
 #include "rtl.hpp"
 #include <algorithm>
+{# std::reference_wrapper, used by every generated *_row_t - the row-wise view
+   over the column-wise storage below. -#}
+#include <functional>
 #include <vector>
 /**
  * @brief <<summary>>
@@ -19,11 +22,11 @@
 <<description>>
  *
  * version: <<version>>
- * generated: <<timestamp>>
  */
 namespace dbx
 {
   using cstr_t    = rtl::cstr_t;
+  using str_t     = rtl::str_t;
   using wcstr_t   = rtl::wcstr_t;
   using bcstr_t   = rtl::bcstr_t;
   using date      = rtl::date;
@@ -44,20 +47,20 @@ namespace dbx
   namespace s_<<statement.id>>
   {
 ##  if (statement.result|length) > 0
-    ///////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////////////////////
     /**
      * result buffer for select classes
      */
     << buffer-definition (statement.result, "r", statement.res-set-size) >>
 ##  endif
 ##  if (statement.param|length) > 0
-    ///////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////////////////////
     /**
      * buffer for sql statement parameters
      */
     << buffer-definition (statement.param, "p", statement.par-set-size) >>
 ##  endif
-    ///////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////////////////////
     /**
      * perform operations with the database
      *

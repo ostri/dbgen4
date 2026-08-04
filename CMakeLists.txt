@@ -1,7 +1,11 @@
 cmake_minimum_required(VERSION 3.25)
 project(dbgen4 VERSION 0.1.0 DESCRIPTION "database access code generator" LANGUAGES CXX)
 
-option(BUILD_TESTING "Build the testing tree." ON)
+# Consumed via add_subdirectory() by another project's own CMakeLists.txt,
+# tests/tidy/docs default to off there - a project pulling in dbgen4 for its
+# generator and rtl library did not ask to also build and run dbgen4's own
+# test suite every time it configures.
+option(BUILD_TESTING "Build the testing tree." ${PROJECT_IS_TOP_LEVEL})
 include(CTest)
 enable_testing()
 # ===================================================================
@@ -24,7 +28,7 @@ endif()
 # 4. Optional: lock it so VS Code cannot silently switch to multi-config
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE BOOL "" FORCE)
 
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 # === Build Type & NDEBUG ===
 if(NOT CMAKE_BUILD_TYPE)
@@ -85,8 +89,12 @@ endif()
 # ===================================================================
 # Sanitizers – enabled only in Debug and RelWithDebInfo builds
 # Fully compatible with IBM DB2 thanks to protect_shadow_gap=0 workaround
+#
+# add_compile_options() below is directory scoped, so as a subdirectory of
+# someone else's project this would sanitize their targets too, not just
+# ours - default it off there; the top-level dbgen4 build still opts in.
 # ===================================================================
-option(ENABLE_SANITIZERS "Enable Address/Undefined/Leak sanitizers in Debug builds" ON)
+option(ENABLE_SANITIZERS "Enable Address/Undefined/Leak sanitizers in Debug builds" ${PROJECT_IS_TOP_LEVEL})
 
 if((CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo") AND ENABLE_SANITIZERS)
 
@@ -96,8 +104,8 @@ if((CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebIn
 
     # Runtime options – fix DB2 shadow memory conflict and give nicer reports
     set(SANITIZER_ENV
-        "ASAN_OPTIONS=protect_shadow_gap=0:detect_leaks=1:detect_stack_use_after_return=1:halt_on_error=0:abort_on_error=1:strip_path_prefix=${CMAKE_SOURCE_DIR}/"
-        "LSAN_OPTIONS=detect_leaks=1:suppressions=${CMAKE_SOURCE_DIR}/lsan.supp:print_suppressions=0"
+        "ASAN_OPTIONS=protect_shadow_gap=0:detect_leaks=1:detect_stack_use_after_return=1:halt_on_error=0:abort_on_error=1:strip_path_prefix=${CMAKE_CURRENT_SOURCE_DIR}/"
+        "LSAN_OPTIONS=detect_leaks=1:suppressions=${CMAKE_CURRENT_SOURCE_DIR}/lsan.supp:print_suppressions=0"
         "UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1"
     )
 
@@ -250,29 +258,29 @@ endif()
 
 # # === inja dependency ===
 # set_source_files_properties(
-#     ${CMAKE_SOURCE_DIR}/src/inja/inja.hpp
+#     ${CMAKE_CURRENT_SOURCE_DIR}/src/inja/inja.hpp
 #     PROPERTIES
 #     COMPILE_FLAGS "-Wno-switch -Wno-switch-enum -Wno-error=switch-enum -Wno-switch-default"
 # )
 # === Copy config files ===
-configure_file(${CMAKE_SOURCE_DIR}/config/log.debug.conf
-               ${CMAKE_BINARY_DIR}/config/log.debug.conf COPYONLY)
-configure_file(${CMAKE_SOURCE_DIR}/config/log.release.conf
-               ${CMAKE_BINARY_DIR}/config/log.release.conf COPYONLY)
-configure_file(${CMAKE_SOURCE_DIR}/config/main_hpp.jinja
-               ${CMAKE_BINARY_DIR}/template/main_hpp.jinja COPYONLY)
-configure_file(${CMAKE_SOURCE_DIR}/config/main_cpp.jinja
-               ${CMAKE_BINARY_DIR}/template/main_cpp.jinja COPYONLY)
-configure_file(${CMAKE_SOURCE_DIR}/config/buf_hpp.jinja
-               ${CMAKE_BINARY_DIR}/template/buf_hpp.jinja COPYONLY)
-configure_file(${CMAKE_SOURCE_DIR}/config/buf_cpp.jinja
-               ${CMAKE_BINARY_DIR}/template/buf_cpp.jinja COPYONLY)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/log.debug.conf
+               ${CMAKE_CURRENT_BINARY_DIR}/config/log.debug.conf COPYONLY)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/log.release.conf
+               ${CMAKE_CURRENT_BINARY_DIR}/config/log.release.conf COPYONLY)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/main_hpp.jinja
+               ${CMAKE_CURRENT_BINARY_DIR}/template/main_hpp.jinja COPYONLY)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/main_cpp.jinja
+               ${CMAKE_CURRENT_BINARY_DIR}/template/main_cpp.jinja COPYONLY)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/buf_hpp.jinja
+               ${CMAKE_CURRENT_BINARY_DIR}/template/buf_hpp.jinja COPYONLY)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/buf_cpp.jinja
+               ${CMAKE_CURRENT_BINARY_DIR}/template/buf_cpp.jinja COPYONLY)
 
 
 # === log library ===
 set (LOG_INCLUDE_DIRS
-    ${CMAKE_SOURCE_DIR}/src/log
-    ${CMAKE_SOURCE_DIR}/src/dbgen4/common
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/log
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common
 )
 add_library(log
   STATIC
@@ -301,8 +309,8 @@ target_compile_definitions(log
 # Built the same way (PIMPL hides spdlog behind logger_impl.hpp/cpp). `log`
 # itself is kept only for its own unit test (src/test/log_test.cpp).
 set (RTL_LOGGER_INCLUDE_DIRS
-    ${CMAKE_SOURCE_DIR}/src/logger
-    ${CMAKE_SOURCE_DIR}/src/dbgen4/common
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/logger
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common
 )
 add_library(rtl_logger
   STATIC
@@ -326,78 +334,90 @@ target_compile_definitions(rtl_logger
 # Include dirs every backend needs: the neutral rtl vocabulary, the logger
 # facade and the dbgen4 common helpers.
 set (RTL_INCLUDE_DIRS
-  ${CMAKE_SOURCE_DIR}/src/rtl
-  ${CMAKE_SOURCE_DIR}/src/logger
-  ${CMAKE_SOURCE_DIR}/src/dbgen4/common
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/logger
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common
 )
 
 if(DB2_FOUND)
     add_library(db2_rtl STATIC
-      ${CMAKE_SOURCE_DIR}/src/rtl/rtl.cpp
-      ${CMAKE_SOURCE_DIR}/src/rtl/parameter_root.cpp
-      ${CMAKE_SOURCE_DIR}/src/rtl/db_error.cpp
-      ${CMAKE_SOURCE_DIR}/src/rtl/async_db.cpp
-      ${CMAKE_SOURCE_DIR}/src/rtl/db2/db2_rtl.cpp
-      ${CMAKE_SOURCE_DIR}/src/rtl/db2/odbc_error.cpp
-      ${CMAKE_SOURCE_DIR}/src/rtl/db2/query.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/rtl.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/parameter_root.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/db_error.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/async_db.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/db2/db2_rtl.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/db2/odbc_error.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/db2/query.cpp
     )
     target_include_directories(db2_rtl PUBLIC
         ${RTL_INCLUDE_DIRS}
-        ${CMAKE_SOURCE_DIR}/src/rtl/db2
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/db2
         $ENV{IBM_DB_INCLUDE}
     )
     target_link_libraries(db2_rtl PUBLIC DB2::DB2 rtl_logger PRIVATE dbgen4_warnings)
+    # Namespaced alias, same convention as every CPM dependency this project
+    # links against (fmt::fmt, yaml-cpp::yaml-cpp, ...) - what a consumer
+    # pulling dbgen4 in via add_subdirectory()/CPMAddPackage() links against.
+    add_library(dbgen4::db2_rtl ALIAS db2_rtl)
 endif()
 
 if(LIBPQ_FOUND)
     add_library(psql_rtl STATIC
-      ${CMAKE_SOURCE_DIR}/src/rtl/rtl.cpp
-      ${CMAKE_SOURCE_DIR}/src/rtl/parameter_root.cpp
-      ${CMAKE_SOURCE_DIR}/src/rtl/db_error.cpp
-      ${CMAKE_SOURCE_DIR}/src/rtl/async_db.cpp
-      ${CMAKE_SOURCE_DIR}/src/rtl/psql/psql_rtl.cpp
-      ${CMAKE_SOURCE_DIR}/src/rtl/psql/query.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/rtl.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/parameter_root.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/db_error.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/async_db.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/psql/psql_rtl.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/psql/query.cpp
     )
     target_include_directories(psql_rtl PUBLIC
         ${RTL_INCLUDE_DIRS}
-        ${CMAKE_SOURCE_DIR}/src/rtl/psql
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/psql
     )
     target_link_libraries(psql_rtl PUBLIC PkgConfig::LIBPQ rtl_logger PRIVATE dbgen4_warnings)
+    add_library(dbgen4::psql_rtl ALIAS psql_rtl)
 endif()
 
 # === Main executable ===
 set(GEN_SRC_FILES
-#     ${CMAKE_SOURCE_DIR}/src/dbgen4.cpp
-     ${CMAKE_SOURCE_DIR}/src/dbgen4/parser/parser.cpp
-     ${CMAKE_SOURCE_DIR}/src/dbgen4/parser/data_statement.cpp
-     ${CMAKE_SOURCE_DIR}/src/dbgen4/parser/data_statements.cpp
-     ${CMAKE_SOURCE_DIR}/src/dbgen4/parser/sql_col_def.cpp
-     ${CMAKE_SOURCE_DIR}/src/dbgen4/parser/parse_yaml.cpp
-     ${CMAKE_SOURCE_DIR}/src/dbgen4/parameters/cmd_line_params.cpp
-     ${CMAKE_SOURCE_DIR}/src/dbgen4/parameters/context.cpp
-     ${CMAKE_SOURCE_DIR}/src/dbgen4/common/build_type.cpp
-     ${CMAKE_SOURCE_DIR}/src/dbgen4/common/parser_errors.cpp
-     ${CMAKE_SOURCE_DIR}/src/dbgen4/common/common.cpp
+#     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4.cpp
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/parser/parser.cpp
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/parser/data_statement.cpp
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/parser/data_statements.cpp
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/parser/sql_col_def.cpp
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/parser/parse_yaml.cpp
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/parameters/cmd_line_params.cpp
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/parameters/context.cpp
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common/build_type.cpp
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common/parser_errors.cpp
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common/common.cpp
 
-     ${CMAKE_SOURCE_DIR}/src/dbgen4/gen/generator.cpp
-     ${CMAKE_SOURCE_DIR}/src/programs/appl.cpp
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/gen/generator.cpp
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/programs/appl.cpp
 )
 set(GEN_INCLUDE_DIRS
-    ${CMAKE_SOURCE_DIR}/src/logger
-    ${CMAKE_SOURCE_DIR}/src/programs
-    ${CMAKE_SOURCE_DIR}/src/dbgen4/common
-    ${CMAKE_SOURCE_DIR}/src/dbgen4/gen
-    ${CMAKE_SOURCE_DIR}/src/dbgen4/parameters
-    ${CMAKE_SOURCE_DIR}/src/dbgen4/parser
-    ${CMAKE_SOURCE_DIR}/src/rtl
-    ${CMAKE_SOURCE_DIR}/src/inja
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/logger
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/programs
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/gen
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/parameters
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/parser
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/inja
 )
 
 # The generator sources are backend agnostic - the only thing that differs
 # between dbgen4-db2 and dbgen4-psql is which rtl library provides make_db().
+#
+# Names stay ${PROJECT_NAME}-${backend} rather than a dbgen4:: ALIAS: CMake
+# only allows ALIAS on executables from 3.26 (this project requires 3.25).
+# A consumer pulling dbgen4 in via add_subdirectory()/CPMAddPackage() invokes
+# the generator with $<TARGET_FILE:dbgen4-psql>/$<TARGET_FILE:dbgen4-db2> in
+# its own add_custom_command(), same as this project's own generate_* targets
+# do below.
 function(add_generator_target backend rtl_library)
     set(target ${PROJECT_NAME}-${backend})
-    add_executable(${target} ${CMAKE_SOURCE_DIR}/src/dbgen4.cpp ${GEN_SRC_FILES})
+    add_executable(${target} ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4.cpp ${GEN_SRC_FILES})
     target_compile_definitions(${target} PRIVATE SPDLOG_COMPILED_LIB)
     target_include_directories(${target} PUBLIC ${GEN_INCLUDE_DIRS})
     target_link_libraries(${target} PRIVATE
@@ -430,21 +450,31 @@ endif()
 # it drives one clang-tidy subprocess per translation unit via -j, instead of
 # one process working through the whole list serially.
 #
-# -source-filter restricts to our own .cpp files: the compilation database
+# -source-filter restricts to our own .cpp files, plus the generated ones
+# under GEN_OUTPUT_DIR (out/t1.cpp, out/db2/crud.cpp, out/psql/crud.cpp) - the
+# generator's own output is exactly the code this whole exercise is about
+# keeping clang-tidy clean, so it cannot be left out. The compilation database
 # also lists every CPM dependency's sources (fmt, spdlog, yaml-cpp, Catch2),
 # which would otherwise be tidied as their own translation units too.
-# src/test/ is excluded from that filter, same as CXX_CLANG_TIDY "" on the
-# unit_tests target below: Catch2's macros trigger clang-tidy false positives
-# there.
+# src/test/ is excluded from the src/ half of the filter, same as
+# CXX_CLANG_TIDY "" on the unit_tests target below: Catch2's macros trigger
+# clang-tidy false positives there.
+#
+# The generated files only exist after the targets that produce them have
+# run at least once - tidy depends on generate_smoke_test and
+# generate_crud_test_${backend} (added below, once DB2_FOUND/LIBPQ_FOUND are
+# known) so `ninja tidy` on a clean build regenerates them first rather than
+# silently skipping files that are not there yet.
 find_program(RUN_CLANG_TIDY_EXECUTABLE NAMES run-clang-tidy run-clang-tidy.py)
 if(RUN_CLANG_TIDY_EXECUTABLE)
     add_custom_target(tidy
         COMMAND ${RUN_CLANG_TIDY_EXECUTABLE}
-            -p ${CMAKE_BINARY_DIR}
-            -config-file=${CMAKE_SOURCE_DIR}/.clang-tidy
+            -p ${CMAKE_CURRENT_BINARY_DIR}
+            -config-file=${CMAKE_CURRENT_SOURCE_DIR}/.clang-tidy
             -quiet
-            -source-filter "^${CMAKE_SOURCE_DIR}/src/(?!test/).*\\.cpp$"
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            -header-filter "^(${CMAKE_CURRENT_SOURCE_DIR}/src/.*\\.hpp|${CMAKE_CURRENT_BINARY_DIR}/out/.*\\.hpp)$"
+            -source-filter "^(${CMAKE_CURRENT_SOURCE_DIR}/src/(?!test/).*\\.cpp|${CMAKE_CURRENT_BINARY_DIR}/out/(?!.*/?test_).*\\.cpp)$"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         COMMENT "Running clang-tidy (parallel)"
         VERBATIM
     )
@@ -460,15 +490,15 @@ endif()
 # Shared between the db2-only smoke test below and the crud test targets
 # further down, which run for whichever backend or backends were found - so
 # these live above both rather than inside either's guard.
-set(GEN_OUTPUT_DIR      ${CMAKE_BINARY_DIR}/out)
+set(GEN_OUTPUT_DIR      ${CMAKE_CURRENT_BINARY_DIR}/out)
 file(MAKE_DIRECTORY ${GEN_OUTPUT_DIR})
 set(CPP_TEMPLATE
-  ${CMAKE_BINARY_DIR}/template/main_cpp.jinja
-  ${CMAKE_BINARY_DIR}/template/buf_cpp.jinja
+  ${CMAKE_CURRENT_BINARY_DIR}/template/main_cpp.jinja
+  ${CMAKE_CURRENT_BINARY_DIR}/template/buf_cpp.jinja
   )
 set(HPP_TEMPLATE
-  ${CMAKE_BINARY_DIR}/template/main_hpp.jinja
-  ${CMAKE_BINARY_DIR}/template/buf_hpp.jinja
+  ${CMAKE_CURRENT_BINARY_DIR}/template/main_hpp.jinja
+  ${CMAKE_CURRENT_BINARY_DIR}/template/buf_hpp.jinja
   )
 
 # ===================================================================
@@ -477,8 +507,13 @@ set(HPP_TEMPLATE
 # Generates code from yaml/t1.yaml against a live database, compiles it and
 # runs it. Tied to db2 for now: the generated code links the ODBC runtime in
 # rtl/db2/query.hpp, which has no psql counterpart yet.
+#
+# Gated on BUILD_TESTING too, not just DB2_FOUND: it links
+# Catch2::Catch2WithMain, which only exists inside the if(BUILD_TESTING) block
+# above - with BUILD_TESTING off (the default when dbgen4 is pulled in as a
+# subdirectory of another project) that target would fail to configure.
 # ===================================================================
-if(DB2_FOUND)
+if(DB2_FOUND AND BUILD_TESTING)
 
 # Where the tests that need a live DB2 should connect. Override at configure
 # time, e.g. -DDB2_TEST_PASS=...
@@ -502,15 +537,15 @@ else()
     message(STATUS "Target 'test_t1' already exists → new smoke test name is: ${SMOKE_TEST_TARGET_NAME}")
 endif()
 
-set(TEST_YAML           ${CMAKE_SOURCE_DIR}/yaml/t1.yaml)
+set(TEST_YAML           ${CMAKE_CURRENT_SOURCE_DIR}/yaml/t1.yaml)
 set(GEN_STAMP           ${GEN_OUTPUT_DIR}/generated.stamp)
 
 set(GENERATED_HPP       ${GEN_OUTPUT_DIR}/t1.hpp)
 set(GENERATED_CPP       ${GEN_OUTPUT_DIR}/t1.cpp)
-set(SOURCE_TEST_CPP     ${CMAKE_SOURCE_DIR}/src/test/test_t1.cpp)
+set(SOURCE_TEST_CPP     ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_t1.cpp)
 set(GEN_TEST_CPP        ${GEN_OUTPUT_DIR}/test_t1.cpp)
 
-set(MAIN_HPP        ${CMAKE_BINARY_DIR}/template/main_hpp.jinja)
+set(MAIN_HPP        ${CMAKE_CURRENT_BINARY_DIR}/template/main_hpp.jinja)
 
 # Main program for smoke test
 if(NOT EXISTS ${SOURCE_TEST_CPP})
@@ -526,7 +561,7 @@ add_custom_command(
         ${GEN_TEST_CPP}
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
             ${SOURCE_TEST_CPP} ${GEN_TEST_CPP}
-    COMMAND ${CMAKE_BINARY_DIR}/${PROJECT_NAME}-db2
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-db2
             -o ${GEN_OUTPUT_DIR}
             -v -t db2 -n ${DB2_TEST_DB} -u ${DB2_TEST_USER} -p ${DB2_TEST_PASS}
             ${TEST_YAML}
@@ -571,7 +606,7 @@ if(BUILD_TESTING)
     # touch no database, so it is safe to do at build time.
     catch_discover_tests(${SMOKE_TEST_TARGET_NAME}
         PROPERTIES LABELS "smoke;generated"
-                   WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     )
 endif()
 
@@ -583,7 +618,7 @@ if((CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebIn
     enable_sanitizers_for_target(${SMOKE_TEST_TARGET_NAME})
 endif()
 
-endif() # DB2_FOUND - smoke test
+endif() # DB2_FOUND AND BUILD_TESTING - smoke test
 
 # ===================================================================
 # crud round trip test
@@ -604,7 +639,7 @@ endif() # DB2_FOUND - smoke test
 function(add_crud_test_target backend rtl_library test_db_include_dir parallel_test_yaml)
     set(extra_sources ${ARGN})
     set(out_dir     ${GEN_OUTPUT_DIR}/${backend})
-    set(crud_yaml   ${CMAKE_SOURCE_DIR}/yaml/crud.yaml)
+    set(crud_yaml   ${CMAKE_CURRENT_SOURCE_DIR}/yaml/crud.yaml)
     set(crud_hpp    ${out_dir}/crud.hpp)
     set(crud_cpp    ${out_dir}/crud.cpp)
     set(crud_stamp  ${out_dir}/crud.stamp)
@@ -616,7 +651,7 @@ function(add_crud_test_target backend rtl_library test_db_include_dir parallel_t
 
     add_custom_command(
         OUTPUT ${crud_stamp} ${crud_hpp} ${crud_cpp}
-        COMMAND ${CMAKE_BINARY_DIR}/${PROJECT_NAME}-${backend}
+        COMMAND ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-${backend}
                 -o ${out_dir}
                 -t ${backend} --host ${${test_db_env}_HOST} --port ${${test_db_env}_PORT}
                 -n ${${test_db_env}_DB} -u ${${test_db_env}_USER} -p ${${test_db_env}_PASS}
@@ -638,7 +673,7 @@ function(add_crud_test_target backend rtl_library test_db_include_dir parallel_t
     # test_crud_db2/test_crud_psql share that directory, so the two
     # target_compile_definitions calls below would otherwise collide.
     set(parallel_test_obj parallel_test_${backend})
-    add_library(${parallel_test_obj} OBJECT ${CMAKE_SOURCE_DIR}/src/test/test_parallel.cpp)
+    add_library(${parallel_test_obj} OBJECT ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_parallel.cpp)
     target_compile_definitions(${parallel_test_obj} PRIVATE
         "DBGEN4_GENERATOR_PATH=\"$<TARGET_FILE:${PROJECT_NAME}-${backend}>\""
         "DBGEN4_SOURCE_YAML=\"${parallel_test_yaml}\""
@@ -647,15 +682,15 @@ function(add_crud_test_target backend rtl_library test_db_include_dir parallel_t
     add_dependencies(${parallel_test_obj} ${PROJECT_NAME}-${backend})
 
     add_executable(${target} ${crud_cpp}
-        ${CMAKE_SOURCE_DIR}/src/test/test_crud.cpp
-        ${CMAKE_SOURCE_DIR}/src/test/test_types.cpp
-        ${CMAKE_SOURCE_DIR}/src/test/test_crud_batch.cpp
-        ${CMAKE_SOURCE_DIR}/src/test/test_query_move.cpp
-        ${CMAKE_SOURCE_DIR}/src/test/test_async.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_crud.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_types.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_crud_batch.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_query_move.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_async.cpp
         $<TARGET_OBJECTS:${parallel_test_obj}>
         ${extra_sources})
     target_include_directories(${target} PRIVATE ${out_dir} ${RTL_INCLUDE_DIRS}
-                               ${CMAKE_SOURCE_DIR}/src/rtl/${backend} ${test_db_include_dir} $ENV{IBM_DB_INCLUDE})
+                               ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/${backend} ${test_db_include_dir} $ENV{IBM_DB_INCLUDE})
     target_link_libraries(${target} PRIVATE Catch2::Catch2WithMain ${rtl_library} rtl_logger
                           spdlog::spdlog nlohmann_json::nlohmann_json stdc++exp dbgen4_warnings)
     add_dependencies(${target} generate_crud_test_${backend})
@@ -697,7 +732,7 @@ function(add_crud_test_target backend rtl_library test_db_include_dir parallel_t
     catch_discover_tests(${target}
         TEST_PREFIX "${backend}: "
         PROPERTIES LABELS "crud;generated;live-db;${backend}"
-                   WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     )
 
     # So the environment is set after discovery instead. ${${target}_TESTS} only
@@ -705,10 +740,10 @@ function(add_crud_test_target backend rtl_library test_db_include_dir parallel_t
     # is evaluated, and the list reaches set_tests_properties without crossing a
     # command line.
     file(GENERATE
-         OUTPUT "${CMAKE_BINARY_DIR}/${target}_env.cmake"
+         OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/${target}_env.cmake"
          CONTENT "set_tests_properties(\${${target}_TESTS} PROPERTIES ENVIRONMENT \"${test_env}\")\n")
     set_property(DIRECTORY APPEND PROPERTY TEST_INCLUDE_FILES
-                 "${CMAKE_BINARY_DIR}/${target}_env.cmake")
+                 "${CMAKE_CURRENT_BINARY_DIR}/${target}_env.cmake")
 
     if((CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo") AND ENABLE_SANITIZERS)
         enable_sanitizers_for_target(${target})
@@ -716,12 +751,12 @@ function(add_crud_test_target backend rtl_library test_db_include_dir parallel_t
 endfunction()
 
 if(DB2_FOUND AND BUILD_TESTING)
-    add_crud_test_target(db2 db2_rtl ${CMAKE_SOURCE_DIR}/src/test/db2
-        ${CMAKE_SOURCE_DIR}/yaml/t1.yaml
-        ${CMAKE_SOURCE_DIR}/src/test/test_perf.cpp
-        ${CMAKE_SOURCE_DIR}/src/test/test_bench.cpp
-        ${CMAKE_SOURCE_DIR}/src/test/test_bench_async.cpp
-        ${CMAKE_SOURCE_DIR}/src/test/test_crud_batch_db2.cpp)
+    add_crud_test_target(db2 db2_rtl ${CMAKE_CURRENT_SOURCE_DIR}/src/test/db2
+        ${CMAKE_CURRENT_SOURCE_DIR}/yaml/t1.yaml
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_perf.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_bench.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_bench_async.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_crud_batch_db2.cpp)
 endif()
 
 if(LIBPQ_FOUND AND BUILD_TESTING)
@@ -734,22 +769,38 @@ if(LIBPQ_FOUND AND BUILD_TESTING)
     set(PSQL_TEST_USER "dbgen4"       CACHE STRING "user for the test database")
     set(PSQL_TEST_PASS "dbgen4"       CACHE STRING "password for the test database")
 
-    add_crud_test_target(psql psql_rtl ${CMAKE_SOURCE_DIR}/src/test/psql
-        ${CMAKE_SOURCE_DIR}/yaml/t1.yaml
-        ${CMAKE_SOURCE_DIR}/src/test/test_perf.cpp
-        ${CMAKE_SOURCE_DIR}/src/test/test_bench.cpp
-        ${CMAKE_SOURCE_DIR}/src/test/test_bench_async.cpp
-        ${CMAKE_SOURCE_DIR}/src/test/test_crud_batch_psql.cpp)
+    add_crud_test_target(psql psql_rtl ${CMAKE_CURRENT_SOURCE_DIR}/src/test/psql
+        ${CMAKE_CURRENT_SOURCE_DIR}/yaml/t1.yaml
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_perf.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_bench.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_bench_async.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_crud_batch_psql.cpp)
+endif()
+
+# tidy's -source-filter/-header-filter (set up above, before any of these
+# targets existed) reach into GEN_OUTPUT_DIR - make `ninja tidy` regenerate
+# that output first, rather than silently tidying whatever happened to be
+# left over from an earlier build, or nothing at all on a clean one.
+if(RUN_CLANG_TIDY_EXECUTABLE)
+    if(TARGET generate_smoke_test)
+        add_dependencies(tidy generate_smoke_test)
+    endif()
+    if(TARGET generate_crud_test_db2)
+        add_dependencies(tidy generate_crud_test_db2)
+    endif()
+    if(TARGET generate_crud_test_psql)
+        add_dependencies(tidy generate_crud_test_psql)
+    endif()
 endif()
 
 # === common headers – interface library
 add_library(project_common INTERFACE)
 target_include_directories(project_common INTERFACE
-    ${CMAKE_SOURCE_DIR}/src/dbgen4/common
-    ${CMAKE_SOURCE_DIR}/src/log
-    ${CMAKE_SOURCE_DIR}/src/logger
-    ${CMAKE_SOURCE_DIR}/src/rtl
-    ${CMAKE_SOURCE_DIR}/src/rtl/db2
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/log
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/logger
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/db2
 )
 # ===================================================================
 # Unit tests with Catch2

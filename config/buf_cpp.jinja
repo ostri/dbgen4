@@ -1,7 +1,7 @@
 ##  if (buf|length) > 0
-/** <<pad("--- construction ", 69, "", "", "-")>> */
+/** <<pad("--- construction ", 85, "", "", "-")>> */
     <<class-name>>::<<class-name>>(size_t rows) { set_buffer_size(rows); }
-    /** <<pad("--- buffer dimension ", 69, "", "", "-")>> */
+    /** <<pad("--- buffer dimension ", 85, "", "", "-")>> */
     void <<class-name>>::resize_storage(size_t rows)
     {
 ##  for el in buf
@@ -12,21 +12,42 @@
       row_status_.assign(rows, 0);
 ## endif
       /** the vectors have just moved - republish the pointers into them */
-      static_cast<void>(buffer_description_init());
+      // set_buffer_size() (called from the constructor above) reaches this
+      // override through <<root-class>>'s non-virtual wrapper, and the call
+      // below is to another override that already belongs to <<class-name>>,
+      // not to <<root-class>> - safe, but indistinguishable to the analyzer
+      // from genuine virtual dispatch out of a base class constructor.
+      static_cast<void>(buffer_description_init()); // NOLINT(clang-analyzer-optin.cplusplus.VirtualCall)
+      rebuild_row_wise();
     }
-    /** <<pad("--- "+class-name+" types init array ", 69, "", "", "-")>> */
+    /** <<pad("--- row-wise view, addresses only valid until the next resize ", 85, "", "", "-")>> */
+    void <<class-name>>::rebuild_row_wise()
+    {
+      row_wise_.clear();
+      row_wise_.reserve(buffer_size());
+      for (size_t row = 0; row < buffer_size(); ++row)
+        row_wise_.push_back(row_t{
+##  for el in buf
+          .<<el.name>> = <<el.name>>_.at(row),
+##  endfor
+##  for el in buf
+          .is_<<el.name>>_null = len_<<el.name>>_.at(row),
+##  endfor
+        });
+    }
+    /** <<pad("--- "+class-name+" types init array ", 85, "", "", "-")>> */
     rtl::span_buffer_dscr_init <<class-name>>::buffer_description_init()
     {
         dscr_init_ =
         {{
 ##        for el in buf
-            { <<el.name>>_.data(), len_<<el.name>>_.data(), sizeof(<<el.name>>_[0]) },
+            { <<el.name>>_.data(), len_<<el.name>>_.data(), sizeof(<<el.name>>_.at(0)) },
 ##        endfor
         }};
         return dscr_init_;
     };
 ## if is-param
-    /** <<pad("--- mark every field of every row as sql NULL ", 69, "", "", "-")>> */
+    /** <<pad("--- mark every field of every row as sql NULL ", 85, "", "", "-")>> */
     void <<class-name>>::reset_all_null() noexcept
     {
 ##      for el in buf
@@ -35,16 +56,27 @@
       std::ranges::fill(row_status_, 0);
     }
 ## endif
-    /** <<pad("--- dump ", 69, "", "", "-")>> */
-    [[nodiscard]]std::string <<class-name>>::dump(uint8_t offs) const
+    /** <<pad("--- dump ", 85, "", "", "-")>> */
+    [[nodiscard]]str_t <<class-name>>::dump(uint8_t offs) const
     {
       constexpr const char* fmt = R"FMT(
 {1}rec: {0:}:{% for el in buf %}
 {1}  {<< 5+loop.index*4 >>:{2}} cat: {<< 5+loop.index*4+1 >>:{3}} type: {<< 5+loop.index*4+2 >>:{4}} value: '{<< 5+loop.index*4+3 >>}'{% endfor %})FMT";
-      std::string offs_str(offs*2UL, '.');
-      std::string s;
+      /**
+       * one branch, called once per column below, instead of a ternary
+       * spelled out at every call site - readability-function-cognitive-complexity
+       * counts each inline ternary against this function, and a wide buffer
+       * has one per column. Returns by value, not by reference: value is a
+       * column's formatted str_t, alive only for this call, so handing back
+       * a reference to it (or to a shared "NULL" one) would dangle the
+       * moment the caller's temporary goes away.
+       */
+      const auto or_null = [](bool is_null, const str_t& value) -> str_t // NOLINT(*swappable-parameters)
+      { return is_null ? "NULL" : value; };
+      str_t offs_str(offs*2UL, '.');
+      str_t s;
 ##    for el in buf
-      std::string str_<< el.name >>;
+      str_t str_<< el.name >>;
 ##    endfor
       for (auto n=0UL; n < buffer_size(); n++)
       {
@@ -52,7 +84,7 @@
         str_<< el.name >> = fmt::format("{}", <<el.dump-value>>);
 ##      endfor
         s +=  fmt::format(fmt, n, offs_str, max_column_name_len(), max_category_name_len(), max_column_type_name_len(), {%for el in buf%}"<< el.name >>", "<< el.category >>",
-        "<< el.storage-raw >>", (is_<< el.name  >>_null(n) ? "NULL" : str_<< el.name >>){% if el != last(buf) %}, {% endif %}{%endfor%});
+        "<< el.storage-raw >>", or_null(is_<< el.name >>_null(n), str_<< el.name >>){% if el != last(buf) %}, {% endif %}{%endfor%});
         }
         return s;
     }

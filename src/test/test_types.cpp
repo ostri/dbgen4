@@ -14,7 +14,6 @@
 #include "crud.hpp"
 #include "rtl.hpp"
 #include "rtl_fmt.hpp" // IWYU pragma: keep - formatters for rtl::date and friends
-#include "query.hpp"
 #include "test_db.hpp"
 #include <algorithm>
 #include <array>

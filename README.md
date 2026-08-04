@@ -321,6 +321,82 @@ explicit count.
 
 Running with no arguments prints the help text.
 
+## integrating into another CMake project
+
+dbgen4 is meant to be pulled in as a subdirectory of your own build, not
+installed system-wide or copied in - one checkout, referenced by whatever
+projects need it. `CMakeLists.txt` is written to support this directly: it
+detects whether it is the top-level project and only turns on its own tests,
+sanitizers and Doxygen docs when it is.
+
+### getting the source in
+
+Any mechanism that ends in `add_subdirectory(<path-to-dbgen4>)` works. Using
+[CPM.cmake](cmake/CPM.cmake) - the same tool dbgen4 itself uses for its own
+dependencies - keeps the version pinned to a tag and avoids a git submodule:
+
+    include(cmake/CPM.cmake)   # or your own copy of it
+    CPMAddPackage(
+        NAME dbgen4
+        GITHUB_REPOSITORY <org>/dbgen4
+        GIT_TAG v0.1.0
+    )
+
+Plain `FetchContent` or a git submodule work identically, since all that
+matters is that dbgen4's `CMakeLists.txt` runs as a subdirectory of yours.
+
+### what you get
+
+| target | what it is | when you need it |
+| --- | --- | --- |
+| `dbgen4::db2_rtl` | static library: the neutral `rtl` vocabulary plus the DB2 backend | link this if your generated code targets db2 |
+| `dbgen4::psql_rtl` | static library: the neutral `rtl` vocabulary plus the psql backend | link this if your generated code targets psql |
+| `dbgen4-db2` | the generator executable, built against DB2 | invoke at build time to turn a `.yaml` schema into `.hpp`/`.cpp` |
+| `dbgen4-psql` | the generator executable, built against psql | same, for psql |
+
+Each pair only exists if the matching backend was found on the machine doing
+the configuring (`DB2_FOUND`/`LIBPQ_FOUND`) - guard your own use of them with
+`if(TARGET dbgen4-psql)` etc. if you need the configure step to succeed
+either way.
+
+The executables are plain `${PROJECT_NAME}-${backend}` targets rather than
+`dbgen4::` aliases: CMake only allows `ALIAS` on an executable from 3.26
+onward, and dbgen4 targets 3.25. The names are already unique.
+
+### wiring it into your build
+
+    add_subdirectory(third_party/dbgen4)
+
+    # 1. generate code from your schema at build time
+    set(GEN_OUT ${CMAKE_CURRENT_BINARY_DIR}/generated)
+    file(MAKE_DIRECTORY ${GEN_OUT})
+    add_custom_command(
+        OUTPUT ${GEN_OUT}/myschema.hpp ${GEN_OUT}/myschema.cpp
+        COMMAND $<TARGET_FILE:dbgen4-psql>
+                -o ${GEN_OUT} -t psql -n mydb -u dbuser -p secret
+                ${CMAKE_CURRENT_SOURCE_DIR}/myschema.yaml
+        DEPENDS dbgen4-psql ${CMAKE_CURRENT_SOURCE_DIR}/myschema.yaml
+    )
+    add_custom_target(generate_myschema DEPENDS ${GEN_OUT}/myschema.hpp ${GEN_OUT}/myschema.cpp)
+
+    # 2. compile and link the generated code
+    add_executable(myapp main.cpp ${GEN_OUT}/myschema.cpp)
+    add_dependencies(myapp generate_myschema)
+    target_include_directories(myapp PRIVATE ${GEN_OUT})
+    target_link_libraries(myapp PRIVATE dbgen4::psql_rtl)
+
+### what stays out of your build
+
+With dbgen4 as a subdirectory, `BUILD_TESTING` and `ENABLE_SANITIZERS`
+default to `OFF` regardless of your own project's settings for them -
+`PROJECT_IS_TOP_LEVEL` is what decides this, not the option's own default.
+dbgen4's `tidy` and Doxygen `docs` targets are still created (nothing calls
+them unless you do), but none of dbgen4's own test binaries, Catch2, or the
+`-fsanitize=...` compile options it uses for its own Debug builds leak into
+your targets. Set `-DBUILD_TESTING=ON`/`-DENABLE_SANITIZERS=ON` explicitly
+before the `add_subdirectory()` call if you do want dbgen4's own test suite
+to build and run as part of your tree.
+
 ## build dependencies
 
 ### C++ libraries

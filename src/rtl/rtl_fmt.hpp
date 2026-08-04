@@ -61,7 +61,7 @@ namespace rtl::fmt_detail
     const int    written = std::snprintf(buffer + len, capacity - len, ".%09u", fraction); // NOLINT
     const size_t total   = len + written_len(written, capacity - len);
     // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    return trim_fraction(buffer, total, len + 1); // +1 steps over the dot
+    return trim_fraction(buffer, total, len + 1); // +1 steps over the dot // NOLINT(hicpp-no-array-decay) - trim_fraction wants a pointer, buffer is a fixed-size array by construction
   }
 } // namespace rtl::fmt_detail
 

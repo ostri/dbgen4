@@ -21,7 +21,6 @@
 #include "crud.hpp"
 #include "rtl.hpp"
 #include "rtl_fmt.hpp" // IWYU pragma: keep
-#include "query.hpp"   // rtl::query
 #include "test_db.hpp" // live_db and require_ok, shared with the other crud tests
 #include <catch2/catch_message.hpp> // INFO
 #include <catch2/catch_test_macros.hpp>
@@ -143,6 +142,92 @@ TEST_CASE("a batch of ten rows goes in on one execute and comes back three at a 
   // ten rows through a three row window means four fetches - 3, 3, 3, 1 - and
   // that is the point of the exercise, not an incidental detail
   CHECK(read_batch_windows(db) == std::vector<size_t>{3, 3, 3, 1});
+
+  clear_batch(db);
+}
+
+namespace
+{
+  /// one row_t against the expected key: id (int), name (string) and
+  /// created (date) - the three storage categories the row-wise doc example
+  /// uses. rw's members reference the same slots the column-wise getters
+  /// read, so this alone is enough to prove row_wise() is not a stale or
+  /// independent copy.
+  void check_row_wise_row(const dbx::s_sel_range::r::row_t& rw, size_t row, const dbx::s_sel_range::r& rows, int32_t expected_id)
+  {
+    INFO("row with key " << expected_id);
+    CHECK(rw.id.get() == expected_id);
+    CHECK(dbx::cstr_t(rw.name.get().data(), rows.name_length(row)) == batch_name(expected_id));
+    CHECK(rw.created.get() == batch_date(expected_id));
+  }
+
+  /// one fetch of s_sel_range, checked row by row through row_wise() against
+  /// what write_batch() put in. Its own function because the resize test
+  /// below runs it twice, once per window size.
+  void check_sel_range_row_wise(const dbx::s_sel_range::r& rows, int32_t first_expected_id)
+  {
+    for (size_t row = 0; row < rows.occupied(); ++row)
+      check_row_wise_row(rows.row(row), row, rows, first_expected_id + static_cast<int32_t>(row));
+  }
+} // namespace
+
+TEST_CASE("row_wise mirrors a live fetch, including after a resize", "[crud][generated][live-db][batch]")
+{
+  // s_sel_range::r covers one column each of the three storage categories
+  // the row-wise doc example uses: id (atomic/int), name (c_string) and
+  // created (structure/date). Unlike class p, class r has no setters of its
+  // own: the driver's fetch() writes column-wise storage directly through
+  // buffer_description_init(), so this is the one place a value legitimately
+  // lands in a result buffer, and row_wise() has to pick it up from there.
+  live_db live;
+  auto&   db = live.db;
+
+  clear_batch(db);
+  CHECK(write_batch(db) == batch_rows);
+
+  // first pass: a three row window, prepared and fetched once
+  {
+    dbx::s_sel_range::stmt sel(&db, dbx::s_sel_range::qry::sql());
+    sel.get_result_buffer()->set_buffer_size(batch_window);
+    require_ok(sel.prepare(), "prepare(sel_range) - first window");
+    sel.get_param()->set_id_from(batch_first);
+    sel.get_param()->set_id_to(batch_last);
+    require_ok(sel.execute(), "execute(sel_range) - first window");
+
+    auto got = sel.fetch();
+    require_ok(got, "fetch(sel_range) - first window");
+    REQUIRE(*got);
+
+    auto rows = sel.get_result();
+    REQUIRE(rows->occupied() == batch_window);
+    REQUIRE(rows->row_wise().size() == rows->buffer_size());
+    check_sel_range_row_wise(*rows, batch_first);
+  }
+
+  // second pass: same statement text, a fresh stmt sized for every row in one
+  // fetch - a buffer is only resized before its own prepare() (see "a result
+  // buffer resized after prepare stops fetch" below), so re-running the query
+  // with a different window means a new stmt, not reusing the one above.
+  // resize_storage() still has to rebuild row_wise() from scratch here, same
+  // as it does for the first window.
+  {
+    dbx::s_sel_range::stmt sel(&db, dbx::s_sel_range::qry::sql());
+    sel.get_result_buffer()->set_buffer_size(batch_rows);
+    REQUIRE(sel.get_result_buffer()->row_wise().size() == static_cast<size_t>(batch_rows));
+    require_ok(sel.prepare(), "prepare(sel_range) - resized window");
+    sel.get_param()->set_id_from(batch_first);
+    sel.get_param()->set_id_to(batch_last);
+    require_ok(sel.execute(), "execute(sel_range) - resized window");
+
+    auto got = sel.fetch();
+    require_ok(got, "fetch(sel_range) - resized window");
+    REQUIRE(*got);
+
+    auto rows = sel.get_result();
+    REQUIRE(rows->occupied() == static_cast<size_t>(batch_rows));
+    REQUIRE(rows->row_wise().size() == rows->buffer_size());
+    check_sel_range_row_wise(*rows, batch_first);
+  }
 
   clear_batch(db);
 }

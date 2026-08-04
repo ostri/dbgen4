@@ -314,9 +314,15 @@ namespace rtl
       throw std::out_of_range(fmt::format("Row is too long. provided: {} maximum allowed {}", row, data_vec.size()));
 
     len_vec[row] = static_cast<int32_t>(value.size()); // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
-    auto& buf    = data_vec[row];
+    auto& buf    = data_vec[row]; // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access) - std::span has no .at()
     value.copy(buf.data(), value.size(), 0);
+    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access,cppcoreguidelines-pro-bounds-constant-array-index)
+    // value.size() is bounded by NetCapacity (checked above), but that bound
+    // is a run time value here, not a compile time constant - std::array's
+    // operator[] wants the latter to avoid this diagnostic, which a fixed
+    // NetCapacity does not give it.
     if constexpr (std::is_same_v<CharT, char> || std::is_same_v<CharT, wchar_t>) buf[value.size()] = CharT(0); // safety null // NOLINT(readability-inconsistent-ifelse-braces)
+    // NOLINTEND(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access,cppcoreguidelines-pro-bounds-constant-array-index)
     else
     {
       // Binary string - no need for trailing zero

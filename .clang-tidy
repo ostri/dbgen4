@@ -52,7 +52,10 @@ Checks: |
 WarningsAsErrors: '*'
 # clang-tidy matches this with llvm::Regex (POSIX extended, no negative
 # lookahead), so it must name the path directly rather than try to exclude one.
-HeaderFilterRegex: 'src/.*\.hpp$'
+# The out/ branch is the generator's own output (out/t1.hpp, out/db2/crud.hpp,
+# out/psql/crud.hpp, ...) - it has to be covered too, not just hand written
+# headers under src/, or a regression in the templates would go unnoticed.
+HeaderFilterRegex: '(src/.*\.hpp$|/out/.*\.hpp$)'
 HeaderFileExtensions: [ hpp ]
 ImplementationFileExtensions: [ cpp ]
 FormatStyle:     none

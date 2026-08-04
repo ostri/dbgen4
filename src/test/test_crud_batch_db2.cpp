@@ -13,7 +13,6 @@
 #include "db2_rtl.hpp"
 #include "rtl.hpp"
 #include "rtl_fmt.hpp" // IWYU pragma: keep
-#include "query.hpp"   // rtl::query and rtl::odbc_error
 #include "test_db.hpp" // live_db and require_ok, shared with the other crud tests
 #include <sqlext.h>    // SQL_PARAM_ERROR - the batch row status the driver writes
 #include <catch2/catch_message.hpp> // INFO
