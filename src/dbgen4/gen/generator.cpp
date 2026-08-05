@@ -27,7 +27,7 @@ namespace
     return arg->dump();                                          // fallback
   }
 
-  std::string pad_impl(inja::Arguments& args)
+  std::string pad_impl(inja::Arguments& args, logger::Logger& log)
   {
     if (args.size() < 2) throw std::runtime_error("pad needs at least 2 args");
     // required arguments
@@ -48,10 +48,10 @@ namespace
     if (str.size() >= len) return str;
     const std::string pad(len - str.size(), pad_char);
     auto        tmp = str + pad;
-    rtl::logger::get()->trace("Padded value: '{}' len: {} pad_char: '{}' pad '{}'", tmp, len, pad_char, pad);
+    log.trace("Padded value: '{}' len: {} pad_char: '{}' pad '{}'", tmp, len, pad_char, pad);
     return tmp;
   }
-  std::string lpad_impl(inja::Arguments& args)
+  std::string lpad_impl(inja::Arguments& args, logger::Logger& log)
   {
     if (args.size() < 2) throw std::runtime_error("pad needs at least 2 args");
     // required arguments
@@ -72,7 +72,7 @@ namespace
     if (str.size() >= len) return str;
     const std::string pad(len - str.size(), pad_char);
     auto        tmp = pad + str;
-    rtl::logger::get()->trace("L Padded value: '{}' len: {} pad_char: '{}' pad '{}'", tmp, len, pad_char, pad);
+    log.trace("L Padded value: '{}' len: {} pad_char: '{}' pad '{}'", tmp, len, pad_char, pad);
     return tmp;
   }
 }; // anonymous namespace
@@ -94,16 +94,16 @@ namespace dbgen4
     const fs::path path(cmd().out_folder());
     if (! fs::exists(path))
     {
-      log_()->info("Provided output folder '{}' does not exist. Starting to create.");
+      log_().info("Provided output folder '{}' does not exist. Starting to create.");
       std::error_code ec;
       auto            ret = fs::create_directories(path, ec);
       if (! ret)
       {
         auto msg = fmt::format("Program was not able to create folder '{}' msg: {} code: {}", path.string(), ec.message(), ec.value());
-        log_()->critical(msg);
+        log_().critical(msg);
         throw std::runtime_error(msg);
       }
-      log_()->info("Output folder '{}' successfully created.", path.string());
+      log_().info("Output folder '{}' successfully created.", path.string());
     };
 
     /// only for top level templates hpp and cpp
@@ -115,7 +115,7 @@ namespace dbgen4
       if (! res) return std::unexpected(res.error());
       auto r = write_file(fn, res.value());
       if (! r) return std::unexpected(exit_status_enum::ok);
-      log_()->trace("File: {} written\n '{}'", fn, res.value());
+      log_().trace("File: {} written\n '{}'", fn, res.value());
     }
     return "";
   }
@@ -126,8 +126,9 @@ namespace dbgen4
    */
   map_fn         generator::get_fn_tpl() const { return fn_tpl_; }
   const context& generator::ctx() const { return ctx_; }
-  generator::generator(const context& ctx)
-  : ctx_(ctx) { };
+  generator::generator(const context& ctx, logger::Logger& log)
+  : ctx_(ctx)
+  , log_ref_(log) { };
   data_statements* generator::s() const { return s_; }
 
 
@@ -161,18 +162,18 @@ namespace dbgen4
   {
     {
       auto template_fn = template_filename(tpl_id);
-      log_()->trace("preparing template '{}'", template_fn);
+      log_().trace("preparing template '{}'", template_fn);
       auto res = read_file(template_fn);
       if (! res)
       {
         const auto* fmt = get_exit_code_str(exit_status_enum::error_reading_file);
-        log_()->error(fmt::runtime_format_string<char>(fmt), template_fn, res.error());
+        log_().error(fmt::runtime_format_string<char>(fmt), template_fn, res.error());
         return std::unexpected(exit_status_enum::error_reading_file);
       }
 
-      log_()->trace("template read:\n'{}'", res.value());
+      log_().trace("template read:\n'{}'", res.value());
       inja::Template templ = env_.parse(res.value());
-      log_()->debug("template '{}' successfully read and evaluated.", template_fn);
+      log_().debug("template '{}' successfully read and evaluated.", template_fn);
       return templ;
     } // namespace dbgen4
   }
@@ -187,7 +188,7 @@ namespace dbgen4
    */
   exit_status_enum generator::error(const str_t& filename_tpl, const str_t& template_str, const inja::InjaError& e, exit_status_enum code)
   {
-    log_()->critical("Render error file: '{}' error: '{}' line: {} col: {} template: \n{}.",
+    log_().critical("Render error file: '{}' error: '{}' line: {} col: {} template: \n{}.",
                      filename_tpl,
                      e.what(),
                      e.location.line,
@@ -455,8 +456,8 @@ namespace dbgen4
   e_void generator::register_callbacks()
   {
     env_.set_expression("<<", ">>");
-    log_()->info("Expression delimiter set to << and >>.");
-    log_()->debug("register callbacks");
+    log_().info("Expression delimiter set to << and >>.");
+    log_().debug("register callbacks");
     /**
      * @brief hpp part of buffer definition
      *
@@ -495,7 +496,7 @@ namespace dbgen4
                           auto out = env_.render(templates_.at(inja_tpl_enum::buf_hpp), data);
                           return str_t(trim_trailing_whitespace_view(out));
                         });
-      log_()->debug("callback {} - registered.", cb_name);
+      log_().debug("callback {} - registered.", cb_name);
     }
 
     /**
@@ -527,11 +528,11 @@ namespace dbgen4
                           auto out = env_.render(templates_.at(inja_tpl_enum::buf_cpp), data);
                           return str_t(trim_trailing_whitespace_view(out));
                         });
-      log_()->debug("callback {} - registered.", cb_name);
+      log_().debug("callback {} - registered.", cb_name);
     }
     {
-      env_.add_callback("pad", pad_impl);
-      env_.add_callback("lpad", lpad_impl);
+      env_.add_callback("pad", [this](inja::Arguments& args) -> std::string { return pad_impl(args, log_()); });
+      env_.add_callback("lpad", [this](inja::Arguments& args) -> std::string { return lpad_impl(args, log_()); });
     }
     return {};
   };

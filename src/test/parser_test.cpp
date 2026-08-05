@@ -6,10 +6,11 @@
 namespace ME = magic_enum; // NOLINT(misc-unused-alias-decls)
 #include "common.hpp"
 #include "parser.hpp"
+#include "test_logger.hpp"
 
 TEST_CASE("empty yaml input produces no statements", "[parser]")
 {
-  dbgen4::parser    p;
+  dbgen4::parser    p(dbgen4::test::test_logger());
   const std::string empty_yaml = R"(# empty)";
 
   auto ans = p.parse_yaml_string(empty_yaml, dbgen4::db_type_enum::db2);
@@ -24,7 +25,7 @@ statements:
     sql: SELECT id, name FROM users WHERE id = ?
 )";
 
-  dbgen4::parser p;
+  dbgen4::parser p(dbgen4::test::test_logger());
   const auto     ans = p.parse_yaml_string(yaml, dbgen4::db_type_enum::db2);
   REQUIRE(ans);
   REQUIRE(ans.value().summary().empty());

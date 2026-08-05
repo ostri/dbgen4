@@ -69,10 +69,10 @@ namespace dbgen4
    * @return true the statement was added new
    * @return false the statement with the same id already exists
    */
-  bool data_statements::add_statement(const data_statement& s)
+  bool data_statements::add_statement(const data_statement& s, logger::Logger& log)
   {
     auto [it, success] = map_statements_.emplace(s.id(), s);
-    if (! success) { log_()->error("Statement id: {} is duplicated.", s.id()); }
+    if (! success) { log.error("Statement id: {} is duplicated.", s.id()); }
     return success;
   }
 }; // namespace dbgen4

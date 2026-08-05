@@ -7,6 +7,7 @@
 #include "generator.hpp"
 #include "parser.hpp"
 #include "parser_errors.hpp"
+#include <logger/logger.hpp>
 #include <atomic>
 #include <chrono>
 #include <expected>
@@ -17,7 +18,7 @@ namespace dbgen4
   class appl
   {
   public:
-    appl();
+    explicit appl(logger::Logger& log);
     ~appl();
     appl(const appl&)                       = delete;
     appl(appl&&)                            = delete;
@@ -31,7 +32,7 @@ namespace dbgen4
       size_t                   files_processed{};
       std::chrono::nanoseconds total_time{};
     };
-    static class rtl::logger* log_() { return rtl::logger::get(); };
+    [[nodiscard]] logger::Logger& log_() const { return log_ref_; }
     /// method logs raw command line
     void display_raw_command_line_log(int argc, char** argv);
     /// process one yaml file with a dedicated parser instance (thread-safe, no shared state)
@@ -43,6 +44,8 @@ namespace dbgen4
                             std::mutex&          sts_mutex,
                             exit_status_enum&    first_error);
     /// member(s)
-    cmd_line_params p_; /// comand line parameter structure
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
+    logger::Logger& log_ref_; ///< reference to the shared Logger, not owner
+    cmd_line_params p_;       /// comand line parameter structure
   };
 }; // namespace dbgen4

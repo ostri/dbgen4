@@ -8,7 +8,6 @@
  * @copyright Copyright (c) 2025
  *
  */
-// #include "log.hpp" // NOLINT
 #include <cstdint>
 #include <fmt/format.h>
 #include "magic_enum_config.hpp" // IWYU pragma: keep.
@@ -28,7 +27,7 @@ namespace rtl
                      const std::string& user,
                      const std::string& /*password*/)
   {
-    log_()->error(
+    log_().error(
       "Connection error - db2 method not implemented host: {} port {} db {} user {} pass {}", host, port, database_name, user, "*****");
     return db_sts::connection_error;
   }
@@ -58,7 +57,7 @@ namespace rtl
    */
   e_qry_metadata db::get_sql_metadata(const std::string& sql)
   {
-    log_()->error("get_sql_metadata is not implemented by this backend. sql: '{}'", sql);
+    log_().error("get_sql_metadata is not implemented by this backend. sql: '{}'", sql);
     return std::unexpected(db_sts::not_implemented);
   }
 
@@ -109,10 +108,5 @@ namespace rtl
                        params_.size(),
                        par);
   }
-
-  // spdlog::logger* db::log_() const { return log::get(); }
-
-  // spdlog::logger* db_data_root::log() const { return log::get(); }
-
 
 } // namespace rtl

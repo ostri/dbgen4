@@ -28,21 +28,21 @@ namespace rtl
 
     // NOLINTEND(misc-non-private-member-variables-in-classes)
 
-    db_data_db2() = default;
+    explicit db_data_db2(logger::Logger& log)
+    : db_data_root(log)
+    {
+    }
     ~db_data_db2() override;
     db_data_db2(const db_data_db2&)            = delete;
     db_data_db2& operator=(const db_data_db2&) = delete;
     db_data_db2(db_data_db2&&)                 = delete;
     db_data_db2& operator=(db_data_db2&&)      = delete;
-  private:
-    class rtl::logger* log_() { return rtl::logger::get(); }; /// Member variables
-
   }; //__attribute__((aligned(DATA_ALIGNMENT_64)));
 
   class db_db2 final : public db, public database
   {
   public:
-    db_db2();
+    explicit db_db2(logger::Logger& log);
     ~db_db2() override;
     db_db2(const db_db2&)            = delete;
     db_db2& operator=(const db_db2&) = delete;
@@ -137,17 +137,17 @@ namespace rtl
 
 
     /// --- rtl::database, so that generated queries can run on this connection
-    [[nodiscard]] SQLHDBC         get_conn() const noexcept override;
-    [[nodiscard]] class rtl::logger* get_logger() const noexcept override { return rtl::logger::get(); }
+    [[nodiscard]] SQLHDBC get_conn() const noexcept override;
+    /// not owner - borrowed pointer to the shared Logger, never deleted here
+    [[nodiscard]] logger::Logger* get_logger() const noexcept override { return &log_(); }
 
     void free_stmt_handle() const; ///< release current statement handle NOLINT
     void free_conn_handle() const; ///< free connection handle NOLINT
     void free_env_handle() const;  ///< free environment handle NOLINT
   private:
     ///
-    db_sts                 internal_connect(const std::string& connStr);
-    db_sts                 internal_allocate_handles();
-    static class rtl::logger* log_() { return rtl::logger::get(); }; /// Member variables
+    db_sts internal_connect(const std::string& connStr);
+    db_sts internal_allocate_handles();
     /// access to the database attributes
     [[nodiscard]] db_data_db2* data() const;
     e_qry_metadata             error_cleanup(SQLRETURN ret, const std::string& msg, db_sts err_code);

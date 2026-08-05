@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common.hpp"
+#include <logger/logger.hpp>
 #include <map>
 #include "data_statement.hpp"
 // #include "cmd_line_params.hpp"
@@ -43,13 +44,11 @@ namespace dbgen4
      * @return - added -> pointer to the added statement and true
      *         - duplicate -> pointer to the existing statement and false.
      */
-    bool add_statement(const data_statement& s);
+    bool add_statement(const data_statement& s, logger::Logger& log);
     bool add_statement_with_replace(data_statement s);
   protected:
     void set_map(const data_statement_map_t& map);
   private:
-    class rtl::logger* log_() { return rtl::logger::get(); }; /// Member variables
-
     str_t                summary_;        ///< description about the purpose of this sql statements set
     str_t                description_;    ///< description of the usage of this sql statement set
     data_statement_map_t map_statements_; ///< individual statements

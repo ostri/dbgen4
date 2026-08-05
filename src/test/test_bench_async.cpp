@@ -51,6 +51,7 @@
 #include "rtl.hpp"
 #include "rtl_fmt.hpp" // IWYU pragma: keep
 #include "test_db.hpp"
+#include "test_logger.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include <chrono>
 #include <cstddef>
@@ -235,7 +236,7 @@ namespace
   template <typename Db>
   run_timing sync_insert(Db& db, size_t rows_per_block, size_t blocks)
   {
-    auto* log = rtl::logger::get();
+    auto& log = dbgen4::test::test_logger();
 
     dbx::s_perf_ins::stmt  ins1(&db, dbx::s_perf_ins::qry::sql());
     dbx::s_perf_ins2::stmt ins2(&db, dbx::s_perf_ins2::qry::sql());
@@ -295,7 +296,7 @@ namespace
         REQUIRE(rtl::is_success(db.commit()));
         ++t.commits;
         t.writing += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - commit_from);
-        if (t.commits % report_after == 0) log->info("sync  commit #{}: {} rows written so far", t.commits, rows_written);
+        if (t.commits % report_after == 0) log.info("sync  commit #{}: {} rows written so far", t.commits, rows_written);
       }
     }
 
@@ -345,7 +346,7 @@ namespace
   template <typename Db>
   run_timing async_insert(Db& db, size_t rows_per_block, size_t blocks)
   {
-    auto*         log = rtl::logger::get();
+    auto&         log = dbgen4::test::test_logger();
     rtl::async_db adb(db);
 
     auto ins1 = adb.prepare<dbx::s_perf_ins::p, rtl::no_results>(dbx::s_perf_ins::qry::sql(), rows_per_block);
@@ -383,7 +384,7 @@ namespace
       if ((block + 1) % commit_after == 0)
       {
         commit_and_time(adb, t, write_from, "commit");
-        if (t.commits % report_after == 0) log->info("async commit #{}: {} rows written so far", t.commits, rows_written);
+        if (t.commits % report_after == 0) log.info("async commit #{}: {} rows written so far", t.commits, rows_written);
       }
       else
         t.writing += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - write_from);
@@ -399,15 +400,15 @@ namespace
   /// shape for both backends so a db2 and a psql run diff identically
   void report_counts(const char* what, const table_counts& c)
   {
-    auto* log = rtl::logger::get();
-    log->info("{}: perf_test1={} perf_test2={} perf_test3={} total={}", what, c.perf_test1, c.perf_test2, c.perf_test3, c.total);
+    auto& log = dbgen4::test::test_logger();
+    log.info("{}: perf_test1={} perf_test2={} perf_test3={} total={}", what, c.perf_test1, c.perf_test2, c.perf_test3, c.total);
   }
 
   /// one line per run, same shape for both, so they read side by side
   void report(const char* what, const run_timing& t, size_t rows)
   {
-    auto* log = rtl::logger::get();
-    log->info("{}: {} rows in {} ms ({:.0f} rows/s) - filling {} ms, writing {} ms, {} commits",
+    auto& log = dbgen4::test::test_logger();
+    log.info("{}: {} rows in {} ms ({:.0f} rows/s) - filling {} ms, writing {} ms, {} commits",
               what,
               rows,
               t.total.count() / us_per_ms,
@@ -426,13 +427,13 @@ TEST_CASE("insert throughput: synchronous against async_db, three tables", "[.be
 
   live_db live;
   auto&   db  = live.db;
-  auto*   log = rtl::logger::get();
+  auto&   log = dbgen4::test::test_logger();
 
   /// live_db drops the level to warn to keep ordinary test output readable;
   /// this benchmark wants its progress lines back
-  log->set_level(rtl::logger::level::info);
+  log.set_level(logger::level::info);
 
-  log->info("benchmark starting: backend={} host={} db={} buffer_size={} iterations={} tables={} "
+  log.info("benchmark starting: backend={} host={} db={} buffer_size={} iterations={} tables={} "
             "commit_every={} fill_delay_ms={} total_rows={}",
             rtl::backend_name(),
             test_db::env_or("DBGEN4_TEST_HOST", "localhost"),
@@ -463,7 +464,7 @@ TEST_CASE("insert throughput: synchronous against async_db, three tables", "[.be
   /// threshold here would fail for reasons that say nothing about the code.
   const double speedup =
     (async_t.total.count() > 0) ? static_cast<double>(sync_t.total.count()) / static_cast<double>(async_t.total.count()) : 0.0;
-  log->info("async/sync: {} ms against {} ms - {:.2f}x", async_t.total.count() / us_per_ms, sync_t.total.count() / us_per_ms, speedup);
+  log.info("async/sync: {} ms against {} ms - {:.2f}x", async_t.total.count() / us_per_ms, sync_t.total.count() / us_per_ms, speedup);
 
   clear_tables(db); ///< leave the tables the way the other tests expect them
 }

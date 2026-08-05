@@ -42,10 +42,15 @@ namespace rtl
 {
   db_data_psql::~db_data_psql()
   {
-    if (conn != nullptr) log_()->critical("libpq connection is not closed.");
+    if (conn != nullptr) logger_.critical("libpq connection is not closed.");
   }
 
-  db_psql::db_psql() { this->data_ = std::make_unique<db_data_psql>(); }
+  db_psql::db_psql(logger::Logger& log)
+  : db(log)
+  , database()
+  {
+    this->data_ = std::make_unique<db_data_psql>(log);
+  }
   db_psql::~db_psql() { disconnect(); }
 
   db_data_psql* db_psql::data() const { return dynamic_cast<db_data_psql*>(data_.get()); }
@@ -62,19 +67,19 @@ namespace rtl
   {
     if (data()->conn != nullptr)
     {
-      log_()->error("Already connected - disconnect first.");
+      log_().error("Already connected - disconnect first.");
       return db_sts::connection_error;
     }
 
     PGconn* conn = PQconnectdb(conn_str.c_str());
     if (conn == nullptr)
     {
-      log_()->critical("PQconnectdb returned no connection object - out of memory?");
+      log_().critical("PQconnectdb returned no connection object - out of memory?");
       return db_sts::memory_error;
     }
     if (PQstatus(conn) != CONNECTION_OK)
     {
-      log_()->error("Connection failed: {}", PQerrorMessage(conn));
+      log_().error("Connection failed: {}", PQerrorMessage(conn));
       PQfinish(conn);
       return db_sts::connection_error;
     }
@@ -98,12 +103,12 @@ namespace rtl
     conn_str += ! database_name.empty() ? fmt::format("dbname={} ", database_name) : "";
     conn_str += ! user.empty()          ? fmt::format("user={} ",   user)          : "";
     /// logged before the password is appended - it must never reach the log
-    log_()->debug("connection string: '{}'", conn_str);
+    log_().debug("connection string: '{}'", conn_str);
     conn_str += ! password.empty()      ? fmt::format("password={} ", password)    : "";
     // clang-format on
 
     auto ret = connect(conn_str);
-    if (ret == db_sts::success) log_()->info("Connected to db: host:'{}:{}' db:'{}' as user '{}'", host, port, database_name, user);
+    if (ret == db_sts::success) log_().info("Connected to db: host:'{}:{}' db:'{}' as user '{}'", host, port, database_name, user);
     return ret;
   }
 
@@ -115,7 +120,7 @@ namespace rtl
     rollback();
     PQfinish(d->conn);
     d->conn = nullptr;
-    log_()->info("Database disconnected");
+    log_().info("Database disconnected");
     return db_sts::success;
   }
 
@@ -123,13 +128,13 @@ namespace rtl
   {
     if (! is_connected())
     {
-      log_()->error("'{}' attempted on a disconnected database.", sql);
+      log_().error("'{}' attempted on a disconnected database.", sql);
       return db_sts::connection_error;
     }
     const result_guard res{PQexec(data()->conn, sql)};
     if (res.status() != PGRES_COMMAND_OK)
     {
-      log_()->error("'{}' failed: {}", sql, res.error());
+      log_().error("'{}' failed: {}", sql, res.error());
       return db_sts::transaction_error;
     }
     return db_sts::success;
@@ -138,7 +143,7 @@ namespace rtl
   db_sts db_psql::begin_transaction()
   {
     auto ret = exec_command("BEGIN");
-    if (ret == db_sts::success) log_()->debug("Transaction opened (autocommit off).");
+    if (ret == db_sts::success) log_().debug("Transaction opened (autocommit off).");
     return ret;
   }
 
@@ -146,7 +151,7 @@ namespace rtl
   {
     auto ret = exec_command("COMMIT");
     if (ret != db_sts::success) return ret;
-    log_()->debug("Transaction committed successfully.");
+    log_().debug("Transaction committed successfully.");
     return begin_transaction(); // stay inside a transaction, as db2 does
   }
 
@@ -154,7 +159,7 @@ namespace rtl
   {
     auto ret = exec_command("ROLLBACK");
     if (ret != db_sts::success) return ret;
-    log_()->debug("Transaction rolled back.");
+    log_().debug("Transaction rolled back.");
     return begin_transaction();
   }
 
@@ -170,7 +175,7 @@ namespace rtl
   {
     if (! is_connected()) [[unlikely]]
     {
-      log_()->error("get_sql_metadata: No active database connection");
+      log_().error("get_sql_metadata: No active database connection");
       return std::unexpected(db_sts::connection_error);
     }
 
@@ -184,7 +189,7 @@ namespace rtl
       const result_guard prep{PQprepare(data()->conn, describe_stmt_name, sql.c_str(), 0, nullptr)};
       if (prep.status() != PGRES_COMMAND_OK)
       {
-        log_()->error("Invalid sql '{}': {}", sql, prep.error());
+        log_().error("Invalid sql '{}': {}", sql, prep.error());
         return std::unexpected(db_sts::invalid_sql);
       }
     }
@@ -192,7 +197,7 @@ namespace rtl
     const result_guard desc{PQdescribePrepared(data()->conn, describe_stmt_name)};
     if (desc.status() != PGRES_COMMAND_OK)
     {
-      log_()->error("Describe failed for sql '{}': {}", sql, desc.error());
+      log_().error("Describe failed for sql '{}': {}", sql, desc.error());
       return std::unexpected(db_sts::invalid_sql);
     }
 
@@ -200,7 +205,7 @@ namespace rtl
 
     // --- parameters ---
     const int num_params = PQnparams(desc.get());
-    log_()->debug("Parameter set has {} parameters", num_params);
+    log_().debug("Parameter set has {} parameters", num_params);
     for (int i = 0; i < num_params; ++i)
     {
       const auto oid = static_cast<psql::oid_t>(PQparamtype(desc.get(), i));
@@ -215,13 +220,13 @@ namespace rtl
       par.digits   = 0;
       par.nullable = 1; ///< PostgreSQL does not report parameter nullability
       if (par.type == sql_type::unknown)
-        log_()->warn("Parameter {} has an unmapped type OID {}. Generated code will not compile.", i + 1, oid);
+        log_().warn("Parameter {} has an unmapped type OID {}. Generated code will not compile.", i + 1, oid);
       result.add_par_dscr(par);
     }
 
     // --- result columns ---
     const int num_columns = PQnfields(desc.get());
-    log_()->debug("Result set has {} columns", num_columns);
+    log_().debug("Result set has {} columns", num_columns);
     for (int i = 0; i < num_columns; ++i)
     {
       const auto oid    = static_cast<psql::oid_t>(PQftype(desc.get(), i));
@@ -238,7 +243,7 @@ namespace rtl
       /// PQdescribePrepared does not carry nullability - assume nullable
       col.nullable = 1;
       if (col.type == sql_type::unknown)
-        log_()->warn("Column '{}' has an unmapped type OID {}. Generated code will not compile.", col.name, oid);
+        log_().warn("Column '{}' has an unmapped type OID {}. Generated code will not compile.", col.name, oid);
       result.add_col_dscr(col);
     }
 
@@ -251,7 +256,7 @@ namespace rtl
   // ------------------------------------------------------------------------
   // backend registration - see the declarations in rtl.hpp
   // ------------------------------------------------------------------------
-  std::unique_ptr<db> make_db() { return std::make_unique<db_psql>(); }
+  std::unique_ptr<db> make_db(logger::Logger& log) { return std::make_unique<db_psql>(log); }
 
   std::string_view backend_name() noexcept { return "psql"; }
 

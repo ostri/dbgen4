@@ -27,9 +27,13 @@ namespace dbgen4
   using rtl::db_sts;
   using clock_t = std::chrono::steady_clock;
 
-  appl::appl() = default;
+  appl::appl(logger::Logger& log)
+  : log_ref_(log)
+  , p_(log)
+  {
+  }
 
-  appl::~appl() { log_()->flush(); };
+  appl::~appl() { log_().flush(); };
   /**
    * @brief method process one yaml file from parsing to code generation
    *
@@ -46,23 +50,23 @@ namespace dbgen4
     if (! r)
     {
       auto sts = ME::enum_integer(r.error());
-      log_()->info("File '{}' parser status: {} db status {}", filename, magic_enum::enum_name(r.error()), sts);
+      log_().info("File '{}' parser status: {} db status {}", filename, magic_enum::enum_name(r.error()), sts);
       return std::unexpected(r.error());
     }
     r = prsr.load_file_meta_data(r.value(), db, p_.max_field_len()); /// statements enriched with metadata
     if (! r)
     {
-      log_()->info("File '{}' metadata load failed. status: {}", filename, ME::enum_name(r.error()));
+      log_().info("File '{}' metadata load failed. status: {}", filename, ME::enum_name(r.error()));
       return std::unexpected(r.error());
     }
     auto res = gen.generate(r.value());
     if (! res)
     {
-      log_()->info("File '{}' source code generation failed. status: {}", filename, ME::enum_name(res.error()));
+      log_().info("File '{}' source code generation failed. status: {}", filename, ME::enum_name(res.error()));
       return std::unexpected(res.error());
     }
-    //    log_()->info("Generated hpp file:\n{}", res.value());
-    log_()->info("Data model generation from file '{}' successful", filename);
+    //    log_().info("Generated hpp file:\n{}", res.value());
+    log_().info("Data model generation from file '{}' successful", filename);
     return r.value();
   }
   /**
@@ -91,19 +95,19 @@ namespace dbgen4
     worker_stats stats;
     const auto&  all_files = p_.files();
 
-    auto  db_owner = rtl::make_db();
+    auto  db_owner = rtl::make_db(log_());
     auto& db       = *db_owner;
     auto  r        = db.connect(p_.host(), p_.port(), p_.db_name(), p_.user(), p_.pass());
     if (! rtl::is_success(r))
     {
-      log_()->error("Worker {} unable to connect to database '{}'", worker_id, p_.db_name());
+      log_().error("Worker {} unable to connect to database '{}'", worker_id, p_.db_name());
       const std::scoped_lock lock(sts_mutex);
       if (first_error == exit_status_enum::ok) first_error = exit_status_enum::connection_error;
       return stats;
     }
-    log_()->info("Worker {} started", worker_id);
+    log_().info("Worker {} started", worker_id);
 
-    parser    prsr;
+    parser    prsr(log_());
     generator gen(gen_prototype); /// independent copy - own yaml_fn/barename/json state
 
     for (size_t idx = next_file_idx.fetch_add(1); idx < all_files.size(); idx = next_file_idx.fetch_add(1))
@@ -117,14 +121,14 @@ namespace dbgen4
 
       if (! res)
       {
-        log_()->error("Worker {} error processing file '{}' error {}", worker_id, filename, ME::enum_name(res.error()));
+        log_().error("Worker {} error processing file '{}' error {}", worker_id, filename, ME::enum_name(res.error()));
         const std::scoped_lock lock(sts_mutex);
         if (first_error == exit_status_enum::ok) first_error = res.error();
       }
       else
       {
         const auto file_ms = std::chrono::duration_cast<std::chrono::milliseconds>(file_time).count();
-        log_()->info(
+        log_().info(
           "Worker {} processed file '{}' in {} ms, generated '{}' and '{}'", worker_id, filename, file_ms, gen.hpp_fn(), gen.cpp_fn());
       }
       ++stats.files_processed;
@@ -135,7 +139,7 @@ namespace dbgen4
     db.disconnect();
 
     const auto total_ms = std::chrono::duration_cast<std::chrono::milliseconds>(stats.total_time).count();
-    log_()->info("Worker {} finished: {} file(s) processed, {} ms total", worker_id, stats.files_processed, total_ms);
+    log_().info("Worker {} finished: {} file(s) processed, {} ms total", worker_id, stats.files_processed, total_ms);
     return stats;
   }
   /**
@@ -148,41 +152,41 @@ namespace dbgen4
    */
   exit_status_enum appl::exec(int argc, char** argv, char** env)
   {
-    log_()->info("build type: {}", build_type_name());
+    log_().info("build type: {}", build_type_name());
 
-    log_()->info("=========== Application initialized ===========");
+    log_().info("=========== Application initialized ===========");
     auto sts = p_.load_parameters(argc, argv, env);
-    log_()->info("Command line parsing. status: '{}'", ME::enum_name(sts));
+    log_().info("Command line parsing. status: '{}'", ME::enum_name(sts));
     if (sts != exit_status_enum::ok) return sts; // exit on help or error in parsing
     display_raw_command_line_log(argc, argv);
     try
     {
       /// access to the RDBMS - whichever backend this executable was linked with, used
       /// here only as a connectivity pre-flight check before any worker thread is started
-      auto  db_owner = rtl::make_db();
+      auto  db_owner = rtl::make_db(log_());
       auto& db       = *db_owner;
 
       /// the sql dialect picked from the yaml file and the backend that has to
       /// describe those statements are separate choices - warn when they disagree
       const auto dialect = ME::enum_name(p_.db_type());
       if (p_.db_type() != db_type_enum::sql && dialect != rtl::backend_name())
-        log_()->warn("Requested sql dialect '{}' but this executable is built against the '{}' backend. "
+        log_().warn("Requested sql dialect '{}' but this executable is built against the '{}' backend. "
                      "Statements will be described by '{}'.",
                      dialect,
                      rtl::backend_name(),
                      rtl::backend_name());
 
       auto r = db.connect(p_.host(), p_.port(), p_.db_name(), p_.user(), p_.pass());
-      log_()->info("Database connection status: {}", ME::enum_name<db_sts>(r));
+      log_().info("Database connection status: {}", ME::enum_name<db_sts>(r));
       if (! rtl::is_success(r))
       {
-        log_()->error("Unable to connect to database '{}'", p_.db_name());
+        log_().error("Unable to connect to database '{}'", p_.db_name());
         return exit_status_enum::connection_error;
       }
       db.disconnect();
 
-      const context ctx(p_);  /// package cmd line parameters
-      generator     gen(ctx); /// bare bone generator, template for the per-worker copies
+      const context ctx(p_);           /// package cmd line parameters
+      generator     gen(ctx, log_());  /// bare bone generator, template for the per-worker copies
       auto          res = gen.register_callbacks();
       if (! res) return res.error(); /// errors in template generation
       res = gen.prepare_templates();
@@ -195,7 +199,7 @@ namespace dbgen4
       const auto& files        = p_.files();
       const auto  worker_count = std::min(p_.parallel(), std::max<size_t>(files.size(), 1));
 
-      log_()->info("Processing {} yaml file(s) with {} worker thread(s)", files.size(), worker_count);
+      log_().info("Processing {} yaml file(s) with {} worker thread(s)", files.size(), worker_count);
 
       std::atomic<size_t>       next_file_idx{0};
       std::mutex                sts_mutex;
@@ -221,29 +225,29 @@ namespace dbgen4
       const auto avg_ms = total_files > 0 ? std::chrono::duration_cast<std::chrono::duration<double, std::milli>>(run_time).count() /
                                               static_cast<double>(total_files)
                                           : 0.0;
-      log_()->info("Summary: {} worker thread(s), {} ms total, {} yaml file(s) processed, {:.2f} ms average per file",
+      log_().info("Summary: {} worker thread(s), {} ms total, {} yaml file(s) processed, {:.2f} ms average per file",
                    worker_count,
                    run_ms,
                    total_files,
                    avg_ms);
 
-      log_()->info("Application exit code '{}' '{}'", ME::enum_integer(sts), ME::enum_name(sts));
+      log_().info("Application exit code '{}' '{}'", ME::enum_integer(sts), ME::enum_name(sts));
       return sts;
     }
     catch (const CLI::CallForHelp& e)
     {
-      log_()->debug("Help exit");
+      log_().debug("Help exit");
       return exit_status_enum::ok;
     }
     catch (const std::runtime_error& e)
     {
-      log_()->critical("Runtime error: '{}'", e.what());
+      log_().critical("Runtime error: '{}'", e.what());
       return exit_status_enum::unhandled_exception;
     }
     catch (...)
     {
       const auto* const msg = "Unexpected error during application execution";
-      log_()->error(msg);
+      log_().error(msg);
       return exit_status_enum::unhandled_exception;
     };
   };
@@ -253,7 +257,7 @@ namespace dbgen4
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     const vec_str_t vec(argv, argv + argc);
     auto            cmd_line = join(vec, " ");
-    log_()->trace("command line: {}", cmd_line);
+    log_().trace("command line: {}", cmd_line);
   }
 
 

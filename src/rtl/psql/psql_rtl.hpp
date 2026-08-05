@@ -27,20 +27,21 @@ namespace rtl
     // NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)
     PGconn* conn{nullptr}; ///< libpq connection, owned
 
-    db_data_psql() = default;
+    explicit db_data_psql(logger::Logger& log)
+    : db_data_root(log)
+    {
+    }
     ~db_data_psql() override;
     db_data_psql(const db_data_psql&)            = delete;
     db_data_psql& operator=(const db_data_psql&) = delete;
     db_data_psql(db_data_psql&&)                 = delete;
     db_data_psql& operator=(db_data_psql&&)      = delete;
-  private:
-    static class rtl::logger* log_() { return rtl::logger::get(); };
   };
 
   class db_psql final : public db, public database
   {
   public:
-    db_psql();
+    explicit db_psql(logger::Logger& log);
     ~db_psql() override;
     db_psql(const db_psql&)            = delete;
     db_psql& operator=(const db_psql&) = delete;
@@ -68,10 +69,10 @@ namespace rtl
     e_qry_metadata get_sql_metadata(const std::string& sql) override;
 
     /// --- rtl::database, so that generated queries can run on this connection
-    [[nodiscard]] PGconn*            get_conn() const noexcept override;
-    [[nodiscard]] class rtl::logger* get_logger() const noexcept override { return rtl::logger::get(); }
+    [[nodiscard]] PGconn* get_conn() const noexcept override;
+    /// not owner - borrowed pointer to the shared Logger, never deleted here
+    [[nodiscard]] logger::Logger* get_logger() const noexcept override { return &log_(); }
   private:
-    static class rtl::logger* log_() { return rtl::logger::get(); };
     [[nodiscard]] db_data_psql* data() const;
     /// run a statement that returns no rows (BEGIN/COMMIT/ROLLBACK)
     db_sts exec_command(const char* sql);

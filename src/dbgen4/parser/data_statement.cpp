@@ -96,7 +96,6 @@ namespace dbgen4
   size_t   data_statement::par_buf_size() const { return par_buf_size_; }
   str_vec  data_statement::result_names() const { return result_names_; }
   str_vec  data_statement::param_names() const { return param_names_; }
-  // static class log::log* log_() { return log::get(); }; /// Member variables
   void data_statement::set_id(const str_t& id) { id_ = id; }
   void data_statement::set_sql(const str_t& sql) { sql_ = trim_whitespace_view(sql); }
   void data_statement::set_summary(const str_t& summary) { summary_ = summary; }

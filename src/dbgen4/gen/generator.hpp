@@ -6,6 +6,7 @@
 #include "data_statements.hpp"
 #include "inja.hpp"
 #include "parser_errors.hpp"
+#include <logger/logger.hpp>
 #include <expected>
 #include <fmt/base.h>
 #include "magic_enum_config.hpp" // IWYU pragma: keep.
@@ -46,7 +47,7 @@ namespace dbgen4
   class generator
   {
   public:
-    explicit generator(const context& ctx);
+    generator(const context& ctx, logger::Logger& log);
     virtual ~generator()                   = default;
     generator(const generator&)            = default;
     generator(generator&&)                 = delete;
@@ -78,7 +79,7 @@ namespace dbgen4
     e_void              register_callbacks();
     [[nodiscard]] str_t template_filename(inja_tpl_enum tpl_id) const;
   private:
-    class rtl::logger* log_() { return rtl::logger::get(); }; /// Member variables
+    [[nodiscard]] logger::Logger& log_() const { return log_ref_; }
     /// strip the rtl:: qualification - namespace dbx aliases these types
     static str_t    unqualified(rtl::cstr_t type_name);
     str_t           attr_storage_type(rtl::sql_type sql_type, const str_t& name);
@@ -93,7 +94,9 @@ namespace dbgen4
                                          exit_status_enum       code);
 
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
-    const context&   ctx_;      ///< command line parameters stucture (readonly, not owner)
+    const context& ctx_; ///< command line parameters stucture (readonly, not owner)
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
+    logger::Logger&  log_ref_;   ///< reference to the shared Logger, not owner
     data_statements* s_{};      ///< data statements structure (readonly, not owner)
     str_t            yaml_fn_;  ///< yaml file name
     str_t            json_fn_;  ///< generated json file name

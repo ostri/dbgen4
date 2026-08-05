@@ -8,18 +8,19 @@ namespace dbgen4
     return Error{.message = fmt::format("Missing required key: '{}'", key), .line = m.line, .column = m.column, .filename = filename_};
   }
 
-  parse_yaml::parse_yaml(YAML::Node node, std::string name) // NOLINT
-  : root_(std::move(node))                                  // NOLINT
+  parse_yaml::parse_yaml(YAML::Node node, std::string name, logger::Logger& log) // NOLINT
+  : root_(std::move(node))                                                      // NOLINT
   , filename_(std::move(name))
+  , log_ptr_(&log)
   {
   }
 
   // static methods
-  Result parse_yaml::load(const std::string& filename)
+  Result parse_yaml::load(const std::string& filename, logger::Logger& log)
   {
     try
     {
-      return parse_yaml(YAML::LoadFile(filename), filename);
+      return parse_yaml(YAML::LoadFile(filename), filename, log);
     }
     catch (const YAML::Exception& e)
     {
@@ -27,11 +28,11 @@ namespace dbgen4
     }
   }
 
-  Result parse_yaml::load_from_string(const std::string& content, const std::string& name)
+  Result parse_yaml::load_from_string(const std::string& content, logger::Logger& log, const std::string& name)
   {
     try
     {
-      return parse_yaml(YAML::Load(content), name);
+      return parse_yaml(YAML::Load(content), name, log);
     }
     catch (const YAML::Exception& e)
     {
@@ -51,7 +52,7 @@ namespace dbgen4
                        .column   = root_[key].Mark().column,
                        .filename = filename_};
       // NOLINTEND(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
-      log_()->error(err.to_string());
+      log_().error(err.to_string());
       return std::unexpected(err);
     }
     std::vector<std::string> result;
@@ -66,7 +67,7 @@ namespace dbgen4
                          .column   = root_[key].Mark().column,
                          .filename = filename_};
         // NOLINTEND(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
-        log_()->error(err.to_string());
+        log_().error(err.to_string());
         return std::unexpected(err);
       }
       result.emplace_back(item.as<std::string>());
@@ -82,7 +83,7 @@ namespace dbgen4
       auto res = get_seq_of_strings(key);
       if (! res)
       {
-        log_()->trace("root: '{0}' key: '{1}' not found. Using default.", root_.Tag(), key);
+        log_().trace("root: '{0}' key: '{1}' not found. Using default.", root_.Tag(), key);
         return def;
       }
       return *res;
@@ -105,7 +106,7 @@ namespace dbgen4
                        .column   = root_[key].Mark().column,
                        .filename = filename_};
       // NOLINTEND(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
-      log_()->error(err.to_string());
+      log_().error(err.to_string());
       return std::unexpected(err);
     }
 
@@ -120,10 +121,10 @@ namespace dbgen4
                          .line     = item.Mark().line,
                          .column   = item.Mark().column,
                          .filename = filename_};
-        log_()->error(err.to_string());
+        log_().error(err.to_string());
         return std::unexpected(err);
       }
-      result.emplace_back(item, filename_ + "." + key + "[" + std::to_string(i) + "]");
+      result.emplace_back(item, filename_ + "." + key + "[" + std::to_string(i) + "]", log_());
     }
     return result;
   }
@@ -136,7 +137,7 @@ namespace dbgen4
       auto res = get_seq_of_maps(key);
       if (! res)
       {
-        log_()->trace("Root: {0} Key: '{1}' does not exists using default sequence of maps.", root_.Tag(), key);
+        log_().trace("Root: {0} Key: '{1}' does not exists using default sequence of maps.", root_.Tag(), key);
         return def;
       }
       return *res;
@@ -159,7 +160,7 @@ namespace dbgen4
     std::map<std::string, size_t> result;
     if (! is_map(key))
     {
-      if (exists(key)) log_()->error("Key '{}' is not a map of name to length - ignored.", key);
+      if (exists(key)) log_().error("Key '{}' is not a map of name to length - ignored.", key);
       return result;
     }
     try
@@ -172,7 +173,7 @@ namespace dbgen4
         }
         catch (const YAML::Exception& e)
         {
-          log_()->error("Entry of '{}' is not a name to length pair: {}", key, e.msg);
+          log_().error("Entry of '{}' is not a name to length pair: {}", key, e.msg);
         }
       }
     }
@@ -194,10 +195,10 @@ namespace dbgen4
                        .column   = root_[key].Mark().column,
                        .filename = filename_};
       // NOLINTEND(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
-      log_()->trace(err.to_string());
+      log_().trace(err.to_string());
       return std::unexpected(err);
     }
-    return parse_yaml(root_[key], filename_ + "." + key); // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
+    return parse_yaml(root_[key], filename_ + "." + key, log_()); // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
   }
 
   [[nodiscard]] std::string Error::to_string() const
@@ -207,7 +208,6 @@ namespace dbgen4
       auto msg = std::string("\033[1;31mYAML error\033[0m");
       if (! filename.empty()) msg += fmt::format(" in {}", filename);
       msg += fmt::format(":\n  {}\n", message);
-      log_()->trace(msg);
       return msg;
     }
 
@@ -223,7 +223,6 @@ namespace dbgen4
     if (lines.empty())
     {
       auto msg = fmt::format("\033[1;31mYAML error in {0} at {1}:{2} :\033[0m\n{3}\n", filename, line, column, message);
-      log_()->trace(msg);
       return msg;
     }
 
@@ -248,7 +247,6 @@ namespace dbgen4
       else msg += fmt::format("\033[2m{0}{1}  \033[0m {2}\n", pad, num, lines[i]); // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access,readability-inconsistent-ifelse-braces)
     }
     msg += "\n";
-    log_()->trace(msg);
     return msg;
   }
 }; // namespace dbgen4

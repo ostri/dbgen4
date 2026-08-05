@@ -7,6 +7,7 @@
 #include "rtl.hpp"
 #include "parse_yaml.hpp"
 #include "parser_errors.hpp"
+#include <logger/logger.hpp>
 #include <cstddef>
 #include <expected>
 #include <yaml-cpp/node/detail/iterator_fwd.h>
@@ -25,7 +26,10 @@ namespace dbgen4
   class parser
   {
   public:
-    parser()                         = default;
+    explicit parser(logger::Logger& log)
+    : logger_(log)
+    {
+    }
     ~parser()                        = default;
     parser(const parser&)            = delete;
     parser(parser&&) noexcept        = default;
@@ -46,8 +50,8 @@ namespace dbgen4
     [[nodiscard]] exit_status_enum  no_sql_found(e_data_statement& res) const;
     [[nodiscard]] e_data_statement  process_statement(const YAML::Node& yaml_stmt, const data_statements& s, db_type_enum db_type) const;
   private:
-    static class rtl::logger* log_() { return rtl::logger::get(); };
-    /// Member variables
+    [[nodiscard]] logger::Logger& log_() const { return logger_; }
+    logger::Logger& logger_; ///< reference to the shared Logger, not owner
     /// @brief extracts sql statements from the yaml node to data_statement structure
     /// @param stmt yaml node representing single statement
     /// @param s data_statement structure where sql statements will be stored

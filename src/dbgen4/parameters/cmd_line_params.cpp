@@ -2,7 +2,6 @@
 // Created by ostri on 2024/02/04
 //
 
-// #include "log.hpp"
 #include "cmd_line_params.hpp"
 #include "common.hpp"
 #include "parser_errors.hpp"
@@ -190,7 +189,7 @@ namespace dbgen4
 
       set_log_level(verbose_);
 
-      log_()->info(R"(Command line parameter values :
+      log_().info(R"(Command line parameter values :
 {})",
                    dump(2));
       return exit_status_enum::ok;
@@ -198,43 +197,43 @@ namespace dbgen4
     catch (const CLI::CallForAllHelp& e)
     {
       app.exit(e);
-      log_()->debug("All Help command.{}", e.what());
+      log_().debug("All Help command.{}", e.what());
       return exit_status_enum::cmd_all_help;
     }
     catch (const CLI::CallForHelp& e)
     {
       app.exit(e);
-      log_()->debug("Help command.{}", e.what());
+      log_().debug("Help command.{}", e.what());
       return exit_status_enum::cmd_help;
     }
     catch (const CLI::CallForVersion& e)
     {
       app.exit(e);
-      log_()->debug("Version command.{}", e.what());
+      log_().debug("Version command.{}", e.what());
       return exit_status_enum::cmd_version;
     }
     catch (const CLI::ParseError& e)
     {
       app.exit(e);
       auto msg = fmt::format("name: '{}' code: {} msg: '{}'", e.get_name(), e.get_exit_code(), e.what());
-      log_()->warn(msg);
-      log_()->warn("Parameters with error(s) \n{}", dump(2));
+      log_().warn(msg);
+      log_().warn("Parameters with error(s) \n{}", dump(2));
       return exit_status_enum::connection_error;
     }
     catch (...)
     {
       auto msg = fmt::format("Unhandled exception. file: {} line {}", __FILE_NAME__, __LINE__);
-      log_()->critical(msg);
+      log_().critical(msg);
       throw;
     }
   }
 
   void cmd_line_params::set_log_level(bool verbose) const
   {
-    if (is_debug_build()) { log_()->set_level(verbose ? rtl::logger::level::trace : rtl::logger::level::info); }
+    if (is_debug_build()) { log_().set_level(verbose ? logger::level::trace : logger::level::info); }
     else
     {
-      log_()->set_level(verbose ? rtl::logger::level::info : rtl::logger::level::warn);
+      log_().set_level(verbose ? logger::level::info : logger::level::warn);
     };
   }
 }; // namespace dbgen4

@@ -24,7 +24,7 @@
 #include "psql_database.hpp" // IWYU pragma: export
 #include "psql_types.hpp"
 #include "result_root.hpp"
-#include "logger.hpp"
+#include <logger/logger.hpp>
 #include <libpq-fe.h>
 #include <atomic>
 #include <charconv>

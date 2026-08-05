@@ -35,6 +35,7 @@
 #include "rtl.hpp"
 #include "rtl_fmt.hpp" // IWYU pragma: keep
 #include "test_db.hpp"
+#include "test_logger.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include <chrono>
 #include <cstddef>
@@ -174,13 +175,13 @@ namespace
    *
    * Every successful commit is logged at debug level with the row count it
    * just wrote (relative) and the running total (absolute) - compiled out
-   * entirely in release/profile builds (is_debug_build() gates rtl::logger::
-   * debug(), see logger.hpp), so it costs nothing there.
+   * entirely in release/profile builds (is_debug_build() gates logger::Logger::
+   * debug(), see logger/logger.hpp), so it costs nothing there.
    */
   template <typename Db>
   insert_timing timed_insert(Db& db, size_t rows_per_block, size_t blocks)
   {
-    auto*                 log = rtl::logger::get();
+    auto&                 log = dbgen4::test::test_logger();
     dbx::s_perf_ins::stmt ins(&db, dbx::s_perf_ins::qry::sql());
 
     /// sized before prepare(): prepare() hands the driver pointers into these
@@ -223,7 +224,7 @@ namespace
         REQUIRE(rtl::is_success(db.commit()));
         ++t.commits;
         t.committing += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - commit_from);
-        log->debug("commit #{}: {} rows this commit, {} rows total", t.commits, rows_per_block * commit_after, rows_written);
+        log.debug("commit #{}: {} rows this commit, {} rows total", t.commits, rows_per_block * commit_after, rows_written);
       }
     }
 
@@ -236,7 +237,7 @@ namespace
       REQUIRE(rtl::is_success(db.commit()));
       ++t.commits;
       t.committing += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - last_from);
-      log->debug("commit #{}: {} rows this commit, {} rows total", t.commits, rows_per_block * (blocks % commit_after), rows_written);
+      log.debug("commit #{}: {} rows this commit, {} rows total", t.commits, rows_per_block * (blocks % commit_after), rows_written);
     }
 
     t.total = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - started);
@@ -288,16 +289,16 @@ TEST_CASE("insert throughput: n rows per execute, m executes", "[.benchmark][per
 
   live_db live;
   auto&   db  = live.db;
-  auto*   log = rtl::logger::get();
+  auto&   log = dbgen4::test::test_logger();
 
   /// live_db's constructor drops the level to warn to keep ordinary test
   /// output readable; this benchmark wants its own info/debug lines back, and
   /// debug()/trace() calls compile out entirely outside debug builds anyway
   /// (see logger.hpp), so raising the runtime level here is free in
   /// release/profile.
-  log->set_level(rtl::logger::level::debug);
+  log.set_level(logger::level::debug);
 
-  log->info("insert benchmark starting: backend={} host={} db={} buffer_size={} commit_every={} iterations={} total_rows={}",
+  log.info("insert benchmark starting: backend={} host={} db={} buffer_size={} commit_every={} iterations={} total_rows={}",
             rtl::backend_name(),
             test_db::env_or("DBGEN4_TEST_HOST", "localhost"),
             test_db::env_or("DBGEN4_TEST_DB", "test"),
@@ -310,11 +311,11 @@ TEST_CASE("insert throughput: n rows per execute, m executes", "[.benchmark][per
 
   const auto t = timed_insert(db, rows_per_execute, execute_count);
 
-  log->info("insert benchmark finished: {} rows in {} ms ({:.0f} rows/s)",
+  log.info("insert benchmark finished: {} rows in {} ms ({:.0f} rows/s)",
             total_rows,
             t.total.count() / us_per_ms,
             per_second(total_rows, t.total));
-  log->debug("insert phase breakdown: filling={} ms executing={} ms committing={} ms ({} commits)",
+  log.debug("insert phase breakdown: filling={} ms executing={} ms committing={} ms ({} commits)",
              t.filling.count() / us_per_ms,
              t.executing.count() / us_per_ms,
              t.committing.count() / us_per_ms,
@@ -336,15 +337,15 @@ TEST_CASE("select throughput: read the whole table through one buffer", "[.bench
 
   live_db live;
   auto&   db  = live.db;
-  auto*   log = rtl::logger::get();
-  log->set_level(rtl::logger::level::debug); // see the insert benchmark for why
+  auto&   log = dbgen4::test::test_logger();
+  log.set_level(logger::level::debug); // see the insert benchmark for why
 
   /// The table is left populated by the insert benchmark, but a benchmark that
   /// only works when another one ran first is not one you can run on its own.
   /// Refilling costs a moment and makes the row count known.
   const size_t total_rows = rows_per_fetch * iterations();
 
-  log->info("select benchmark starting: backend={} host={} db={} buffer_size={} iterations={} total_rows={}",
+  log.info("select benchmark starting: backend={} host={} db={} buffer_size={} iterations={} total_rows={}",
             rtl::backend_name(),
             test_db::env_or("DBGEN4_TEST_HOST", "localhost"),
             test_db::env_or("DBGEN4_TEST_DB", "test"),
@@ -382,12 +383,12 @@ TEST_CASE("select throughput: read the whole table through one buffer", "[.bench
     for (size_t row = 0; row < rows->occupied(); ++row)
       if (rows->id(row) != expected_id++) in_order = false;
     seen += rows->occupied();
-    log->debug("fetch #{}: {} rows this fetch, {} rows total", fetches, rows->occupied(), seen);
+    log.debug("fetch #{}: {} rows this fetch, {} rows total", fetches, rows->occupied(), seen);
   }
 
   const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - started);
 
-  log->info("select benchmark finished: {} rows in {} ms ({:.0f} rows/s, {} fetches)",
+  log.info("select benchmark finished: {} rows in {} ms ({:.0f} rows/s, {} fetches)",
             seen,
             elapsed.count() / us_per_ms,
             per_second(seen, elapsed),

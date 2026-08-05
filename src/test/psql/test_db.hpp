@@ -13,7 +13,7 @@
  */
 #include "psql_rtl.hpp"
 #include "rtl.hpp"
-#include "logger.hpp"
+#include "test_logger.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include <cstdint>
 #include <cstdlib>
@@ -87,8 +87,9 @@ public:
   rtl::db_psql db; // NOLINT(misc-non-private-member-variables-in-classes)
 
   live_db()
+  : db(dbgen4::test::test_logger())
   {
-    rtl::logger::get()->set_level(rtl::logger::level::warn); // keep the test output readable
+    dbgen4::test::test_logger().set_level(logger::level::warn); // keep the test output readable
 
     const auto host = test_db::env_or("DBGEN4_TEST_HOST", "localhost");
     const auto port =

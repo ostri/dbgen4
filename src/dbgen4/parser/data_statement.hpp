@@ -2,6 +2,7 @@
 
 #include "common.hpp"
 #include "rtl.hpp"
+#include <logger/logger.hpp>
 #include <map>
 // #include <map>
 
@@ -71,13 +72,11 @@ namespace dbgen4
     void set_param_names(str_vec v);
     void set_field_len(std::map<str_t, size_t> v) { field_len_ = std::move(v); }
     /// utility methods
-    void push_column_names();
+    void push_column_names(logger::Logger& log);
 
-    void apply_field_len(size_t fallback);
+    void apply_field_len(size_t fallback, logger::Logger& log);
   protected:
   private:
-    class rtl::logger* log_() { return rtl::logger::get(); }; /// Member variables
-
     str_t    id_;              ///< unique id of the data statement
     str_t    sql_;             ///< sql statement (generic or specific for RDBMS)
     str_t    summary_;         ///< one line summary of the statement
@@ -95,7 +94,7 @@ namespace dbgen4
   /**
    * Overwrite database column names with user defined
    */
-  inline void data_statement::push_column_names()
+  inline void data_statement::push_column_names(logger::Logger& log)
   {
     {
       auto len = std::min(param_names_.size(), params_.size());
@@ -107,7 +106,7 @@ namespace dbgen4
       for (auto cnt = 0UL; cnt < len; cnt++)
         results_[cnt].name = result_names_[cnt]; // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
     }
-    log_()->trace("{}", dump(2));
+    log.trace("{}", dump(2));
   }
 
   /**
@@ -123,10 +122,11 @@ namespace dbgen4
    * is sized by its own C++ type, and its reported size is informational.
    *
    * @param fallback width to use when the yaml file says nothing
+   * @param log Logger to report ignored/defaulted widths through
    */
-  inline void data_statement::apply_field_len(size_t fallback)
+  inline void data_statement::apply_field_len(size_t fallback, logger::Logger& log)
   {
-    auto settle = [this, fallback](meta_vec& v)
+    auto settle = [this, fallback, &log](meta_vec& v)
     {
       for (auto& col : v)
       {
@@ -139,13 +139,13 @@ namespace dbgen4
         if (auto it = field_len_.find(col.name); it != field_len_.end())
         {
           if (! is_string)
-            log_()->warn("field-len for '{}' ignored: the column is not a string, its width follows from its type.", col.name);
+            log.warn("field-len for '{}' ignored: the column is not a string, its width follows from its type.", col.name);
           else col.size = static_cast<uint32_t>(it->second);
           continue;
         }
         if (is_string && col.size == 0)
         {
-          log_()->debug("Column '{}' has no declared width, using {}.", col.name, fallback);
+          log.debug("Column '{}' has no declared width, using {}.", col.name, fallback);
           col.size = static_cast<uint32_t>(fallback);
         }
       }

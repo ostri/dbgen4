@@ -15,8 +15,6 @@ namespace dbgen4
     }
     [[nodiscard]] const cmd_line_params& cmd() const;
   private:
-    class rtl::logger* log_() { return rtl::logger::get(); };
-    /// Member variables
     /// members
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     const cmd_line_params& cmd_; ///< reference to parameters

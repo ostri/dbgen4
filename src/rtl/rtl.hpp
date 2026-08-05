@@ -6,8 +6,8 @@
 #include <memory>
 #include <span>
 #include <string>
-#include "logger.hpp"    // IWYU pragma: keep
-#include "sql_types.hpp" // IWYU pragma: export
+#include <logger/logger.hpp> // IWYU pragma: keep
+#include "sql_types.hpp"     // IWYU pragma: export
 
 namespace rtl
 {
@@ -171,16 +171,18 @@ namespace rtl
   /// empty on purpose, to be extended for specific database data implementations
   class db_data_root
   {
-  protected:
   public:
-    db_data_root()                               = default;
+    explicit db_data_root(logger::Logger& log)
+    : logger_(log)
+    {
+    }
     virtual ~db_data_root()                      = default;
     db_data_root(const db_data_root&)            = delete;
     db_data_root& operator=(const db_data_root&) = delete;
     db_data_root(db_data_root&&)                 = delete;
     db_data_root& operator=(db_data_root&&)      = delete;
-  private:
-    class rtl::logger* log_() { return rtl::logger::get(); }; /// Member variables
+  protected:
+    logger::Logger& logger_; ///< reference to the shared Logger, not owner
   };
   /**
    * @brief Root class for all database implementations
@@ -191,11 +193,11 @@ namespace rtl
    */
   class db
   {
-    // protected:
-    //   // NOLINTNEXTLINE(cert-err58-cpp)
-    //   inline static const auto log = log::get();
   public:
-    db() = default;
+    explicit db(logger::Logger& log)
+    : logger_(log)
+    {
+    }
     virtual ~db();
     db(const db&)            = delete;
     db& operator=(const db&) = delete;
@@ -241,7 +243,7 @@ namespace rtl
      */
     virtual e_qry_metadata            get_sql_metadata(const std::string& sql);
     [[nodiscard]] const db_data_root* data() const;
-    class rtl::logger*                log_() { return rtl::logger::get(); }; /// Member variables
+    [[nodiscard]] logger::Logger&     log_() const { return logger_; } /// Member variables
   protected:
     /**
      * @brief Pointer to database-specific data implementation.
@@ -255,6 +257,7 @@ namespace rtl
       /// NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)
       std::unique_ptr<db_data_root> data_; //NOLINT(cppcoreguidelines-non-private-member-variables-in-classes)
     // clang-format on
+    logger::Logger& logger_; ///< reference to the shared Logger, not owner
   };
   /**
    * @brief create the database object of the backend that is linked in
@@ -263,9 +266,10 @@ namespace rtl
    * against (db2_rtl, psql_rtl, ...). This keeps rtl free of any knowledge of
    * the concrete backends and spares the caller a #ifdef.
    *
+   * @param log Logger every database operation logs through
    * @return std::unique_ptr<db> connected-to-nothing database object
    */
-  [[nodiscard]] std::unique_ptr<db> make_db();
+  [[nodiscard]] std::unique_ptr<db> make_db(logger::Logger& log);
 
   /**
    * @brief name of the backend compiled into this executable, e.g. "db2"

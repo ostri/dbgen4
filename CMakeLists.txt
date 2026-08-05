@@ -96,7 +96,29 @@ endif()
 # ===================================================================
 option(ENABLE_SANITIZERS "Enable Address/Undefined/Leak sanitizers in Debug builds" ${PROJECT_IS_TOP_LEVEL})
 
-if((CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo") AND ENABLE_SANITIZERS)
+# ===================================================================
+# Coverage - gcov instrumentation on every target, with a `coverage` target
+# that runs unit_tests plus the live-db crud suites and renders an HTML
+# report via gcovr.
+#
+# Mutually exclusive with ENABLE_SANITIZERS (same reasoning as
+# logger/CMakeLists.txt: gcov instrumentation and ASan both hook
+# allocation/branch behavior) - coverage wins if both are somehow requested,
+# same precedence logger's own build uses.
+# ===================================================================
+option(ENABLE_COVERAGE "Instrument every target with gcov and add a 'coverage' target" OFF)
+if(ENABLE_COVERAGE)
+    if(NOT BUILD_TESTING)
+        message(FATAL_ERROR "ENABLE_COVERAGE requires BUILD_TESTING (coverage is measured by running the test suites)")
+    endif()
+    if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        message(FATAL_ERROR "ENABLE_COVERAGE needs GCC's gcov - reconfigure with CXX=g++")
+    endif()
+    add_compile_options(--coverage -O0 -g)
+    add_link_options(--coverage)
+endif()
+
+if((CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo") AND ENABLE_SANITIZERS AND NOT ENABLE_COVERAGE)
 
     # AddressSanitizer + UndefinedBehaviorSanitizer + LeakSanitizer (GCC & Clang)
     add_compile_options(-fsanitize=address,undefined,leak -fno-omit-frame-pointer -g3 -O1)
@@ -116,7 +138,7 @@ if((CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebIn
     endfunction()
 
 else()
-    message(STATUS "Release/MinSizeRel build → sanitizers disabled")
+    message(STATUS "Sanitizers disabled (Release/MinSizeRel build, or coverage requested instead)")
 endif()
 
 # ===================================================================
@@ -164,9 +186,9 @@ CPMAddPackage(
     EXCLUDE_FROM_ALL YES
 )
 
-# SPDLOG_FMT_EXTERNAL has to agree between the spdlog we build here and
-# log_impl.cpp that consumes it - a mismatch is an ODR violation that shows up
-# as a link error at best. The matching definition is on the log target below.
+# SPDLOG_FMT_EXTERNAL has to agree between the spdlog we build here and the
+# one logger (see below) builds against - a mismatch is an ODR violation
+# that shows up as a link error at best.
 CPMAddPackage(
     NAME spdlog
     GITHUB_REPOSITORY gabime/spdlog
@@ -179,6 +201,19 @@ CPMAddPackage(
         "SPDLOG_INSTALL OFF"
         "SPDLOG_BUILD_EXAMPLE OFF"
         "SPDLOG_BUILD_TESTS OFF"
+)
+
+# logger::logger - thin facade over spdlog, replaces the former in-tree
+# `log`/`rtl_logger` targets (src/log, src/logger, now removed). Not a
+# singleton: every consumer takes a logger::Logger& handed down from main(),
+# see src/dbgen4.cpp. Publishes fmt::fmt and stdc++exp PUBLIC itself, so
+# nothing below needs to link either just for logging.
+CPMAddPackage(
+    NAME logger
+    GITHUB_REPOSITORY ostri/logger
+    GIT_TAG v0.1.3
+    SYSTEM YES
+    EXCLUDE_FROM_ALL YES
 )
 
 CPMAddPackage(
@@ -263,10 +298,10 @@ endif()
 #     COMPILE_FLAGS "-Wno-switch -Wno-switch-enum -Wno-error=switch-enum -Wno-switch-default"
 # )
 # === Copy config files ===
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/log.debug.conf
-               ${CMAKE_CURRENT_BINARY_DIR}/config/log.debug.conf COPYONLY)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/log.release.conf
-               ${CMAKE_CURRENT_BINARY_DIR}/config/log.release.conf COPYONLY)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/log.debug.json
+               ${CMAKE_CURRENT_BINARY_DIR}/config/log.debug.json COPYONLY)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/log.release.json
+               ${CMAKE_CURRENT_BINARY_DIR}/config/log.release.json COPYONLY)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/main_hpp.jinja
                ${CMAKE_CURRENT_BINARY_DIR}/template/main_hpp.jinja COPYONLY)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/main_cpp.jinja
@@ -276,66 +311,12 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/buf_hpp.jinja
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/buf_cpp.jinja
                ${CMAKE_CURRENT_BINARY_DIR}/template/buf_cpp.jinja COPYONLY)
 
-
-# === log library ===
-set (LOG_INCLUDE_DIRS
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/log
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common
-)
-add_library(log
-  STATIC
-    src/log/log.cpp
-    src/log/log_impl.cpp
-    )
-# PUBLIC: log.hpp is the facade every other target includes, so its own headers
-# have to travel with it.
-target_include_directories(log
-    PUBLIC ${LOG_INCLUDE_DIRS}
-)
-# fmt is PUBLIC because log.hpp includes <fmt/format.h>. spdlog and json stay
-# PRIVATE - only log_impl.cpp knows about them, which is the point of the facade.
-target_link_libraries(log
-  PUBLIC  fmt::fmt
-  PRIVATE spdlog::spdlog nlohmann_json::nlohmann_json dbgen4_warnings
-)
-target_compile_definitions(log
-  PRIVATE
-    SPDLOG_FMT_EXTERNAL
-    SPDLOG_COMPILED_LIB
-)
-
-# === rtl_logger library ===
-# Replaces `log` as the facade every backend and the generator link against.
-# Built the same way (PIMPL hides spdlog behind logger_impl.hpp/cpp). `log`
-# itself is kept only for its own unit test (src/test/log_test.cpp).
-set (RTL_LOGGER_INCLUDE_DIRS
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/logger
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common
-)
-add_library(rtl_logger
-  STATIC
-    src/logger/logger.cpp
-    src/logger/logger_impl.cpp
-    )
-target_include_directories(rtl_logger
-    PUBLIC ${RTL_LOGGER_INCLUDE_DIRS}
-)
-target_link_libraries(rtl_logger
-  PUBLIC  fmt::fmt
-  PRIVATE spdlog::spdlog nlohmann_json::nlohmann_json dbgen4_warnings
-)
-target_compile_definitions(rtl_logger
-  PRIVATE
-    SPDLOG_FMT_EXTERNAL
-    SPDLOG_COMPILED_LIB
-)
-
 # === db2_rtl ===
-# Include dirs every backend needs: the neutral rtl vocabulary, the logger
-# facade and the dbgen4 common helpers.
+# Include dirs every backend needs: the neutral rtl vocabulary and the
+# dbgen4 common helpers. logger::logger (see CPMAddPackage above) publishes
+# its own include dirs, so it does not need to be named here.
 set (RTL_INCLUDE_DIRS
   ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/logger
   ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common
 )
 
@@ -354,7 +335,7 @@ if(DB2_FOUND)
         ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/db2
         $ENV{IBM_DB_INCLUDE}
     )
-    target_link_libraries(db2_rtl PUBLIC DB2::DB2 rtl_logger PRIVATE dbgen4_warnings)
+    target_link_libraries(db2_rtl PUBLIC DB2::DB2 logger::logger PRIVATE dbgen4_warnings)
     # Namespaced alias, same convention as every CPM dependency this project
     # links against (fmt::fmt, yaml-cpp::yaml-cpp, ...) - what a consumer
     # pulling dbgen4 in via add_subdirectory()/CPMAddPackage() links against.
@@ -374,7 +355,7 @@ if(LIBPQ_FOUND)
         ${RTL_INCLUDE_DIRS}
         ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/psql
     )
-    target_link_libraries(psql_rtl PUBLIC PkgConfig::LIBPQ rtl_logger PRIVATE dbgen4_warnings)
+    target_link_libraries(psql_rtl PUBLIC PkgConfig::LIBPQ logger::logger PRIVATE dbgen4_warnings)
     add_library(dbgen4::psql_rtl ALIAS psql_rtl)
 endif()
 
@@ -396,7 +377,6 @@ set(GEN_SRC_FILES
      ${CMAKE_CURRENT_SOURCE_DIR}/src/programs/appl.cpp
 )
 set(GEN_INCLUDE_DIRS
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/logger
     ${CMAKE_CURRENT_SOURCE_DIR}/src/programs
     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common
     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/gen
@@ -423,11 +403,9 @@ function(add_generator_target backend rtl_library)
     target_link_libraries(${target} PRIVATE
         ${rtl_library}
         yaml-cpp::yaml-cpp
-        spdlog::spdlog
         nlohmann_json::nlohmann_json
         valijson
-        rtl_logger
-        stdc++exp
+        logger::logger
         dbgen4_warnings
     )
 endfunction()
@@ -585,14 +563,13 @@ add_executable(${SMOKE_TEST_TARGET_NAME}
 #    ${GEN_SRC_FILES}
 )
 
-# rtl_logger publishes its own include dirs now, so only the generated output
-# and the rtl vocabulary have to be named here
+# logger::logger publishes its own include dirs, so only the generated
+# output and the rtl vocabulary have to be named here
 target_include_directories(${SMOKE_TEST_TARGET_NAME} PRIVATE ${GEN_OUTPUT_DIR} ${RTL_INCLUDE_DIRS})
 target_link_libraries(${SMOKE_TEST_TARGET_NAME} PRIVATE
     Catch2::Catch2WithMain
     db2_rtl
-    rtl_logger
-    spdlog::spdlog
+    logger::logger
     nlohmann_json::nlohmann_json
     yaml-cpp::yaml-cpp
     valijson
@@ -690,9 +667,10 @@ function(add_crud_test_target backend rtl_library test_db_include_dir parallel_t
         $<TARGET_OBJECTS:${parallel_test_obj}>
         ${extra_sources})
     target_include_directories(${target} PRIVATE ${out_dir} ${RTL_INCLUDE_DIRS}
-                               ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/${backend} ${test_db_include_dir} $ENV{IBM_DB_INCLUDE})
-    target_link_libraries(${target} PRIVATE Catch2::Catch2WithMain ${rtl_library} rtl_logger
-                          spdlog::spdlog nlohmann_json::nlohmann_json stdc++exp dbgen4_warnings)
+                               ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/${backend}
+                               ${CMAKE_CURRENT_SOURCE_DIR}/src/test ${test_db_include_dir} $ENV{IBM_DB_INCLUDE})
+    target_link_libraries(${target} PRIVATE Catch2::Catch2WithMain ${rtl_library} logger::logger
+                          nlohmann_json::nlohmann_json dbgen4_warnings)
     add_dependencies(${target} generate_crud_test_${backend})
 
     # Catch2 owns argv, so the connection details reach the test through the
@@ -797,8 +775,6 @@ endif()
 add_library(project_common INTERFACE)
 target_include_directories(project_common INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/log
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/logger
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl/db2
 )
@@ -822,13 +798,6 @@ if(BUILD_TESTING)
         endforeach()
     endif()
 
-    # src/test/log_test.cpp is excluded here: it exercises the old `log` facade,
-    # which nothing in the application uses any more (see rtl_logger below).
-    # Linking both `log` and `rtl_logger` into one process means two independent
-    # spdlog instances fight over spdlog's single global thread pool in async
-    # mode (spdlog::init_thread_pool() from the second one orphans the first
-    # logger's pool, surfacing as "async log: thread pool doesn't exist anymore"
-    # at shutdown) - so the two facades are kept out of the same binary.
     add_executable(unit_tests
         src/test/main.cpp
         src/test/parser_test.cpp
@@ -856,9 +825,8 @@ if(BUILD_TESTING)
 
     target_link_libraries(unit_tests PRIVATE
         Catch2::Catch2WithMain
-        rtl_logger
+        logger::logger
         ${UNIT_TEST_RTL}
-        spdlog::spdlog
         nlohmann_json::nlohmann_json
         yaml-cpp::yaml-cpp
         valijson
@@ -963,3 +931,58 @@ show_target_build_info(test_t1)
 get_target_property(C ${PROJECT_NAME}-db2 COMPILE_OPTIONS)
 get_target_property(L ${PROJECT_NAME}-db2 LINK_OPTIONS)
 message(STATUS "QUICK → ${CMAKE_BUILD_TYPE} | COMPILE: ${C} | LINK: ${L}")
+
+# ===================================================================
+# coverage - runs the whole ctest suite (discarding its own pass/fail: the
+# point here is the .gcda files it leaves behind, not a second test report),
+# then renders an HTML report with gcovr.
+#
+# ctest rather than each binary directly: [.benchmark] is a Catch2 hidden
+# tag (leading '.'), so an ordinary Catch2 run - which is what
+# catch_discover_tests wires ctest to do - already skips test_bench.cpp/
+# test_bench_async.cpp without any extra filtering here.
+#
+# src/rtl, src/dbgen4, src/programs are the filter: coverage is a question
+# about dbgen4's own code, not about src/test/ itself, the generated crud/t1
+# output under build/out, or any CPM dependency.
+# ===================================================================
+if(ENABLE_COVERAGE AND BUILD_TESTING)
+    find_program(GCOVR_EXECUTABLE gcovr REQUIRED)
+    set(COVERAGE_OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/coverage)
+
+    # Every test binary this configuration actually produces - `coverage`
+    # depends on all of them, otherwise ninja runs ctest against whatever
+    # happened to be built already (or nothing at all on a clean tree),
+    # which ctest reports as ..._NOT_BUILT rather than as a real failure.
+    set(COVERAGE_TEST_TARGETS unit_tests)
+    if(TARGET test_t1)
+        list(APPEND COVERAGE_TEST_TARGETS test_t1)
+    endif()
+    if(TARGET test_crud_db2)
+        list(APPEND COVERAGE_TEST_TARGETS test_crud_db2)
+    endif()
+    if(TARGET test_crud_psql)
+        list(APPEND COVERAGE_TEST_TARGETS test_crud_psql)
+    endif()
+
+    add_custom_target(coverage
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${COVERAGE_OUTPUT_DIR}
+        COMMAND find ${CMAKE_CURRENT_BINARY_DIR} -name "*.gcda" -delete
+        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure || ${CMAKE_COMMAND} -E true
+        COMMAND ${GCOVR_EXECUTABLE}
+            --root ${CMAKE_CURRENT_SOURCE_DIR}
+            --filter ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl
+            --filter ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4
+            --filter ${CMAKE_CURRENT_SOURCE_DIR}/src/programs
+            --exclude-unreachable-branches
+            --exclude-throw-branches
+            --html --html-details
+            --output ${COVERAGE_OUTPUT_DIR}/index.html
+            --print-summary
+            ${CMAKE_CURRENT_BINARY_DIR}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+        DEPENDS ${COVERAGE_TEST_TARGETS}
+        COMMENT "Running ctest and rendering an HTML coverage report to ${COVERAGE_OUTPUT_DIR}/index.html"
+        VERBATIM
+    )
+endif()

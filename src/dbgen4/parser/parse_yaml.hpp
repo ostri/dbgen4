@@ -1,7 +1,7 @@
 #pragma once
 
-#include "logger.hpp"      // IWYU pragma: keep.
-#include <source_location> // IWYU pragma: keep.
+#include <logger/logger.hpp> // IWYU pragma: keep.
+#include <source_location>   // IWYU pragma: keep.
 #include <yaml-cpp/yaml.h>
 #include <expected>
 #include <string>
@@ -18,13 +18,10 @@ namespace dbgen4
     int         column = -1;
     std::string filename;
     // NOLINTEND(misc-non-private-member-variables-in-classes)
-    /**
-     * @brief fetch pointer to logger
-     *
-     * @return spdlog::logger*
-     */
-    static class rtl::logger* log_() { return rtl::logger::get(); };
-
+    /// formats this error, complete with a source excerpt when filename/line
+    /// are available - does not log on its own, the caller already has a
+    /// Logger& and decides the level (trace for an expected/optional miss,
+    /// error for a real parse failure)
     [[nodiscard]] std::string to_string() const;
   } __attribute__((aligned(128))); // NOLINT
 
@@ -37,7 +34,7 @@ namespace dbgen4
     // constructors
     parse_yaml()  = default;
     ~parse_yaml() = default;
-    parse_yaml(YAML::Node node, std::string name);
+    parse_yaml(YAML::Node node, std::string name, logger::Logger& log);
 
     // copy & move
     parse_yaml(const parse_yaml&)                = default;
@@ -45,8 +42,8 @@ namespace dbgen4
     parse_yaml& operator=(const parse_yaml&)     = default;
     parse_yaml& operator=(parse_yaml&&) noexcept = default;
 
-    static Result        load(const std::string& filename);
-    static Result        load_from_string(const std::string& content, const std::string& name = "<string>");
+    static Result        load(const std::string& filename, logger::Logger& log);
+    static Result        load_from_string(const std::string& content, logger::Logger& log, const std::string& name = "<string>");
     [[nodiscard]] Result get_map(const std::string& key) const;
 
     // getters
@@ -61,10 +58,10 @@ namespace dbgen4
                           .line     = root_.Mark().line,
                           .column   = root_.Mark().column,
                           .filename = filename_};
-          log_()->trace(err.to_string());
+          log_().trace(err.to_string());
           return std::unexpected(make_missing_key_error(key));
         }
-        log_()->debug("tag '{}' found.", key);
+        log_().debug("tag '{}' found.", key);
         return root_[key].as<T>(); // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
       }
       catch (const YAML::Exception& e)
@@ -73,7 +70,7 @@ namespace dbgen4
                          .line     = e.mark.line,
                          .column   = e.mark.column,
                          .filename = filename_};
-        log_()->error(err.to_string());
+        log_().error(err.to_string());
         return std::unexpected(err);
       }
     }
@@ -86,7 +83,7 @@ namespace dbgen4
       {
         try
         {
-          log_()->trace("root: '{0}' key '{1}' not found; using default. default:'{2}'", root_.Tag(), key, def);
+          log_().trace("root: '{0}' key '{1}' not found; using default. default:'{2}'", root_.Tag(), key, def);
         }
         catch (const YAML::Exception&) // NOLINT(bugprone-empty-catch)
         {
@@ -155,9 +152,12 @@ namespace dbgen4
   private:
     YAML::Node  root_;
     std::string filename_;
-    /// private methods
-    static class rtl::logger* log_() { return rtl::logger::get(); };
-    /// Member variables
+    /// not owner - borrowed pointer to the shared Logger, never deleted here.
+    /// null only for a default-constructed parse_yaml, which no method here
+    /// dereferences it on (get_seq_of_maps()/get_map() always come from an
+    /// already-bound instance and carry it into the parse_yaml they build).
+    logger::Logger* log_ptr_ = nullptr;
+    [[nodiscard]] logger::Logger& log_() const { return *log_ptr_; }
     Error make_missing_key_error(const std::string& key) const;
   };
 } // namespace dbgen4

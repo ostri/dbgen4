@@ -6,6 +6,7 @@
 
 #include "common.hpp"
 #include "parser_errors.hpp"
+#include <logger/logger.hpp>
 #include <CLI/Error.hpp>
 #include <cstddef>
 
@@ -14,7 +15,10 @@ namespace dbgen4
   class cmd_line_params
   {
   public:
-    cmd_line_params()                                      = default;
+    explicit cmd_line_params(logger::Logger& log)
+    : log_ptr_(&log)
+    {
+    }
     virtual ~cmd_line_params()                             = default;
     cmd_line_params& operator=(const cmd_line_params&)     = default;
     cmd_line_params& operator=(cmd_line_params&&) noexcept = default;
@@ -44,16 +48,17 @@ namespace dbgen4
     /// set log level based on verbose flag andtype of build
     void set_log_level(bool verbose) const;
   private:
-    static class rtl::logger* log_() { return rtl::logger::get(); };
-    str_t                     db_name_;                    //< database name to connect to
-    db_type_enum              db_type_{db_type_enum::sql}; //< database type
-    str_t                     out_folder_;                 //< output folder for generated files
-    bool                      verbose_{false};             //< should we make verbose output
-    str_t                     user_;                       ///< db username
-    str_t                     pass_;                       ///< db password
-    size_t                    port_{};                     ///< port to which to connect
-    str_t                     host_;                       ///< host to which connect
-    vec_str_t                 files_;                      //< set of files to be processed
+    [[nodiscard]] logger::Logger& log_() const { return *log_ptr_; }
+    logger::Logger* log_ptr_ = nullptr; ///< not owner - borrowed pointer to the shared Logger, never deleted here
+    str_t           db_name_;                    //< database name to connect to
+    db_type_enum    db_type_{db_type_enum::sql}; //< database type
+    str_t           out_folder_;                 //< output folder for generated files
+    bool            verbose_{false};             //< should we make verbose output
+    str_t           user_;                       ///< db username
+    str_t           pass_;                       ///< db password
+    size_t          port_{};                     ///< port to which to connect
+    str_t           host_;                       ///< host to which connect
+    vec_str_t       files_;                      //< set of files to be processed
     /// Fallback width for types with no declared length - PostgreSQL text,
     /// json, bytea, MariaDB TEXT/BLOB. Without it those columns would size
     /// their buffers at the protocol maximum.

@@ -6,7 +6,7 @@
 #include <expected>
 #include <string>
 #include <string_view>
-#include "logger.hpp"        // IWYU pragma: export
+#include <logger/logger.hpp> // IWYU pragma: export
 #include "build_type.hpp"    // IWYU pragma: export
 #include "parser_errors.hpp" // IWYU pragma: export
 
