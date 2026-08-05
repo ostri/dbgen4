@@ -37,7 +37,7 @@ else
     echo "user ${TEST_USER} created"
 fi
 echo "--- database ---"
-# shellcheck disable=SC1091
+# shellcheck disable=SC1090,SC1091
 source ~/sqllib/db2profile 2>/dev/null || source /home/db2inst1/sqllib/db2profile
 
 if db2 "LIST DATABASE DIRECTORY" | grep -qi "${TEST_DB}"; then

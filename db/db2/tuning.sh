@@ -1,3 +1,4 @@
+#!/bin/bash
 set -x
 db2 connect to dbgen4
 db2set DB2_USE_ALTERNATE_PAGE_CLEANING=ON # no need for the cleaner to wait for a threshold CHGPGS_THRESH

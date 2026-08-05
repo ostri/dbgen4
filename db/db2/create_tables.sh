@@ -16,7 +16,7 @@ TEST_DB=dbgen4
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# shellcheck disable=SC1091
+# shellcheck disable=SC1090,SC1091
 source ~/sqllib/db2profile 2>/dev/null || source /home/db2inst1/sqllib/db2profile
 
 db2 "connect to $TEST_DB user $TEST_USER using $TEST_PASS"
