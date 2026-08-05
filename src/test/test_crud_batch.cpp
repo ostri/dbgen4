@@ -20,8 +20,8 @@
  */
 #include "crud.hpp"
 #include "rtl.hpp"
-#include "rtl_fmt.hpp" // IWYU pragma: keep
-#include "test_db.hpp" // live_db and require_ok, shared with the other crud tests
+#include "rtl_fmt.hpp"              // IWYU pragma: keep
+#include "test_db.hpp"              // live_db and require_ok, shared with the other crud tests
 #include <catch2/catch_message.hpp> // INFO
 #include <catch2/catch_test_macros.hpp>
 #include <cstdint>
@@ -153,11 +153,11 @@ namespace
   /// uses. rw's members reference the same slots the column-wise getters
   /// read, so this alone is enough to prove row_wise() is not a stale or
   /// independent copy.
-  void check_row_wise_row(const dbx::s_sel_range::r::row_t& rw, size_t row, const dbx::s_sel_range::r& rows, int32_t expected_id)
+  void check_row_wise_row(const dbx::s_sel_range::r::row_t& rw, int32_t expected_id)
   {
     INFO("row with key " << expected_id);
     CHECK(rw.id.get() == expected_id);
-    CHECK(dbx::cstr_t(rw.name.get().data(), rows.name_length(row)) == batch_name(expected_id));
+    CHECK(dbx::s_sel_range::r::name_view(rw) == batch_name(expected_id));
     CHECK(rw.created.get() == batch_date(expected_id));
   }
 
@@ -166,8 +166,7 @@ namespace
   /// below runs it twice, once per window size.
   void check_sel_range_row_wise(const dbx::s_sel_range::r& rows, int32_t first_expected_id)
   {
-    for (size_t row = 0; row < rows.occupied(); ++row)
-      check_row_wise_row(rows.row(row), row, rows, first_expected_id + static_cast<int32_t>(row));
+    for (size_t row = 0; row < rows.occupied(); ++row) check_row_wise_row(rows.row(row), first_expected_id + static_cast<int32_t>(row));
   }
 } // namespace
 
@@ -240,7 +239,7 @@ TEST_CASE("sizing before prepare is the supported order and still works", "[crud
     /// a batch delete over the test range: harmless whether or not the rows are
     /// there, and it proves the counter does not fire on the correct order
     dbx::s_del::stmt del(&db, dbx::s_del::qry::sql());
-    auto                      par = del.get_param();
+    auto             par = del.get_param();
     par->set_buffer_size(batch_rows);
     require_ok(del.prepare(), "prepare(del batch)");
     for (size_t row = 0; row < batch_rows; ++row) par->set_id(batch_first + static_cast<int32_t>(row), row);

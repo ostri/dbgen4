@@ -59,6 +59,27 @@ class <<class-name>> : public <<root-class>>
 ## endif
 ##    endfor
         }; // struct row_t
+## if is-param
+## else
+##    for el in buf
+## if el.category == "c_string" or el.category == "w_string" or el.category == "b_string"
+        /**
+         * @brief row.<<el.name>> read live as a view, without a separate call to <<el.name>>_length()
+         *
+         * Built on every call from the same two row_t references - <<el.name>>
+         * and is_<<el.name>>_null - so it is never stale, even if the underlying
+         * length changes after this row was fetched. A free function, not a
+         * row_t member: row_t stays a plain aggregate of references, with no
+         * behaviour of its own.
+         */
+        [[nodiscard]] static <<el.as-result>> <<el.name>>_view(const row_t& row) noexcept
+        {
+          const auto l = row.is_<<el.name>>_null.get();
+          return {row.<<el.name>>.get().data(), static_cast<size_t>(l != rtl::null_data ? l : 0)};
+        }
+## endif
+##    endfor
+## endif
         /** <<pad("--- getters ", 85, "", "", "-")>> */
 ##    for el in buf
         [[nodiscard]]<<el.as-result>> <<el.name>>(size_t row=0) const;
@@ -69,15 +90,16 @@ class <<class-name>> : public <<root-class>>
          *
          * row_t has one member per column, each a reference to that column's
          * slot for this row - an int/date/... member compares and prints
-         * like the plain value it wraps, a string or byte column's member is
-         * a reference to the raw fixed-size array, so its length has to be
-         * read separately from the matching *_length().
+         * like the plain value it wraps. A string or byte column's member is
+         * a reference to the raw fixed-size array; the matching static
+         * "_view(row)" method reads it together with the length in one call,
+         * live every time.
          *
          * @code
-         *   const auto& row = buf.row(2);          // third row
-         *   int32_t     id  = row.id.get();         // int
-         *   dbx::cstr_t name(row.name.get().data(), buf.name_length(2));   // string (c_string)
-         *   dbx::bcstr_t blob(row.payload.get().data(), buf.payload_length(2)); // bytes (b_string)
+         *   const auto& row = buf.row(2);            // third row
+         *   int32_t     id  = row.id.get();           // int
+         *   dbx::cstr_t name = buf.name_view(row);     // string (c_string)
+         *   dbx::bcstr_t blob = buf.payload_view(row);  // bytes (b_string)
          * @endcode
          */
         [[nodiscard]]const row_t& row(size_t row=0) const;
