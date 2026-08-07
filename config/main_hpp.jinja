@@ -60,6 +60,18 @@ namespace dbx
      */
     << buffer-definition (statement.param, "p", statement.par-set-size) >>
 ##  endif
+##  if (statement.param|length) != 0 and (statement.result|length) != 0
+##    set base_query = "rtl::query<s_" + statement.id + "::p, s_" + statement.id + "::r>"
+##  endif
+##  if (statement.param|length) != 0 and (statement.result|length) == 0
+##    set base_query = "rtl::query<s_" + statement.id + "::p, rtl::no_results>"
+##  endif
+##  if (statement.param|length) == 0 and (statement.result|length) != 0
+##    set base_query = "rtl::query<rtl::no_params, s_" + statement.id + "::r>"
+##  endif
+##  if (statement.param|length) == 0 and (statement.result|length) == 0
+##    set base_query = "rtl::query<rtl::no_params, rtl::no_results>"
+##  endif
     ////////////////////////////////////////////////////////////////////////////////////////////////
     /**
      * perform operations with the database
@@ -69,26 +81,31 @@ namespace dbx
 <<statement.sql>>
      * @endcode
      */
-    class qry
+    class qry : public <<base_query>>
     {
       public:
+        {# sql() has to be fully defined (not just declared) before the
+           constructor below, which calls it in its own mem-initializer list -
+           a consteval function called from a constructor of the same class
+           needs to already be complete at that point, unlike an ordinary
+           inline member function. See ostri/dbgen4's own notes on this
+           ordering requirement if it ever needs re-deriving. #}
         /** @brief fetch sql statement */
         [[nodiscard]] static consteval cstr_t sql() noexcept {return sql_;}
+        {# db-only: no sql to default to, so the base class's own
+           query(db, sql) is still how a caller supplies one. rtl:: qualified:
+           this class lives in dbx::s_<<statement.id>>, which has no "database"
+           of its own the way rtl:: itself does. #}
+        explicit qry(const rtl::database* db) : <<base_query>>(db, sql()) {}
+        {# runtime sql stays reachable for the rare caller that needs it (e.g.
+           the same insert statement retargeted at a differently named table -
+           see ach's conf_root_loader::merge()) - inherited rather than
+           repeated here. #}
+        using <<base_query>>::query;
       private:
         static constexpr cstr_t sql_ = R"SQL(<<statement.sql-literal>>)SQL";
     }; // class qry
-##  if (statement.param|length) != 0 and (statement.result|length) != 0
-    using stmt = rtl::query<s_<<statement.id>>::p, s_<<statement.id>>::r>;
-##  endif
-##  if (statement.param|length) != 0 and (statement.result|length) == 0
-    using stmt = rtl::query<s_<<statement.id>>::p, rtl::no_results>;
-##  endif
-##  if (statement.param|length) == 0 and (statement.result|length) != 0
-    using stmt = rtl::query<rtl::no_params, s_<<statement.id>>::r>;
-##  endif
-##  if (statement.param|length) == 0 and (statement.result|length) == 0
-    using stmt = rtl::query<rtl::no_params, rtl::no_results>;
-##  endif
+    using stmt = qry; ///< kept for source compatibility with code written against the old, separate alias
   }; // namespace s_<<statement.id>>
 ## endfor
 }; // namespace dbx

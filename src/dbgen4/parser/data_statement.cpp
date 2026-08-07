@@ -88,6 +88,8 @@ namespace dbgen4
 
   str_t    data_statement::id() const { return id_; }
   str_t    data_statement::sql() const { return sql_; }
+  str_t    data_statement::before_sql() const { return before_sql_; }
+  str_t    data_statement::after_sql() const { return after_sql_; }
   str_t    data_statement::summary() const { return summary_; }
   str_t    data_statement::dscr() const { return dscr_; }
   meta_vec data_statement::results() const { return results_; }
@@ -96,15 +98,17 @@ namespace dbgen4
   size_t   data_statement::par_buf_size() const { return par_buf_size_; }
   str_vec  data_statement::result_names() const { return result_names_; }
   str_vec  data_statement::param_names() const { return param_names_; }
-  void data_statement::set_id(const str_t& id) { id_ = id; }
-  void data_statement::set_sql(const str_t& sql) { sql_ = trim_whitespace_view(sql); }
-  void data_statement::set_summary(const str_t& summary) { summary_ = summary; }
-  void data_statement::set_dscr(const str_t& dscr) { dscr_ = dscr; }
-  void data_statement::set_results(meta_vec v) { results_ = std::move(v); }
-  void data_statement::set_params(meta_vec v) { params_ = std::move(v); }
-  void data_statement::set_par_buf_size(size_t par_set_size) { par_buf_size_ = par_set_size; }
-  void data_statement::set_res_buf_size(size_t res_set_size) { res_buf_size_ = res_set_size; }
-  void data_statement::set_result_names(str_vec v) { result_names_ = std::move(v); }
-  void data_statement::set_param_names(str_vec v) { param_names_ = std::move(v); }
+  void     data_statement::set_id(const str_t& id) { id_ = id; }
+  void     data_statement::set_sql(const str_t& sql) { sql_ = trim_whitespace_view(sql); }
+  void     data_statement::set_before_sql(const str_t& sql) { before_sql_ = trim_whitespace_view(sql); }
+  void     data_statement::set_after_sql(const str_t& sql) { after_sql_ = trim_whitespace_view(sql); }
+  void     data_statement::set_summary(const str_t& summary) { summary_ = summary; }
+  void     data_statement::set_dscr(const str_t& dscr) { dscr_ = dscr; }
+  void     data_statement::set_results(meta_vec v) { results_ = std::move(v); }
+  void     data_statement::set_params(meta_vec v) { params_ = std::move(v); }
+  void     data_statement::set_par_buf_size(size_t par_set_size) { par_buf_size_ = par_set_size; }
+  void     data_statement::set_res_buf_size(size_t res_set_size) { res_buf_size_ = res_set_size; }
+  void     data_statement::set_result_names(str_vec v) { result_names_ = std::move(v); }
+  void     data_statement::set_param_names(str_vec v) { param_names_ = std::move(v); }
 
 }; // namespace dbgen4

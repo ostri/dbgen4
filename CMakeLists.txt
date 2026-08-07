@@ -849,6 +849,32 @@ if(BUILD_TESTING)
     endif()
 
     catch_discover_tests(unit_tests PROPERTIES LABELS "unit")
+
+    # a handful of parser_test.cpp cases (before/after sql - see
+    # data_statement::before_sql()/after_sql()) exercise rtl::db::exec()
+    # against a live database, same DBGEN4_TEST_* environment variables as
+    # add_crud_test_target()'s live-db suites use, sourced from the same
+    # PSQL_TEST_*/DB2_TEST_* cache variables - see the matching block there
+    # for why ENVIRONMENT is set through a generated file rather than passed
+    # to catch_discover_tests() directly (its round trip through a command
+    # line flattens a multi entry ENVIRONMENT list to just the first variable).
+    if(DB2_FOUND)
+        set(unit_test_db_env DB2_TEST)
+    else()
+        set(unit_test_db_env PSQL_TEST)
+    endif()
+    set(unit_test_env
+        "DBGEN4_TEST_HOST=${${unit_test_db_env}_HOST}"
+        "DBGEN4_TEST_PORT=${${unit_test_db_env}_PORT}"
+        "DBGEN4_TEST_DB=${${unit_test_db_env}_DB}"
+        "DBGEN4_TEST_USER=${${unit_test_db_env}_USER}"
+        "DBGEN4_TEST_PASS=${${unit_test_db_env}_PASS}"
+    )
+    file(GENERATE
+         OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/unit_tests_env.cmake"
+         CONTENT "set_tests_properties(\${unit_tests_TESTS} PROPERTIES ENVIRONMENT \"${unit_test_env}\")\n")
+    set_property(DIRECTORY APPEND PROPERTY TEST_INCLUDE_FILES
+                 "${CMAKE_CURRENT_BINARY_DIR}/unit_tests_env.cmake")
 endif()
 # ===================================================================
 # Show real compile and link flags used for selected targets

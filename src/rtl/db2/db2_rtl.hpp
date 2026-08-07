@@ -94,6 +94,9 @@ namespace rtl
      */
     e_qry_metadata get_sql_metadata(const std::string& sql) override;
 
+    /// run a statement that takes no parameters and returns no rows - see rtl::db::exec()
+    db_sts exec(const std::string& sql) override;
+
     /**
      * @brief Binds a column in the result set to a variable.
      *

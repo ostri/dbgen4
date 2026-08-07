@@ -42,7 +42,33 @@ namespace dbgen4
      * @brief fetch sql statement
      * @return str_t sql statement
      */
-    [[nodiscard]] str_t    sql() const;
+    [[nodiscard]] str_t sql() const;
+    /**
+     * @brief sql to run once, before this statement's own sql is validated
+     * against the database (see parser::load_file_meta_data())
+     *
+     * Empty when the yaml file gives no "before" block for this statement -
+     * the common case. Exists so a statement whose own sql depends on
+     * something not yet in the schema (e.g. a staging table another
+     * statement's INSERT reads from) can bring it into existence right
+     * before validation needs it, rather than requiring the caller to set
+     * the database up out of band first.
+     *
+     * @return str_t sql to run before validation, or empty
+     */
+    [[nodiscard]] str_t before_sql() const;
+    /**
+     * @brief sql to run once, after this statement has been validated
+     *
+     * The counterpart to before_sql() - tears down whatever it set up (e.g.
+     * drops a staging table), so a generator run leaves the database no
+     * different than it found it. Run whether or not this statement's own
+     * sql validated successfully, so a failure partway through generation
+     * does not leave before_sql()'s side effects behind.
+     *
+     * @return str_t sql to run after validation, or empty
+     */
+    [[nodiscard]] str_t    after_sql() const;
     [[nodiscard]] str_t    summary() const;
     [[nodiscard]] str_t    dscr() const;
     std::string            dump_meta_vector(size_t offs, const char* fmt, const char* header, const meta_vec& v) const;
@@ -62,6 +88,8 @@ namespace dbgen4
     /*! setters */
     void set_id(const str_t& id);           ///< set unique id of the statement
     void set_sql(const str_t& sql);         ///< set sql for specific database type
+    void set_before_sql(const str_t& sql);  ///< set sql to run once before validation - see before_sql()
+    void set_after_sql(const str_t& sql);   ///< set sql to run once after validation - see after_sql()
     void set_summary(const str_t& summary); ///< set one line summary of the statement
     void set_dscr(const str_t& dscr);       ///< set description of the statement
     void set_par_buf_size(size_t par_set_size);
@@ -79,6 +107,8 @@ namespace dbgen4
   private:
     str_t    id_;              ///< unique id of the data statement
     str_t    sql_;             ///< sql statement (generic or specific for RDBMS)
+    str_t    before_sql_;      ///< sql to run once before validation - see before_sql()
+    str_t    after_sql_;       ///< sql to run once after validation - see after_sql()
     str_t    summary_;         ///< one line summary of the statement
     str_t    dscr_;            ///< statement description
     size_t   par_buf_size_{1}; ///< how many parameter records we have in parameter buffer
@@ -138,8 +168,7 @@ namespace dbgen4
         /// more than a few bytes
         if (auto it = field_len_.find(col.name); it != field_len_.end())
         {
-          if (! is_string)
-            log.warn("field-len for '{}' ignored: the column is not a string, its width follows from its type.", col.name);
+          if (! is_string) log.warn("field-len for '{}' ignored: the column is not a string, its width follows from its type.", col.name);
           else col.size = static_cast<uint32_t>(it->second);
           continue;
         }

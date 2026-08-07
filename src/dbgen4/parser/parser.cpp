@@ -60,8 +60,34 @@ namespace dbgen4
     data_statements res_stmts{s}; // result statements with updated metadata
     for (const auto& map_stmt_pair : s.map_statements())
     { /// walking through whole list of statements in one file
-      auto sql = map_stmt_pair.second.sql();
+      const auto& stmt       = map_stmt_pair.second;
+      const auto  before_sql = stmt.before_sql();
+      const auto  after_sql  = stmt.after_sql();
+
+      if (! before_sql.empty())
+      {
+        if (auto before_sts = db.exec(before_sql); ! rtl::is_success(before_sts))
+        {
+          log_().error("before sql '{}' failed: {}", before_sql, ME::enum_name<rtl::db_sts>(before_sts));
+          return std::unexpected(exit_status_enum::sql_syntax_err);
+        }
+      }
+
+      auto sql = stmt.sql();
       auto res = db.get_sql_metadata(sql);
+
+      // after runs whether or not the statement's own sql validated - a
+      // failure partway through must not leave before_sql()'s side effects
+      // (e.g. a staging table) behind for the next run to trip over.
+      if (! after_sql.empty())
+      {
+        if (auto after_sts = db.exec(after_sql); ! rtl::is_success(after_sts))
+          log_().error("after sql '{}' failed: {}", after_sql, ME::enum_name<rtl::db_sts>(after_sts));
+        // not itself fatal to this statement's own result - the statement
+        // already validated (or failed to) on its own merits above; a
+        // cleanup failure is logged, not folded into that outcome.
+      }
+
       if (! res)
       {
         log_().error(
@@ -71,13 +97,13 @@ namespace dbgen4
 
       /// all ok. Update the sql description with metadata
       log_().trace("meta data: {}", res.value().dump());
-      data_statement res_stmt(map_stmt_pair.second);
+      data_statement res_stmt(stmt);
       res_stmt.set_results(res.value().columns());
       res_stmt.set_params(res.value().params());
-      res_stmt.push_column_names(log_());          // overwrite database column names with user defined (if they exist)
+      res_stmt.push_column_names(log_());              // overwrite database column names with user defined (if they exist)
       res_stmt.apply_field_len(max_field_len, log_()); // settle the width of columns the database gave none for
-      res_stmts.add_statement_with_replace(res_stmt); /// we are replacing existing statement values (meta data added,
-                                                      /// everything else the same)
+      res_stmts.add_statement_with_replace(res_stmt);  /// we are replacing existing statement values (meta data added,
+                                                       /// everything else the same)
     };
     log_().info("{} sql statements processed", s.map_statements().size());
     return res_stmts;
@@ -86,6 +112,23 @@ namespace dbgen4
   str_t parser::filename() const { return filename_; }
 
   void parser::set_filename(const str_t& filename) { filename_ = filename; }
+
+  str_t parser::resolve_dialect_sql(const parse_yaml& n, db_type_enum db_type) const
+  {
+    // must be first - sql value or empty after then specializations
+    auto sql = n.get_or<std::string>(str_t(ME::enum_name(db_type_enum::sql)), "");
+    log_().trace("General sql '{0}'", sql);
+    for (auto dbt : ME::enum_values<db_type_enum>())
+    {
+      if (db_type == dbt)
+      {
+        sql = n.get_or<std::string>(str_t(ME::enum_name(db_type)), sql);
+        log_().trace("Specialized {0} sql found {1}", ME::enum_name(dbt), sql);
+        break; // we found it. let's finish
+      };
+    }
+    return sql;
+  }
 
   /// @brief loads the data from the yaml file structure to data structures
   /// @param n internal yaml file structure
@@ -107,28 +150,25 @@ namespace dbgen4
     }
     for (const auto& s : ys.value())
     { /// walk over all sql statement description
-      auto id          = s.get<std::string>("id");
+      auto id = s.get<std::string>("id");
       /// absent means one row - the buffer a statement gets when the yaml says
       /// nothing about batching
       auto result_size = s.get_or<size_t>("res-buf-size", 1);
       auto param_size  = s.get_or<size_t>("par-buf-size", 1);
       auto summary     = s.get_or<std::string>("summary", "");
       auto dscr        = s.get_or<std::string>("dscr", "");
-      // must be first - sql value or empty after then specializations
-      auto sql = s.get_or<std::string>(str_t(ME::enum_name(db_type_enum::sql)), "");
-      log_().trace("General sql '{0}'", sql);
-      for (auto dbt : ME::enum_values<db_type_enum>())
-      {
-        if (db_type == dbt)
-        {
-          sql = s.get_or<std::string>(str_t(ME::enum_name(db_type)), sql);
-          log_().trace("Specialized {0} sql found {1}", ME::enum_name(dbt), sql);
-          break; // we found it. let's finish
-        };
-      }
-      auto field_len    = s.get_map_of_sizes_or("field-len");
-      auto result_names = s.get_seq_of_strings_or("result-names", {});
-      auto param_names  = s.get_seq_of_strings_or("parameter-names", {});
+      auto sql         = resolve_dialect_sql(s, db_type);
+      // "before"/"after" are optional sub-maps with the same sql/db2/psql/mariadb
+      // dialect keys as the statement itself - see data_statement::before_sql()/
+      // after_sql() for what they are for. Absent from most statements - a
+      // default constructed parse_yaml{} carries no Logger to log through
+      // (see parse_yaml.hpp), so resolve_dialect_sql() is only ever called on
+      // one actually read from the yaml file, never as a stand-in for "missing".
+      const str_t before_sql   = s.is_map("before") ? resolve_dialect_sql(s.get_map("before").value(), db_type) : "";
+      const str_t after_sql    = s.is_map("after") ? resolve_dialect_sql(s.get_map("after").value(), db_type) : "";
+      auto        field_len    = s.get_map_of_sizes_or("field-len");
+      auto        result_names = s.get_seq_of_strings_or("result-names", {});
+      auto        param_names  = s.get_seq_of_strings_or("parameter-names", {});
       if (! id)
       {
         log_().error(id.error().to_string());
@@ -142,6 +182,8 @@ namespace dbgen4
       data_statement statement;
       statement.set_id(id.value());
       statement.set_sql(sql);
+      statement.set_before_sql(before_sql);
+      statement.set_after_sql(after_sql);
       statement.set_summary(summary);
       statement.set_dscr(dscr);
       statement.set_res_buf_size(result_size);
@@ -154,10 +196,10 @@ namespace dbgen4
         //       const auto msg = fmt::format("File: {} duplicate id {}", filename_, id.value());
 
         log_().error(fmt::format(get_exit_code_str(exit_status_enum::duplicated_stmt_id),
-                                  filename_,
-                                  id.value(),
-                                  std::source_location::current().line(),
-                                  std::source_location::current().column()));
+                                 filename_,
+                                 id.value(),
+                                 std::source_location::current().line(),
+                                 std::source_location::current().column()));
         return std::unexpected(exit_status_enum::duplicated_stmt_id);
       }
     };

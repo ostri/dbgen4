@@ -241,7 +241,22 @@ namespace rtl
      * @param sql statement, possibly carrying parameter placeholders
      * @return e_qry_metadata column and parameter descriptions, or an error
      */
-    virtual e_qry_metadata            get_sql_metadata(const std::string& sql);
+    virtual e_qry_metadata get_sql_metadata(const std::string& sql);
+    /**
+     * @brief run a statement that takes no parameters and returns no rows
+     *
+     * For DDL/utility statements a generated query<> is overkill for -
+     * dbgen4's own generator uses this to run a statement's before/after sql
+     * (see data_statement::before_sql()/after_sql()), and it is equally
+     * usable by application code that just needs to run one plain statement
+     * without the ceremony of preparing a rtl::query<no_params, no_results>.
+     * Not a substitute for query<>'s batch execute or fetch - this is for
+     * one-shot statements only.
+     *
+     * @param sql statement to run, with no parameter placeholders
+     * @return db_sts::success, or the backend's own error status
+     */
+    virtual db_sts                    exec(const std::string& sql);
     [[nodiscard]] const db_data_root* data() const;
     [[nodiscard]] logger::Logger&     log_() const { return logger_; } /// Member variables
   protected:
@@ -325,7 +340,9 @@ namespace rtl
     // is a run time value here, not a compile time constant - std::array's
     // operator[] wants the latter to avoid this diagnostic, which a fixed
     // NetCapacity does not give it.
+    // clang-format off
     if constexpr (std::is_same_v<CharT, char> || std::is_same_v<CharT, wchar_t>) buf[value.size()] = CharT(0); // safety null // NOLINT(readability-inconsistent-ifelse-braces)
+    // clang-format on
     // NOLINTEND(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access,cppcoreguidelines-pro-bounds-constant-array-index)
     else
     {

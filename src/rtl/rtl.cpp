@@ -61,6 +61,15 @@ namespace rtl
     return std::unexpected(db_sts::not_implemented);
   }
 
+  /**
+   * @brief default implementation - a backend that cannot run a bare statement
+   */
+  db_sts db::exec(const std::string& sql)
+  {
+    log_().error("exec is not implemented by this backend. sql: '{}'", sql);
+    return db_sts::not_implemented;
+  }
+
   const db_data_root* db::data() const { return data_.get(); }
 
   // ------------------------------------------------------------------------

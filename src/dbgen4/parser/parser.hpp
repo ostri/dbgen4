@@ -47,11 +47,22 @@ namespace dbgen4
     void set_filename(const str_t& filename);
   protected:
     [[nodiscard]] e_data_statements parse_yaml_file_json(const parse_yaml& n, db_type_enum db_type) const;
-    [[nodiscard]] exit_status_enum  no_sql_found(e_data_statement& res) const;
-    [[nodiscard]] e_data_statement  process_statement(const YAML::Node& yaml_stmt, const data_statements& s, db_type_enum db_type) const;
+    /**
+     * @brief the "sql/db2/psql/mariadb dialect, most specific wins" pattern,
+     * factored out so it works the same for a statement's own sql and for
+     * its before/after blocks (see parse_yaml_file_json())
+     *
+     * @param n the parse_yaml node carrying the dialect keys directly (a
+     *          statement itself for sql, or its "before"/"after" sub-map)
+     * @param db_type which dialect key overrides the generic "sql" one, if present
+     * @return the resolved sql, or empty if neither the generic key nor db_type's own key exists
+     */
+    [[nodiscard]] str_t            resolve_dialect_sql(const parse_yaml& n, db_type_enum db_type) const;
+    [[nodiscard]] exit_status_enum no_sql_found(e_data_statement& res) const;
+    [[nodiscard]] e_data_statement process_statement(const YAML::Node& yaml_stmt, const data_statements& s, db_type_enum db_type) const;
   private:
     [[nodiscard]] logger::Logger& log_() const { return logger_; }
-    logger::Logger& logger_; ///< reference to the shared Logger, not owner
+    logger::Logger&               logger_; ///< reference to the shared Logger, not owner
     /// @brief extracts sql statements from the yaml node to data_statement structure
     /// @param stmt yaml node representing single statement
     /// @param s data_statement structure where sql statements will be stored

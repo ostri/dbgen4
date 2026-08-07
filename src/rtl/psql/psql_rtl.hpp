@@ -49,12 +49,12 @@ namespace rtl
     db_psql& operator=(db_psql&&)      = delete;
 
     /// connect using a libpq conninfo string
-    db_sts connect(const std::string& conn_str) override;
-    db_sts connect(const std::string& host,
-                   uint16_t           port,
-                   const std::string& database_name,
-                   const std::string& user,
-                   const std::string& password) override;
+    db_sts             connect(const std::string& conn_str) override;
+    db_sts             connect(const std::string& host,
+                               uint16_t           port,
+                               const std::string& database_name,
+                               const std::string& user,
+                               const std::string& password) override;
     db_sts             disconnect() override;
     [[nodiscard]] bool is_connected() const override;
     db_sts             commit() override;
@@ -67,6 +67,9 @@ namespace rtl
      * expected to carry a psql specific statement for anything with parameters.
      */
     e_qry_metadata get_sql_metadata(const std::string& sql) override;
+
+    /// run a statement that takes no parameters and returns no rows - see rtl::db::exec()
+    db_sts exec(const std::string& sql) override;
 
     /// --- rtl::database, so that generated queries can run on this connection
     [[nodiscard]] PGconn* get_conn() const noexcept override;

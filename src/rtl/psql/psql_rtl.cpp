@@ -48,9 +48,7 @@ namespace rtl
   db_psql::db_psql(logger::Logger& log)
   : db(log)
   , database()
-  {
-    this->data_ = std::make_unique<db_data_psql>(log);
-  }
+  { this->data_ = std::make_unique<db_data_psql>(log); }
   db_psql::~db_psql() { disconnect(); }
 
   db_data_psql* db_psql::data() const { return dynamic_cast<db_data_psql*>(data_.get()); }
@@ -123,6 +121,8 @@ namespace rtl
     log_().info("Database disconnected");
     return db_sts::success;
   }
+
+  db_sts db_psql::exec(const std::string& sql) { return exec_command(sql.c_str()); }
 
   db_sts db_psql::exec_command(const char* sql)
   {

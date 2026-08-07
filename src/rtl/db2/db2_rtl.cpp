@@ -70,9 +70,7 @@ namespace rtl
   db_db2::db_db2(logger::Logger& log)
   : db(log)
   , database()
-  {
-    this->data_ = std::make_unique<db_data_db2>(log);
-  }
+  { this->data_ = std::make_unique<db_data_db2>(log); }
   db_db2::~db_db2() { disconnect(); }
 
 
@@ -180,7 +178,8 @@ namespace rtl
     if (data()->conn_handle != 0)
     {
       ret = SQLDisconnect(data()->conn_handle);
-      if (! is_success(static_cast<db_sts>(ret))) chk_error(ret, SQL_HANDLE_DBC, data()->conn_handle, "disconnecting from DB2 database", log_());
+      if (! is_success(static_cast<db_sts>(ret)))
+        chk_error(ret, SQL_HANDLE_DBC, data()->conn_handle, "disconnecting from DB2 database", log_());
       free_conn_handle();
       log_().info("Database disconnected");
     }
@@ -376,6 +375,33 @@ namespace rtl
     return result;
   }
 
+  db_sts db_db2::exec(const std::string& sql)
+  {
+    if (data()->conn_handle == 0) [[unlikely]]
+    {
+      log_().error("exec: No active database connection");
+      return db_sts::connection_error;
+    }
+
+    SQLRETURN ret = SQLAllocHandle(SQL_HANDLE_STMT, data()->conn_handle, &data()->stmt_handle);
+    if (! is_success(static_cast<db_sts>(ret))) [[unlikely]]
+    {
+      chk_error(ret, SQL_HANDLE_DBC, data()->conn_handle, "allocating statement handle", log_());
+      return db_sts::resource_error;
+    }
+
+    ret = SQLExecDirect(data()->stmt_handle, reinterpret_cast<SQLCHAR*>(const_cast<char*>(sql.c_str())), SQL_NTS); // NOLINT
+    if (! is_success(static_cast<db_sts>(ret))) [[unlikely]]
+    {
+      chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, fmt::format("SQLExecDirect sql '{}'", sql), log_());
+      rollback();
+      free_stmt_handle();
+      return db_sts::invalid_sql;
+    }
+
+    free_stmt_handle();
+    return db_sts::success;
+  }
 
   void db_db2::free_stmt_handle() const
   {
