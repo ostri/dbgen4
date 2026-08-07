@@ -124,7 +124,7 @@ namespace
    * either, and five of them failed on the next ctest. TRUNCATE is logged as a
    * single operation and does not care how many rows it drops.
    *
-   * Through dbx::s_perf_truncate, same as every other statement here - see
+   * Through dbx::crud::s_perf_truncate, same as every other statement here - see
    * yaml/crud.yaml for why its db2/psql text differs (the IMMEDIATE keyword).
    *
    * The commit first is not optional. DB2 requires TRUNCATE to be the first
@@ -136,7 +136,7 @@ namespace
   void clear_table(Db& db)
   {
     REQUIRE(rtl::is_success(db.commit())); // close whatever is open first
-    dbx::s_perf_truncate::stmt truncate(&db, dbx::s_perf_truncate::qry::sql());
+    dbx::crud::s_perf_truncate::stmt truncate(&db, dbx::crud::s_perf_truncate::qry::sql());
     require_ok(truncate.prepare(), "prepare(perf_truncate)");
     require_ok(truncate.execute(), "execute(perf_truncate)");
     REQUIRE(rtl::is_success(db.commit()));
@@ -147,7 +147,7 @@ namespace
   template <typename Db>
   size_t count_rows(Db& db)
   {
-    dbx::s_perf_count::stmt cnt(&db, dbx::s_perf_count::qry::sql());
+    dbx::crud::s_perf_count::stmt cnt(&db, dbx::crud::s_perf_count::qry::sql());
     require_ok(cnt.prepare(), "prepare(perf_count)");
     require_ok(cnt.execute(), "execute(perf_count)");
     auto got = cnt.fetch();
@@ -182,7 +182,7 @@ namespace
   insert_timing timed_insert(Db& db, size_t rows_per_block, size_t blocks)
   {
     auto&                 log = dbgen4::test::test_logger();
-    dbx::s_perf_ins::stmt ins(&db, dbx::s_perf_ins::qry::sql());
+    dbx::crud::s_perf_ins::stmt ins(&db, dbx::crud::s_perf_ins::qry::sql());
 
     /// sized before prepare(): prepare() hands the driver pointers into these
     /// arrays, and resizing moves them
@@ -254,7 +254,7 @@ namespace
   template <typename Db>
   void fill_table(Db& db, size_t rows_per_block, size_t blocks)
   {
-    dbx::s_perf_ins::stmt ins(&db, dbx::s_perf_ins::qry::sql());
+    dbx::crud::s_perf_ins::stmt ins(&db, dbx::crud::s_perf_ins::qry::sql());
     auto                  par = ins.get_param();
     par->set_buffer_size(rows_per_block);
     require_ok(ins.prepare(), "prepare(perf_ins setup)");
@@ -360,7 +360,7 @@ TEST_CASE("select throughput: read the whole table through one buffer", "[.bench
   }
   REQUIRE(count_rows(db) == total_rows);
 
-  dbx::s_perf_sel_all::stmt sel(&db, dbx::s_perf_sel_all::qry::sql());
+  dbx::crud::s_perf_sel_all::stmt sel(&db, dbx::crud::s_perf_sel_all::qry::sql());
   sel.get_result_buffer()->set_buffer_size(rows_per_fetch);
   require_ok(sel.prepare(), "prepare(perf_sel_all)");
 

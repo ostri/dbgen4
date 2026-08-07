@@ -38,7 +38,7 @@ namespace
   template <typename Db>
   void clear_async_range(Db& db, int32_t first, int32_t last)
   {
-    dbx::s_del::stmt del(&db, dbx::s_del::qry::sql());
+    dbx::crud::s_del::stmt del(&db, dbx::crud::s_del::qry::sql());
     require_ok(del.prepare(), "prepare(del async range)");
     for (int32_t id = first; id <= last; ++id)
     {
@@ -52,7 +52,7 @@ namespace
   template <typename Db>
   size_t count_async_range(Db& db, int32_t first, int32_t last)
   {
-    dbx::s_sel_range::stmt sel(&db, dbx::s_sel_range::qry::sql());
+    dbx::crud::s_sel_range::stmt sel(&db, dbx::crud::s_sel_range::qry::sql());
     sel.get_result_buffer()->set_buffer_size(8);
     require_ok(sel.prepare(), "prepare(count async range)");
     sel.get_param()->set_id_from(first);
@@ -78,7 +78,7 @@ TEST_CASE("a sequence of statements lands in one transaction", "[crud][generated
   {
     rtl::async_db adb(db);
 
-    auto ins = adb.prepare<dbx::s_ins::p, rtl::no_results>(dbx::s_ins::qry::sql());
+    auto ins = adb.prepare<dbx::crud::s_ins::p, rtl::no_results>(dbx::crud::s_ins::qry::sql());
     REQUIRE(ins.has_value());
 
     /// the point of the whole exercise: fill in the next row while the
@@ -113,8 +113,8 @@ TEST_CASE("different statements share one transaction and one worker", "[crud][g
 
     /// two different statement types - different parameter buffers, different
     /// SQL - registered on the same facade, which is what it exists for
-    auto ins = adb.prepare<dbx::s_ins::p, rtl::no_results>(dbx::s_ins::qry::sql());
-    auto upd = adb.prepare<dbx::s_upd::p, rtl::no_results>(dbx::s_upd::qry::sql());
+    auto ins = adb.prepare<dbx::crud::s_ins::p, rtl::no_results>(dbx::crud::s_ins::qry::sql());
+    auto upd = adb.prepare<dbx::crud::s_upd::p, rtl::no_results>(dbx::crud::s_upd::qry::sql());
     REQUIRE(ins.has_value());
     REQUIRE(upd.has_value());
 
@@ -138,7 +138,7 @@ TEST_CASE("different statements share one transaction and one worker", "[crud][g
   }
 
   /// the updates ran after the inserts - ordering is total through one worker
-  dbx::s_sel::stmt sel(&db, dbx::s_sel::qry::sql());
+  dbx::crud::s_sel::stmt sel(&db, dbx::crud::s_sel::qry::sql());
   require_ok(sel.prepare(), "prepare(verify update order)");
   sel.get_param()->set_id(first);
   require_ok(sel.execute(), "execute(verify update order)");
@@ -163,10 +163,10 @@ TEST_CASE("a select runs through the facade and sees the whole transaction", "[c
   {
     rtl::async_db adb(db);
 
-    auto ins = adb.prepare<dbx::s_ins::p, rtl::no_results>(dbx::s_ins::qry::sql());
+    auto ins = adb.prepare<dbx::crud::s_ins::p, rtl::no_results>(dbx::crud::s_ins::qry::sql());
     /// a result buffer smaller than the range, so fetch_more() has to loop.
     /// The size is an argument because it has to be applied before prepare().
-    auto sel = adb.prepare<dbx::s_sel_range::p, dbx::s_sel_range::r>(dbx::s_sel_range::qry::sql(), 1, 2);
+    auto sel = adb.prepare<dbx::crud::s_sel_range::p, dbx::crud::s_sel_range::r>(dbx::crud::s_sel_range::qry::sql(), 1, 2);
     REQUIRE(ins.has_value());
     REQUIRE(sel.has_value());
 
@@ -215,7 +215,7 @@ TEST_CASE("the first error is remembered and reported by commit", "[crud][genera
 
   {
     rtl::async_db adb(db);
-    auto          ins = adb.prepare<dbx::s_ins::p, rtl::no_results>(dbx::s_ins::qry::sql());
+    auto          ins = adb.prepare<dbx::crud::s_ins::p, rtl::no_results>(dbx::crud::s_ins::qry::sql());
     REQUIRE(ins.has_value());
 
     for (int32_t id = first; id <= last; ++id)
@@ -253,7 +253,7 @@ TEST_CASE("statements after a failure are discarded, not run", "[crud][generated
 
   {
     rtl::async_db adb(db);
-    auto          ins = adb.prepare<dbx::s_ins::p, rtl::no_results>(dbx::s_ins::qry::sql());
+    auto          ins = adb.prepare<dbx::crud::s_ins::p, rtl::no_results>(dbx::crud::s_ins::qry::sql());
     REQUIRE(ins.has_value());
 
     /// the same key twice, so the second submit is the one that fails
@@ -298,7 +298,7 @@ TEST_CASE("rollback clears the error and leaves the facade usable", "[crud][gene
 
   {
     rtl::async_db adb(db);
-    auto          ins = adb.prepare<dbx::s_ins::p, rtl::no_results>(dbx::s_ins::qry::sql());
+    auto          ins = adb.prepare<dbx::crud::s_ins::p, rtl::no_results>(dbx::crud::s_ins::qry::sql());
     REQUIRE(ins.has_value());
 
     for (int i = 0; i < 2; ++i)
@@ -339,7 +339,7 @@ TEST_CASE("the destructor drains what was submitted without committing it", "[cr
 
   {
     rtl::async_db adb(db);
-    auto          ins = adb.prepare<dbx::s_ins::p, rtl::no_results>(dbx::s_ins::qry::sql());
+    auto          ins = adb.prepare<dbx::crud::s_ins::p, rtl::no_results>(dbx::crud::s_ins::qry::sql());
     REQUIRE(ins.has_value());
 
     for (int32_t id = first; id <= last; ++id)

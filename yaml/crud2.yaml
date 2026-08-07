@@ -1,0 +1,17 @@
+summary: second schema reusing crud.yaml's own statement ids, to prove the schema namespace works
+description: |
+  Exists only to prove dbx::<schema>::s_<id> actually isolates two yaml files
+  that happen to reuse the same statement id ("ins", the common case - see
+  crud.yaml's own "ins"). Both crud.hpp and crud2.hpp are #included together
+  in test_schema_namespace.cpp - if the wrapping dbx::<schema> namespace
+  (see main_hpp.jinja) were missing or broken, that translation unit would
+  fail to compile with a redefinition of dbx::s_ins.
+statements:
+  - id: ins
+    dscr: same id as crud.yaml's own "ins" statement, on purpose
+    par-buf-size: 1
+    parameter-names: [id]
+    db2: |
+      select id from crud_test where id = ?
+    psql: |
+      select id from crud_test where id = $1

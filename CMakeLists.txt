@@ -640,6 +640,28 @@ function(add_crud_test_target backend rtl_library test_db_include_dir parallel_t
     )
     add_custom_target(generate_crud_test_${backend} DEPENDS ${crud_stamp})
 
+    # crud2.yaml - only test_schema_namespace.cpp uses it (see its own file
+    # comment): reuses "ins", the same statement id as crud.yaml's own, on
+    # purpose, to prove dbx::<schema>::s_ins (see main_hpp.jinja) actually
+    # keeps the two apart when both headers are #included together.
+    set(crud2_yaml  ${CMAKE_CURRENT_SOURCE_DIR}/yaml/crud2.yaml)
+    set(crud2_hpp   ${out_dir}/crud2.hpp)
+    set(crud2_cpp   ${out_dir}/crud2.cpp)
+    set(crud2_stamp ${out_dir}/crud2.stamp)
+    add_custom_command(
+        OUTPUT ${crud2_stamp} ${crud2_hpp} ${crud2_cpp}
+        COMMAND ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-${backend}
+                -o ${out_dir}
+                -t ${backend} --host ${${test_db_env}_HOST} --port ${${test_db_env}_PORT}
+                -n ${${test_db_env}_DB} -u ${${test_db_env}_USER} -p ${${test_db_env}_PASS}
+                ${crud2_yaml}
+        COMMAND ${CMAKE_COMMAND} -E touch ${crud2_stamp}
+        DEPENDS ${PROJECT_NAME}-${backend} ${crud2_yaml} ${HPP_TEMPLATE} ${CPP_TEMPLATE}
+        COMMENT "Generating crud2 test code (${backend}) from '${crud2_yaml}'."
+        VERBATIM
+    )
+    add_custom_target(generate_crud2_test_${backend} DEPENDS ${crud2_stamp})
+
     # test_parallel.cpp drives dbgen4-${backend} as a subprocess with -j2
     # against copies of parallel_test_yaml, so needs the generator binary's
     # path and the source yaml baked in per backend. Built as its own object
@@ -658,12 +680,13 @@ function(add_crud_test_target backend rtl_library test_db_include_dir parallel_t
     target_link_libraries(${parallel_test_obj} PRIVATE Catch2::Catch2WithMain dbgen4_warnings)
     add_dependencies(${parallel_test_obj} ${PROJECT_NAME}-${backend})
 
-    add_executable(${target} ${crud_cpp}
+    add_executable(${target} ${crud_cpp} ${crud2_cpp}
         ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_crud.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_types.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_crud_batch.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_query_move.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_async.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_schema_namespace.cpp
         $<TARGET_OBJECTS:${parallel_test_obj}>
         ${extra_sources})
     target_include_directories(${target} PRIVATE ${out_dir} ${RTL_INCLUDE_DIRS}
@@ -671,7 +694,7 @@ function(add_crud_test_target backend rtl_library test_db_include_dir parallel_t
                                ${CMAKE_CURRENT_SOURCE_DIR}/src/test ${test_db_include_dir} $ENV{IBM_DB_INCLUDE})
     target_link_libraries(${target} PRIVATE Catch2::Catch2WithMain ${rtl_library} logger::logger
                           nlohmann_json::nlohmann_json dbgen4_warnings)
-    add_dependencies(${target} generate_crud_test_${backend})
+    add_dependencies(${target} generate_crud_test_${backend} generate_crud2_test_${backend})
 
     # Catch2 owns argv, so the connection details reach the test through the
     # environment instead of as positional arguments.
@@ -768,6 +791,12 @@ if(RUN_CLANG_TIDY_EXECUTABLE)
     endif()
     if(TARGET generate_crud_test_psql)
         add_dependencies(tidy generate_crud_test_psql)
+    endif()
+    if(TARGET generate_crud2_test_db2)
+        add_dependencies(tidy generate_crud2_test_db2)
+    endif()
+    if(TARGET generate_crud2_test_psql)
+        add_dependencies(tidy generate_crud2_test_psql)
     endif()
 endif()
 

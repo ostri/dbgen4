@@ -24,6 +24,9 @@
  */
 namespace dbx
 {
+{# same wrapping namespace as main_hpp.jinja - see its own comment for why #}
+namespace <<schema>>
+{
 ## for statement in statements
 ##  if (statement.result|length+statement.param|length) > 0
   namespace s_<<statement.id>>
@@ -39,4 +42,5 @@ namespace dbx
   }; // namespace s_<<statement.id>>
 ## endif
 ## endfor
+}; // namespace <<schema>>
 }; // namespace dbx

@@ -137,19 +137,19 @@ namespace
   {
     REQUIRE(rtl::is_success(db.commit()));
     {
-      dbx::s_perf_truncate::stmt t(&db, dbx::s_perf_truncate::qry::sql());
+      dbx::crud::s_perf_truncate::stmt t(&db, dbx::crud::s_perf_truncate::qry::sql());
       require_ok(t.prepare(), "prepare(truncate 1)");
       require_ok(t.execute(), "execute(truncate 1)");
       REQUIRE(rtl::is_success(db.commit()));
     }
     {
-      dbx::s_perf_truncate2::stmt t(&db, dbx::s_perf_truncate2::qry::sql());
+      dbx::crud::s_perf_truncate2::stmt t(&db, dbx::crud::s_perf_truncate2::qry::sql());
       require_ok(t.prepare(), "prepare(truncate 2)");
       require_ok(t.execute(), "execute(truncate 2)");
       REQUIRE(rtl::is_success(db.commit()));
     }
     {
-      dbx::s_perf_truncate3::stmt t(&db, dbx::s_perf_truncate3::qry::sql());
+      dbx::crud::s_perf_truncate3::stmt t(&db, dbx::crud::s_perf_truncate3::qry::sql());
       require_ok(t.prepare(), "prepare(truncate 3)");
       require_ok(t.execute(), "execute(truncate 3)");
       REQUIRE(rtl::is_success(db.commit()));
@@ -171,7 +171,7 @@ namespace
   {
     table_counts c;
     {
-      dbx::s_perf_count::stmt s(&db, dbx::s_perf_count::qry::sql());
+      dbx::crud::s_perf_count::stmt s(&db, dbx::crud::s_perf_count::qry::sql());
       require_ok(s.prepare(), "prepare(count 1)");
       require_ok(s.execute(), "execute(count 1)");
       auto got = s.fetch();
@@ -180,7 +180,7 @@ namespace
       c.perf_test1 = static_cast<size_t>(s.get_result()->cnt());
     }
     {
-      dbx::s_perf_count2::stmt s(&db, dbx::s_perf_count2::qry::sql());
+      dbx::crud::s_perf_count2::stmt s(&db, dbx::crud::s_perf_count2::qry::sql());
       require_ok(s.prepare(), "prepare(count 2)");
       require_ok(s.execute(), "execute(count 2)");
       auto got = s.fetch();
@@ -189,7 +189,7 @@ namespace
       c.perf_test2 = static_cast<size_t>(s.get_result()->cnt());
     }
     {
-      dbx::s_perf_count3::stmt s(&db, dbx::s_perf_count3::qry::sql());
+      dbx::crud::s_perf_count3::stmt s(&db, dbx::crud::s_perf_count3::qry::sql());
       require_ok(s.prepare(), "prepare(count 3)");
       require_ok(s.execute(), "execute(count 3)");
       auto got = s.fetch();
@@ -238,9 +238,9 @@ namespace
   {
     auto& log = dbgen4::test::test_logger();
 
-    dbx::s_perf_ins::stmt  ins1(&db, dbx::s_perf_ins::qry::sql());
-    dbx::s_perf_ins2::stmt ins2(&db, dbx::s_perf_ins2::qry::sql());
-    dbx::s_perf_ins3::stmt ins3(&db, dbx::s_perf_ins3::qry::sql());
+    dbx::crud::s_perf_ins::stmt  ins1(&db, dbx::crud::s_perf_ins::qry::sql());
+    dbx::crud::s_perf_ins2::stmt ins2(&db, dbx::crud::s_perf_ins2::qry::sql());
+    dbx::crud::s_perf_ins3::stmt ins3(&db, dbx::crud::s_perf_ins3::qry::sql());
 
     /// sized before prepare(): prepare() hands the driver pointers into these
     /// arrays, and resizing moves them
@@ -349,9 +349,9 @@ namespace
     auto&         log = dbgen4::test::test_logger();
     rtl::async_db adb(db);
 
-    auto ins1 = adb.prepare<dbx::s_perf_ins::p, rtl::no_results>(dbx::s_perf_ins::qry::sql(), rows_per_block);
-    auto ins2 = adb.prepare<dbx::s_perf_ins2::p, rtl::no_results>(dbx::s_perf_ins2::qry::sql(), rows_per_block);
-    auto ins3 = adb.prepare<dbx::s_perf_ins3::p, rtl::no_results>(dbx::s_perf_ins3::qry::sql(), rows_per_block);
+    auto ins1 = adb.prepare<dbx::crud::s_perf_ins::p, rtl::no_results>(dbx::crud::s_perf_ins::qry::sql(), rows_per_block);
+    auto ins2 = adb.prepare<dbx::crud::s_perf_ins2::p, rtl::no_results>(dbx::crud::s_perf_ins2::qry::sql(), rows_per_block);
+    auto ins3 = adb.prepare<dbx::crud::s_perf_ins3::p, rtl::no_results>(dbx::crud::s_perf_ins3::qry::sql(), rows_per_block);
     REQUIRE(ins1.has_value());
     REQUIRE(ins2.has_value());
     REQUIRE(ins3.has_value());

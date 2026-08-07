@@ -41,7 +41,7 @@ namespace
 
   void clear_batch(rtl::db_db2& db)
   {
-    dbx::s_del::stmt del(&db, dbx::s_del::qry::sql());
+    dbx::crud::s_del::stmt del(&db, dbx::crud::s_del::qry::sql());
     require_ok(del.prepare(), "prepare(del range)");
     for (int32_t id = batch_first; id <= batch_last; ++id)
     {
@@ -67,7 +67,7 @@ namespace
    */
   batch_outcome write_batch(rtl::db_db2& db, size_t duplicate_row, int32_t duplicate_of)
   {
-    dbx::s_ins::stmt ins(&db, dbx::s_ins::qry::sql());
+    dbx::crud::s_ins::stmt ins(&db, dbx::crud::s_ins::qry::sql());
 
     auto par = ins.get_param();
     par->set_buffer_size(batch_rows);
@@ -97,7 +97,7 @@ namespace
   /// @return how many rows of the batch range the table actually holds
   size_t count_batch_rows(rtl::db_db2& db)
   {
-    dbx::s_sel_range::stmt sel(&db, dbx::s_sel_range::qry::sql());
+    dbx::crud::s_sel_range::stmt sel(&db, dbx::crud::s_sel_range::qry::sql());
     sel.get_result_buffer()->set_buffer_size(batch_window);
     require_ok(sel.prepare(), "prepare(count)");
     sel.get_param()->set_id_from(batch_first);
@@ -162,7 +162,7 @@ TEST_CASE("a parameter buffer resized after prepare stops execute", "[crud][gene
   live_db live;
   auto&   db = live.db;
   {
-    dbx::s_ins::stmt ins(&db, dbx::s_ins::qry::sql());
+    dbx::crud::s_ins::stmt ins(&db, dbx::crud::s_ins::qry::sql());
     require_ok(ins.prepare(), "prepare(ins)");
 
     ins.get_param()->set_buffer_size(batch_rows); // the mistake
@@ -180,7 +180,7 @@ TEST_CASE("a result buffer resized after prepare stops fetch", "[crud][generated
   live_db live;
   auto&   db = live.db;
   {
-    dbx::s_sel_range::stmt sel(&db, dbx::s_sel_range::qry::sql());
+    dbx::crud::s_sel_range::stmt sel(&db, dbx::crud::s_sel_range::qry::sql());
     require_ok(sel.prepare(), "prepare(sel_range)");
     sel.get_param()->set_id_from(batch_first);
     sel.get_param()->set_id_to(batch_last);

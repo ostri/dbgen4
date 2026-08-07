@@ -51,7 +51,7 @@ namespace
   template <typename Db>
   void clear_batch(Db& db)
   {
-    dbx::s_del::stmt del(&db, dbx::s_del::qry::sql());
+    dbx::crud::s_del::stmt del(&db, dbx::crud::s_del::qry::sql());
     require_ok(del.prepare(), "prepare(del range)");
     for (int32_t id = batch_first; id <= batch_last; ++id)
     {
@@ -66,7 +66,7 @@ namespace
   template <typename Db>
   int64_t write_batch(Db& db)
   {
-    dbx::s_ins::stmt ins(&db, dbx::s_ins::qry::sql());
+    dbx::crud::s_ins::stmt ins(&db, dbx::crud::s_ins::qry::sql());
 
     /// Sized before prepare(), never after: prepare() hands the driver pointers
     /// into these arrays, and resizing moves them. Getting this order wrong is
@@ -93,7 +93,7 @@ namespace
   /// compare one fetched row against what the writer put there. Its own
   /// function because every CHECK is a branch, and four of them inside two
   /// nested loops is past what readability-function-cognitive-complexity allows.
-  void check_batch_row(const dbx::s_sel_range::r& rows, size_t row, int32_t expected_id)
+  void check_batch_row(const dbx::crud::s_sel_range::r& rows, size_t row, int32_t expected_id)
   {
     INFO("row with key " << expected_id);
     CHECK(rows.id(row) == expected_id);
@@ -105,7 +105,7 @@ namespace
   template <typename Db>
   std::vector<size_t> read_batch_windows(Db& db)
   {
-    dbx::s_sel_range::stmt sel(&db, dbx::s_sel_range::qry::sql());
+    dbx::crud::s_sel_range::stmt sel(&db, dbx::crud::s_sel_range::qry::sql());
     sel.get_result_buffer()->set_buffer_size(batch_window);
     require_ok(sel.prepare(), "prepare(sel_range)");
     sel.get_param()->set_id_from(batch_first);
@@ -153,18 +153,18 @@ namespace
   /// uses. rw's members reference the same slots the column-wise getters
   /// read, so this alone is enough to prove row_wise() is not a stale or
   /// independent copy.
-  void check_row_wise_row(const dbx::s_sel_range::r::row_t& rw, int32_t expected_id)
+  void check_row_wise_row(const dbx::crud::s_sel_range::r::row_t& rw, int32_t expected_id)
   {
     INFO("row with key " << expected_id);
     CHECK(rw.id.get() == expected_id);
-    CHECK(dbx::s_sel_range::r::name_view(rw) == batch_name(expected_id));
+    CHECK(dbx::crud::s_sel_range::r::name_view(rw) == batch_name(expected_id));
     CHECK(rw.created.get() == batch_date(expected_id));
   }
 
   /// one fetch of s_sel_range, checked row by row through row_wise() against
   /// what write_batch() put in. Its own function because the resize test
   /// below runs it twice, once per window size.
-  void check_sel_range_row_wise(const dbx::s_sel_range::r& rows, int32_t first_expected_id)
+  void check_sel_range_row_wise(const dbx::crud::s_sel_range::r& rows, int32_t first_expected_id)
   {
     for (size_t row = 0; row < rows.occupied(); ++row) check_row_wise_row(rows.row(row), first_expected_id + static_cast<int32_t>(row));
   }
@@ -186,7 +186,7 @@ TEST_CASE("row_wise mirrors a live fetch, including after a resize", "[crud][gen
 
   // first pass: a three row window, prepared and fetched once
   {
-    dbx::s_sel_range::stmt sel(&db, dbx::s_sel_range::qry::sql());
+    dbx::crud::s_sel_range::stmt sel(&db, dbx::crud::s_sel_range::qry::sql());
     sel.get_result_buffer()->set_buffer_size(batch_window);
     require_ok(sel.prepare(), "prepare(sel_range) - first window");
     sel.get_param()->set_id_from(batch_first);
@@ -210,7 +210,7 @@ TEST_CASE("row_wise mirrors a live fetch, including after a resize", "[crud][gen
   // resize_storage() still has to rebuild row_wise() from scratch here, same
   // as it does for the first window.
   {
-    dbx::s_sel_range::stmt sel(&db, dbx::s_sel_range::qry::sql());
+    dbx::crud::s_sel_range::stmt sel(&db, dbx::crud::s_sel_range::qry::sql());
     sel.get_result_buffer()->set_buffer_size(batch_rows);
     REQUIRE(sel.get_result_buffer()->row_wise().size() == static_cast<size_t>(batch_rows));
     require_ok(sel.prepare(), "prepare(sel_range) - resized window");
@@ -238,7 +238,7 @@ TEST_CASE("sizing before prepare is the supported order and still works", "[crud
   {
     /// a batch delete over the test range: harmless whether or not the rows are
     /// there, and it proves the counter does not fire on the correct order
-    dbx::s_del::stmt del(&db, dbx::s_del::qry::sql());
+    dbx::crud::s_del::stmt del(&db, dbx::crud::s_del::qry::sql());
     auto             par = del.get_param();
     par->set_buffer_size(batch_rows);
     require_ok(del.prepare(), "prepare(del batch)");

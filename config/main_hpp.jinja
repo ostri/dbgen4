@@ -25,6 +25,13 @@
  */
 namespace dbx
 {
+{# wraps every statement below in its own dbx::<<schema>> - two yaml files
+   that both happen to use the same statement id (e.g. "ins"/"nice", the
+   common case) still generate distinct types (dbx::dic_agents::s_ins vs.
+   dbx::dic_txn_types::s_ins, say), so both can be #included in the same
+   translation unit without redefining one another. #}
+namespace <<schema>>
+{
   using cstr_t    = rtl::cstr_t;
   using str_t     = rtl::str_t;
   using wcstr_t   = rtl::wcstr_t;
@@ -108,4 +115,5 @@ namespace dbx
     using stmt = qry; ///< kept for source compatibility with code written against the old, separate alias
   }; // namespace s_<<statement.id>>
 ## endfor
+}; // namespace <<schema>>
 }; // namespace dbx

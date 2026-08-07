@@ -45,7 +45,7 @@ namespace
   template <typename Db>
   void clear_move_range(Db& db, int32_t first, int32_t last)
   {
-    dbx::s_del::stmt del(&db, dbx::s_del::qry::sql());
+    dbx::crud::s_del::stmt del(&db, dbx::crud::s_del::qry::sql());
     require_ok(del.prepare(), "prepare(del move range)");
     for (int32_t id = first; id <= last; ++id)
     {
@@ -58,7 +58,7 @@ namespace
   template <typename Db>
   size_t count_range(Db& db, int32_t first, int32_t last)
   {
-    dbx::s_sel_range::stmt sel(&db, dbx::s_sel_range::qry::sql());
+    dbx::crud::s_sel_range::stmt sel(&db, dbx::crud::s_sel_range::qry::sql());
     sel.get_result_buffer()->set_buffer_size(4);
     require_ok(sel.prepare(), "prepare(count move range)");
     sel.get_param()->set_id_from(first);
@@ -80,11 +80,11 @@ TEST_CASE("a moved-from query does not free the statement its target now owns", 
   clear_move_range(db, move_first, last);
 
   {
-    dbx::s_ins::stmt src(&db, dbx::s_ins::qry::sql());
+    dbx::crud::s_ins::stmt src(&db, dbx::crud::s_ins::qry::sql());
     require_ok(src.prepare(), "prepare(src)");
 
     /// the move itself - after it, src must own nothing
-    dbx::s_ins::stmt dst(std::move(src));
+    dbx::crud::s_ins::stmt dst(std::move(src));
 
     // NOLINTNEXTLINE(bugprone-use-after-move,clang-analyzer-cplusplus.Move) - checking exactly that state
     CHECK_FALSE(src.is_prepared());
@@ -100,7 +100,7 @@ TEST_CASE("a moved-from query does not free the statement its target now owns", 
   /// released the same statement twice; on psql that aborts the transaction,
   /// which the next statement is what detects.
 
-  dbx::s_ins::stmt after(&db, dbx::s_ins::qry::sql());
+  dbx::crud::s_ins::stmt after(&db, dbx::crud::s_ins::qry::sql());
   require_ok(after.prepare(), "prepare(after the moved pair was destroyed)");
   after.get_param()->set_id(last);
   after.get_param()->set_name(std::string("after"));
@@ -122,7 +122,7 @@ TEST_CASE("a query with results survives a move with its result set intact", "[c
   clear_move_range(db, first, last);
 
   {
-    dbx::s_ins::stmt ins(&db, dbx::s_ins::qry::sql());
+    dbx::crud::s_ins::stmt ins(&db, dbx::crud::s_ins::qry::sql());
     require_ok(ins.prepare(), "prepare(ins for select move)");
     for (int32_t id = first; id <= last; ++id)
     {
@@ -135,7 +135,7 @@ TEST_CASE("a query with results survives a move with its result set intact", "[c
 
   size_t rows = 0;
   {
-    dbx::s_sel_range::stmt src(&db, dbx::s_sel_range::qry::sql());
+    dbx::crud::s_sel_range::stmt src(&db, dbx::crud::s_sel_range::qry::sql());
     src.get_result_buffer()->set_buffer_size(2); ///< smaller than the range, so fetch() has to loop
     require_ok(src.prepare(), "prepare(sel src)");
     src.get_param()->set_id_from(first);
@@ -144,7 +144,7 @@ TEST_CASE("a query with results survives a move with its result set intact", "[c
 
     /// move after execute: the result set is mid-flight, and the bound
     /// buffers must travel with it rather than being freed underneath
-    dbx::s_sel_range::stmt dst(std::move(src));
+    dbx::crud::s_sel_range::stmt dst(std::move(src));
     // NOLINTNEXTLINE(bugprone-use-after-move,clang-analyzer-cplusplus.Move)
     CHECK_FALSE(src.is_prepared());
 
@@ -173,10 +173,10 @@ TEST_CASE("prepared queries can live in a vector that reallocates", "[crud][gene
     /// no reserve() on purpose - every push_back past the capacity moves the
     /// elements already in the vector, which is the situation the defaulted
     /// move constructor made unusable
-    std::vector<dbx::s_ins::stmt> stmts;
+    std::vector<dbx::crud::s_ins::stmt> stmts;
     for (int32_t i = 0; i < count; ++i)
     {
-      dbx::s_ins::stmt q(&db, dbx::s_ins::qry::sql());
+      dbx::crud::s_ins::stmt q(&db, dbx::crud::s_ins::qry::sql());
       require_ok(q.prepare(), "prepare(vector element)");
       stmts.push_back(std::move(q));
     }

@@ -19,8 +19,8 @@
 
 namespace
 {
-  using p = dbx::s_sql_1::p;
-  using r = dbx::s_sql_1::r;
+  using p = dbx::t1::s_sql_1::p;
+  using r = dbx::t1::s_sql_1::r;
 } // namespace
 
 TEST_CASE("a generated buffer describes its own columns", "[generated][t1]")

@@ -42,7 +42,7 @@ TEST_CASE("crud round trip through the generated buffers", "[crud][generated][li
   // leave no trace of an earlier run
   // ------------------------------------------------------------------
   {
-    dbx::s_del::stmt del(&db, dbx::s_del::qry::sql());
+    dbx::crud::s_del::stmt del(&db, dbx::crud::s_del::qry::sql());
     require_ok(del.prepare(), "prepare(del)");
     del.get_param()->set_id(test_id);
     require_ok(del.execute(), "execute(del)");
@@ -52,7 +52,7 @@ TEST_CASE("crud round trip through the generated buffers", "[crud][generated][li
   // insert
   // ------------------------------------------------------------------
   {
-    dbx::s_ins::stmt ins(&db, dbx::s_ins::qry::sql());
+    dbx::crud::s_ins::stmt ins(&db, dbx::crud::s_ins::qry::sql());
     require_ok(ins.prepare(), "prepare(ins)");
     auto par = ins.get_param();
     par->set_id(test_id);
@@ -65,7 +65,7 @@ TEST_CASE("crud round trip through the generated buffers", "[crud][generated][li
   // read back and compare against what went in
   // ------------------------------------------------------------------
   {
-    dbx::s_sel::stmt sel(&db, dbx::s_sel::qry::sql());
+    dbx::crud::s_sel::stmt sel(&db, dbx::crud::s_sel::qry::sql());
     require_ok(sel.prepare(), "prepare(sel)");
     sel.get_param()->set_id(test_id);
     require_ok(sel.execute(), "execute(sel)");
@@ -84,7 +84,7 @@ TEST_CASE("crud round trip through the generated buffers", "[crud][generated][li
   // update
   // ------------------------------------------------------------------
   {
-    dbx::s_upd::stmt upd(&db, dbx::s_upd::qry::sql());
+    dbx::crud::s_upd::stmt upd(&db, dbx::crud::s_upd::qry::sql());
     require_ok(upd.prepare(), "prepare(upd)");
     auto par = upd.get_param();
     par->set_name(second_name);
@@ -97,7 +97,7 @@ TEST_CASE("crud round trip through the generated buffers", "[crud][generated][li
   // read back again - the new values must have reached the database
   // ------------------------------------------------------------------
   {
-    dbx::s_sel::stmt sel(&db, dbx::s_sel::qry::sql());
+    dbx::crud::s_sel::stmt sel(&db, dbx::crud::s_sel::qry::sql());
     require_ok(sel.prepare(), "prepare(sel)");
     sel.get_param()->set_id(test_id);
     require_ok(sel.execute(), "execute(sel)");
@@ -116,13 +116,13 @@ TEST_CASE("crud round trip through the generated buffers", "[crud][generated][li
   // delete, then prove it is gone
   // ------------------------------------------------------------------
   {
-    dbx::s_del::stmt del(&db, dbx::s_del::qry::sql());
+    dbx::crud::s_del::stmt del(&db, dbx::crud::s_del::qry::sql());
     require_ok(del.prepare(), "prepare(del)");
     del.get_param()->set_id(test_id);
     require_ok(del.execute(), "execute(del)");
   }
   {
-    dbx::s_sel::stmt sel(&db, dbx::s_sel::qry::sql());
+    dbx::crud::s_sel::stmt sel(&db, dbx::crud::s_sel::qry::sql());
     require_ok(sel.prepare(), "prepare(sel)");
     sel.get_param()->set_id(test_id);
     require_ok(sel.execute(), "execute(sel)");

@@ -78,7 +78,7 @@ TEST_CASE("every supported sql type survives a round trip", "[crud][types][gener
   // leave no trace of an earlier run
   // ------------------------------------------------------------------
   {
-    dbx::s_types_del::stmt del(&db, dbx::s_types_del::qry::sql());
+    dbx::crud::s_types_del::stmt del(&db, dbx::crud::s_types_del::qry::sql());
     require_ok(del.prepare(), "prepare(types_del)");
     require_ok(del.execute(), "execute(types_del)");
   }
@@ -87,7 +87,7 @@ TEST_CASE("every supported sql type survives a round trip", "[crud][types][gener
   // one row, every column
   // ------------------------------------------------------------------
   {
-    dbx::s_types_ins::stmt ins(&db, dbx::s_types_ins::qry::sql());
+    dbx::crud::s_types_ins::stmt ins(&db, dbx::crud::s_types_ins::qry::sql());
     require_ok(ins.prepare(), "prepare(types_ins)");
 
     auto par = ins.get_param();
@@ -116,7 +116,7 @@ TEST_CASE("every supported sql type survives a round trip", "[crud][types][gener
   // read it back and compare every column
   // ------------------------------------------------------------------
   {
-    dbx::s_types_sel::stmt sel(&db, dbx::s_types_sel::qry::sql());
+    dbx::crud::s_types_sel::stmt sel(&db, dbx::crud::s_types_sel::qry::sql());
     require_ok(sel.prepare(), "prepare(types_sel)");
     sel.get_param()->set_id(types_id);
     require_ok(sel.execute(), "execute(types_sel)");
@@ -181,13 +181,13 @@ TEST_CASE("a null in every nullable column reads back as null", "[crud][types][g
   auto&   db = live.db;
 
   {
-    dbx::s_types_del::stmt del(&db, dbx::s_types_del::qry::sql());
+    dbx::crud::s_types_del::stmt del(&db, dbx::crud::s_types_del::qry::sql());
     require_ok(del.prepare(), "prepare(types_del)");
     require_ok(del.execute(), "execute(types_del)");
   }
 
   {
-    dbx::s_types_ins::stmt ins(&db, dbx::s_types_ins::qry::sql());
+    dbx::crud::s_types_ins::stmt ins(&db, dbx::crud::s_types_ins::qry::sql());
     require_ok(ins.prepare(), "prepare(types_ins)");
 
     auto par = ins.get_param();
@@ -204,7 +204,7 @@ TEST_CASE("a null in every nullable column reads back as null", "[crud][types][g
   }
 
   {
-    dbx::s_types_sel::stmt sel(&db, dbx::s_types_sel::qry::sql());
+    dbx::crud::s_types_sel::stmt sel(&db, dbx::crud::s_types_sel::qry::sql());
     require_ok(sel.prepare(), "prepare(types_sel)");
     sel.get_param()->set_id(types_id);
     require_ok(sel.execute(), "execute(types_sel)");

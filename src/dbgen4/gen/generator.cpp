@@ -601,6 +601,12 @@ namespace dbgen4
     j["summary"]     = s.summary();
     j["description"] = join(prefix_split(trim_whitespace_view(s.description()), '\n', " *   "), "\n");
     j["version"]     = "0.1.0"; // FIXME(ostri) magic string
+    // yaml file's own stem (see set_yaml_fn_and_barename()) - wraps every
+    // statement's dbx::s_<id> in its own dbx::<schema>::s_<id> instead, so
+    // two yaml files that both happen to use the same statement id (e.g.
+    // "ins"/"nice", the common case) can still be #included in the same
+    // translation unit without redefining the same dbx::s_ins.
+    j["schema"] = barename_;
     // NOLINTEND(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
     // auto now         = std::chrono::system_clock::now();
     // auto local       = std::chrono::current_zone()->to_local(now);

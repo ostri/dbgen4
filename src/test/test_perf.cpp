@@ -94,7 +94,7 @@ namespace
   template <typename Db>
   std::chrono::microseconds write_all_rows(Db& db)
   {
-    dbx::s_perf_ins::stmt ins(&db, dbx::s_perf_ins::qry::sql());
+    dbx::crud::s_perf_ins::stmt ins(&db, dbx::crud::s_perf_ins::qry::sql());
 
     /// sized before prepare(): prepare() hands the driver pointers into these
     /// arrays, and resizing moves them
@@ -130,7 +130,7 @@ namespace
   template <typename Db>
   int32_t count_rows(Db& db)
   {
-    dbx::s_perf_count::stmt cnt(&db, dbx::s_perf_count::qry::sql());
+    dbx::crud::s_perf_count::stmt cnt(&db, dbx::crud::s_perf_count::qry::sql());
     require_ok(cnt.prepare(), "prepare(perf_count)");
     require_ok(cnt.execute(), "execute(perf_count)");
     auto got = cnt.fetch();
@@ -140,7 +140,7 @@ namespace
   }
 
   /// one row of a fetched window, checked against what write_all_rows put there
-  void check_row(const dbx::s_perf_sel_all::r& rows, size_t row, int32_t expected_id)
+  void check_row(const dbx::crud::s_perf_sel_all::r& rows, size_t row, int32_t expected_id)
   {
     INFO("row with key " << expected_id);
     CHECK(rows.id(row) == expected_id);
@@ -158,7 +158,7 @@ namespace
   template <typename Db>
   std::vector<size_t> read_in_windows(Db& db, size_t window)
   {
-    dbx::s_perf_sel_all::stmt sel(&db, dbx::s_perf_sel_all::qry::sql());
+    dbx::crud::s_perf_sel_all::stmt sel(&db, dbx::crud::s_perf_sel_all::qry::sql());
     sel.get_result_buffer()->set_buffer_size(window);
     require_ok(sel.prepare(), "prepare(perf_sel_all)");
     require_ok(sel.execute(), "execute(perf_sel_all)");
@@ -201,7 +201,7 @@ namespace
   /// one row of the post update pass. Its own function because every CHECK is
   /// a branch, and enough of them inside a nested loop pushes the test case
   /// past readability-function-cognitive-complexity.
-  void check_updated_row(const dbx::s_perf_sel_all::r& rows, size_t row, update_tally& tally)
+  void check_updated_row(const dbx::crud::s_perf_sel_all::r& rows, size_t row, update_tally& tally)
   {
     const auto id = rows.id(row);
     INFO("row with key " << id);
@@ -224,7 +224,7 @@ TEST_CASE("a batch of a hundred rows goes in on one execute", "[perf][crud][gene
   auto&   db = live.db;
 
   {
-    dbx::s_perf_del::stmt del(&db, dbx::s_perf_del::qry::sql());
+    dbx::crud::s_perf_del::stmt del(&db, dbx::crud::s_perf_del::qry::sql());
     require_ok(del.prepare(), "prepare(perf_del)");
     require_ok(del.execute(), "execute(perf_del)");
     REQUIRE(rtl::is_success(db.commit()));
@@ -254,7 +254,7 @@ namespace
   template <typename Db>
   void reset_table(Db& db)
   {
-    dbx::s_perf_del::stmt del(&db, dbx::s_perf_del::qry::sql());
+    dbx::crud::s_perf_del::stmt del(&db, dbx::crud::s_perf_del::qry::sql());
     require_ok(del.prepare(), "prepare(perf_del)");
     require_ok(del.execute(), "execute(perf_del)");
     write_all_rows(db);
@@ -311,7 +311,7 @@ TEST_CASE("an update moves only the rows it names", "[perf][crud][generated][liv
   auto&   db = live.db;
 
   {
-    dbx::s_perf_del::stmt del(&db, dbx::s_perf_del::qry::sql());
+    dbx::crud::s_perf_del::stmt del(&db, dbx::crud::s_perf_del::qry::sql());
     require_ok(del.prepare(), "prepare(perf_del)");
     require_ok(del.execute(), "execute(perf_del)");
   }
@@ -321,7 +321,7 @@ TEST_CASE("an update moves only the rows it names", "[perf][crud][generated][liv
   // move every even numbered row to a different date
   // ------------------------------------------------------------------
   {
-    dbx::s_perf_upd_even::stmt upd(&db, dbx::s_perf_upd_even::qry::sql());
+    dbx::crud::s_perf_upd_even::stmt upd(&db, dbx::crud::s_perf_upd_even::qry::sql());
     require_ok(upd.prepare(), "prepare(perf_upd_even)");
     upd.get_param()->set_created(updated_date);
     require_ok(upd.execute(), "execute(perf_upd_even)");
@@ -335,7 +335,7 @@ TEST_CASE("an update moves only the rows it names", "[perf][crud][generated][liv
   // even rows moved, odd rows untouched, and nothing else changed
   // ------------------------------------------------------------------
   {
-    dbx::s_perf_sel_all::stmt sel(&db, dbx::s_perf_sel_all::qry::sql());
+    dbx::crud::s_perf_sel_all::stmt sel(&db, dbx::crud::s_perf_sel_all::qry::sql());
     sel.get_result_buffer()->set_buffer_size(perf_rows);
     require_ok(sel.prepare(), "prepare(perf_sel_all)");
     require_ok(sel.execute(), "execute(perf_sel_all)");
