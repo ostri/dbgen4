@@ -253,7 +253,10 @@ namespace rtl
   {
     // qry_metadata result{};
     chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, msg, log_());
-    rollback();
+    // deliberately no commit()/rollback() here - PREPARE/DESCRIBE opened a
+    // unit of work the caller may still need (e.g. to run after_sql in the
+    // same transaction as before_sql). Ending it is the caller's call - see
+    // parser::load_file_meta_data().
     free_stmt_handle();
     return std::unexpected(err_code);
   }
@@ -262,7 +265,10 @@ namespace rtl
    * @brief return provided sql statement meta data or error code
    *
    * The method collects the parameter and/or column data from the provided sql statement.
-   * Alter all dat ais collected the transaction is rolled back.
+   * PREPARE/DESCRIBE opens a unit of work that is left open on return - the
+   * caller decides when to commit()/rollback() it (see
+   * parser::load_file_meta_data(), which runs a statement's after_sql, if
+   * any, in that same unit of work before ending it).
    * @param sql sql statement to be analyzed to get the meta data
    * @return qry_metadata metadata or error code
    */
@@ -369,7 +375,7 @@ namespace rtl
     }
 
     // --- Cleanup ---
-    rollback();
+    // deliberately no rollback() here - see this method's own doc comment.
     free_stmt_handle();
 
     return result;

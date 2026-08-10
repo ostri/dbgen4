@@ -69,6 +69,7 @@ namespace dbgen4
         if (auto before_sts = db.exec(before_sql); ! rtl::is_success(before_sts))
         {
           log_().error("before sql '{}' failed: {}", before_sql, ME::enum_name<rtl::db_sts>(before_sts));
+          db.rollback();
           return std::unexpected(exit_status_enum::sql_syntax_err);
         }
       }
@@ -76,9 +77,11 @@ namespace dbgen4
       auto sql = stmt.sql();
       auto res = db.get_sql_metadata(sql);
 
-      // after runs whether or not the statement's own sql validated - a
-      // failure partway through must not leave before_sql()'s side effects
-      // (e.g. a staging table) behind for the next run to trip over.
+      // after runs whether or not the statement's own sql validated, and
+      // still in the same unit of work before_sql (if any) opened - some
+      // backends (DB2) roll a unit of work's DDL back together, so before_sql
+      // 's side effects (e.g. a staging table) would otherwise vanish before
+      // after_sql gets a chance to tear them down cleanly.
       if (! after_sql.empty())
       {
         if (auto after_sts = db.exec(after_sql); ! rtl::is_success(after_sts))
@@ -88,12 +91,18 @@ namespace dbgen4
         // cleanup failure is logged, not folded into that outcome.
       }
 
+      // only now end the unit of work before_sql/get_sql_metadata/after_sql
+      // ran in - commit so before_sql's and after_sql's own DDL both stick
+      // (harmless if there was neither), rollback if this statement's sql
+      // itself failed to validate.
       if (! res)
       {
+        db.rollback();
         log_().error(
           "Invalid sql '{}' status: {} mnemonic {}", sql, ME::enum_integer(res.error()), ME::enum_name<rtl::db_sts>(res.error()));
         return std::unexpected(exit_status_enum::sql_syntax_err);
       }
+      db.commit();
 
       /// all ok. Update the sql description with metadata
       log_().trace("meta data: {}", res.value().dump());

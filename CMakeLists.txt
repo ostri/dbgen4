@@ -976,17 +976,19 @@ function(show_target_build_info target)
     message(STATUS "═════════════════════════════════════════════════════")
 endfunction()
 
-message(STATUS "═════════════════════════════════════════════════════")
-# Show info for the main executable
-show_target_build_info(${PROJECT_NAME}-db2)
+if(DB2_FOUND)
+    message(STATUS "═════════════════════════════════════════════════════")
+    # Show info for the main executable
+    show_target_build_info(${PROJECT_NAME}-db2)
 
-# Optionally show for the smoke test as well (uncomment if desired)
-show_target_build_info(test_t1)
+    # Optionally show for the smoke test as well (uncomment if desired)
+    show_target_build_info(test_t1)
 
-# Very compact one-liner (useful when you just want a quick check)
-get_target_property(C ${PROJECT_NAME}-db2 COMPILE_OPTIONS)
-get_target_property(L ${PROJECT_NAME}-db2 LINK_OPTIONS)
-message(STATUS "QUICK → ${CMAKE_BUILD_TYPE} | COMPILE: ${C} | LINK: ${L}")
+    # Very compact one-liner (useful when you just want a quick check)
+    get_target_property(C ${PROJECT_NAME}-db2 COMPILE_OPTIONS)
+    get_target_property(L ${PROJECT_NAME}-db2 LINK_OPTIONS)
+    message(STATUS "QUICK → ${CMAKE_BUILD_TYPE} | COMPILE: ${C} | LINK: ${L}")
+endif()
 
 # ===================================================================
 # coverage - runs the whole ctest suite (discarding its own pass/fail: the

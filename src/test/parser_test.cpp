@@ -206,11 +206,28 @@ statements:
   CHECK(with_meta.value().map_statements().at("sel").results().size() == 1);
 
   // after already dropped it - a second before (a second parse+load, as a
-  // fresh generator run would do) must not fail with "already exists"
+  // fresh generator run would do) must not fail with "already exists". This
+  // only holds if load_file_meta_data() actually ended before/after's unit of
+  // work (commit, now that get_sql_metadata() no longer rolls back on its
+  // own) - a lingering open transaction from the first call would otherwise
+  // let a stale lock, or an uncommitted DROP, trip this one up.
   auto second = p.load_file_meta_data(parsed.value(), *db, max_field_len);
   CHECK(second.has_value());
 
-  db->exec(drop_staging); // idempotent cleanup, in case an assertion above failed first
+  // Prove the commit actually happened, not just that the parser reported
+  // success: drive the same table with plain DML outside load_file_meta_data()
+  // entirely - re-create it, insert a row - and check exec()'s own status.
+  // Not a round trip through select_staging: db_psql::exec() only accepts
+  // PGRES_COMMAND_OK, so a SELECT reports failure there even when it reads
+  // rows back fine (PGRES_TUPLES_OK) - exec() is for statements with no
+  // result set, per its own doc comment, and db has no row-returning call to
+  // fall back on. The insert succeeding is proof enough that the table
+  // before/after left behind is real and takes DML on both backends; nothing
+  // here needs to survive a commit either way, unlike test_exec.cpp's own
+  // "the drop really took" check.
+  REQUIRE(rtl::is_success(db->exec(create_staging)));
+  REQUIRE(rtl::is_success(db->exec("INSERT INTO parser_test_ba (id) VALUES (42)"))); // NOLINT(*magic-numbers*)
+  REQUIRE(rtl::is_success(db->exec(drop_staging)));
   db->commit();
 }
 
