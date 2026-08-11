@@ -106,7 +106,11 @@ namespace rtl
     // clang-format on
 
     auto ret = connect(conn_str);
-    if (ret == db_sts::success) log_().info("Connected to db: host:'{}:{}' db:'{}' as user '{}'", host, port, database_name, user);
+    if (ret == db_sts::success)
+    {
+      set_connection_info(host, port, database_name, user);
+      log_().info("Connected to db: {}", connection());
+    }
     return ret;
   }
 
@@ -118,7 +122,7 @@ namespace rtl
     rollback();
     PQfinish(d->conn);
     d->conn = nullptr;
-    log_().info("Database disconnected");
+    log_().info("Database disconnected: {}", connection());
     return db_sts::success;
   }
 

@@ -259,7 +259,24 @@ namespace rtl
     virtual db_sts                    exec(const std::string& sql);
     [[nodiscard]] const db_data_root* data() const;
     [[nodiscard]] logger::Logger&     log_() const { return logger_; } /// Member variables
+
+    /**
+     * @brief "host:{} port:{} database:{} user:{}" for whatever connect() last succeeded with
+     *
+     * Empty until connect(host, port, database_name, user, password) succeeds
+     * at least once - never includes the password. Meant for the connect/
+     * disconnect log lines every backend's own connect()/disconnect() prints
+     * (see db_psql::connect()/disconnect(), db_db2::connect()/disconnect()),
+     * so an application-level caller wrapping its own "Connected to ..."
+     * message around the same connect() call does not have to repeat host/
+     * port/database/user itself.
+     */
+    [[nodiscard]] std::string connection() const { return connection_info_; }
   protected:
+    /// sets what connection() returns - called by a backend's own connect()
+    /// once it knows the connection actually succeeded, never before
+    void set_connection_info(const std::string& host, uint16_t port, const std::string& database_name, const std::string& user)
+    { connection_info_ = fmt::format("host:{} port:{} database:{} user:{}", host, port, database_name, user); }
     /**
      * @brief Pointer to database-specific data implementation.
      *
@@ -273,6 +290,8 @@ namespace rtl
       std::unique_ptr<db_data_root> data_; //NOLINT(cppcoreguidelines-non-private-member-variables-in-classes)
     // clang-format on
     logger::Logger& logger_; ///< reference to the shared Logger, not owner
+  private:
+    std::string connection_info_; ///< see connection()/set_connection_info() above
   };
   /**
    * @brief create the database object of the backend that is linked in

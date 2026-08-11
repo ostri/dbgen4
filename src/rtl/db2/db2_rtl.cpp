@@ -163,7 +163,11 @@ namespace rtl
       // clang-format on
 
       ret = internal_connect(conn_str);
-      log_().info("Connected to db: host:'{}:{}' db:'{}' as user '{}'", host, port, name, user);
+      if (ret == db_sts::success)
+      {
+        set_connection_info(host, port, name, user);
+        log_().info("Connected to db: {}", connection());
+      }
     }
     return ret;
   }
@@ -181,7 +185,7 @@ namespace rtl
       if (! is_success(static_cast<db_sts>(ret)))
         chk_error(ret, SQL_HANDLE_DBC, data()->conn_handle, "disconnecting from DB2 database", log_());
       free_conn_handle();
-      log_().info("Database disconnected");
+      log_().info("Database disconnected: {}", connection());
     }
 
     if (data()->env_handle != 0) free_env_handle();
