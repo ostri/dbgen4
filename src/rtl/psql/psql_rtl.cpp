@@ -47,7 +47,6 @@ namespace rtl
 
   db_psql::db_psql(logger::Logger& log)
   : db(log)
-  , database()
   { this->data_ = std::make_unique<db_data_psql>(log); }
   db_psql::~db_psql() { disconnect(); }
 

@@ -182,6 +182,7 @@ namespace rtl
     db_data_root(db_data_root&&)                 = delete;
     db_data_root& operator=(db_data_root&&)      = delete;
   protected:
+    // NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes,misc-non-private-member-variables-in-classes)
     logger::Logger& logger_; ///< reference to the shared Logger, not owner
   };
   /**
@@ -289,6 +290,7 @@ namespace rtl
       /// NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)
       std::unique_ptr<db_data_root> data_; //NOLINT(cppcoreguidelines-non-private-member-variables-in-classes)
     // clang-format on
+    // NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes,misc-non-private-member-variables-in-classes)
     logger::Logger& logger_; ///< reference to the shared Logger, not owner
   private:
     std::string connection_info_; ///< see connection()/set_connection_info() above

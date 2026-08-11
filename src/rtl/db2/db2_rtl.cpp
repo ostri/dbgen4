@@ -69,7 +69,6 @@ namespace rtl
 
   db_db2::db_db2(logger::Logger& log)
   : db(log)
-  , database()
   { this->data_ = std::make_unique<db_data_db2>(log); }
   db_db2::~db_db2() { disconnect(); }
 

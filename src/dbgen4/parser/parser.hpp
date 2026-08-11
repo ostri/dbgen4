@@ -62,7 +62,8 @@ namespace dbgen4
     [[nodiscard]] e_data_statement process_statement(const YAML::Node& yaml_stmt, const data_statements& s, db_type_enum db_type) const;
   private:
     [[nodiscard]] logger::Logger& log_() const { return logger_; }
-    logger::Logger&               logger_; ///< reference to the shared Logger, not owner
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
+    logger::Logger& logger_; ///< reference to the shared Logger, not owner
     /// @brief extracts sql statements from the yaml node to data_statement structure
     /// @param stmt yaml node representing single statement
     /// @param s data_statement structure where sql statements will be stored
