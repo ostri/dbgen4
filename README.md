@@ -339,7 +339,7 @@ dependencies - keeps the version pinned to a tag and avoids a git submodule:
     CPMAddPackage(
         NAME dbgen4
         GITHUB_REPOSITORY <org>/dbgen4
-        GIT_TAG v0.1.0
+        GIT_TAG v0.1.1
     )
 
 Plain `FetchContent` or a git submodule work identically, since all that
