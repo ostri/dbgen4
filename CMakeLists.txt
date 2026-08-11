@@ -1,5 +1,12 @@
 cmake_minimum_required(VERSION 3.25)
-project(dbgen4 VERSION 0.1.0 DESCRIPTION "database access code generator" LANGUAGES CXX)
+
+# Single source of truth for the release number - bump the top-level VERSION
+# file (one line, e.g. "0.2.0") to release a new version; nothing else needs
+# to change. See scripts/bump_git_tag.sh.
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" DBGEN4_VERSION LIMIT_COUNT 1)
+string(STRIP "${DBGEN4_VERSION}" DBGEN4_VERSION)
+
+project(dbgen4 VERSION ${DBGEN4_VERSION} DESCRIPTION "database access code generator" LANGUAGES CXX)
 
 # Consumed via add_subdirectory() by another project's own CMakeLists.txt,
 # tests/tidy/docs default to off there - a project pulling in dbgen4 for its
@@ -211,7 +218,7 @@ CPMAddPackage(
 CPMAddPackage(
     NAME logger
     GITHUB_REPOSITORY ostri/logger
-    GIT_TAG v0.1.3
+    GIT_TAG v0.1.9
     SYSTEM YES
     EXCLUDE_FROM_ALL YES
 )
@@ -455,6 +462,25 @@ if(RUN_CLANG_TIDY_EXECUTABLE)
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         COMMENT "Running clang-tidy (parallel)"
         VERBATIM
+    )
+endif()
+
+# ===================================================================
+# bump_git_tag - maintainer-only release helper, not a build step: bumps
+# this project's own PATCH version by 1 (source of truth is the top-level
+# VERSION file), commits, tags, and pushes both to origin - see
+# scripts/bump_git_tag.sh for the actual logic (refuses to run on a dirty
+# working tree). PROJECT_IS_TOP_LEVEL guarded like tidy above: a consumer
+# pulling this in via add_subdirectory() has no business tagging/pushing
+# this repository's own releases from its build.
+# ===================================================================
+if(PROJECT_IS_TOP_LEVEL)
+    add_custom_target(bump_git_tag
+        COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/bump_git_tag.sh
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        COMMENT "Bumping version, committing, tagging, and pushing to origin"
+        VERBATIM
+        USES_TERMINAL
     )
 endif()
 
