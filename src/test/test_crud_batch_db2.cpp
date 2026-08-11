@@ -6,15 +6,15 @@
  * Split out of test_crud_batch.cpp: these cases are db2-specific because they
  * either assert on db2's partial-success batch semantics (ODBC drivers can
  * land nine rows and refuse a tenth, reporting which one via row_status())
- * or on rtl::odbc_error's fields directly (.sql_state_, "HY010"). psql has
+ * or on rtl::odbc_error's fields directly (.sql_state, "HY010"). psql has
  * neither - see test_crud_batch_psql.cpp for its counterparts.
  */
 #include "crud.hpp"
 #include "db2_rtl.hpp"
 #include "rtl.hpp"
-#include "rtl_fmt.hpp" // IWYU pragma: keep
-#include "test_db.hpp" // live_db and require_ok, shared with the other crud tests
-#include <sqlext.h>    // SQL_PARAM_ERROR - the batch row status the driver writes
+#include "rtl_fmt.hpp"              // IWYU pragma: keep
+#include "test_db.hpp"              // live_db and require_ok, shared with the other crud tests
+#include <sqlext.h>                 // SQL_PARAM_ERROR - the batch row status the driver writes
 #include <catch2/catch_message.hpp> // INFO
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers.hpp>        // CHECK_THAT
@@ -170,8 +170,8 @@ TEST_CASE("a parameter buffer resized after prepare stops execute", "[crud][gene
     const auto res = ins.execute();
     REQUIRE_FALSE(res);
     INFO("reported: " << test_db::describe(res.error()));
-    CHECK(res.error().sql_state_ == "HY010"); // ODBC: function sequence error
-    CHECK_THAT(res.error().message_, Catch::Matchers::ContainsSubstring("resized after prepare()"));
+    CHECK(res.error().sql_state == "HY010"); // ODBC: function sequence error
+    CHECK_THAT(res.error().message, Catch::Matchers::ContainsSubstring("resized after prepare()"));
   }
 }
 
@@ -190,6 +190,6 @@ TEST_CASE("a result buffer resized after prepare stops fetch", "[crud][generated
 
     const auto got = sel.fetch();
     REQUIRE_FALSE(got);
-    CHECK(got.error().sql_state_ == "HY010");
+    CHECK(got.error().sql_state == "HY010");
   }
 }

@@ -119,14 +119,14 @@ TEST_CASE("an odbc_error copies into a db_error without losing a field", "[unit]
   constexpr int32_t db2_duplicate_key_native_error = -803; ///< db2's own number for a duplicate key
 
   auto e          = rtl::odbc_error::client("something the runtime caught itself");
-  e.sql_state_    = "23505";
+  e.sql_state     = "23505";
   e.ret_          = SQL_ERROR;
   e.native_error_ = db2_duplicate_key_native_error;
 
   const auto d = rtl::to_db_error(e);
 
   CHECK(d.sts == rtl::db_sts::duplicate_key); ///< classified from the sqlstate
-  CHECK(d.message == e.message_);
+  CHECK(d.message == e.message);
   CHECK(d.sql_state == "23505");
   CHECK(d.driver_status == static_cast<int16_t>(SQL_ERROR)); ///< SQLRETURN, untranslated
   CHECK(d.native_error == db2_duplicate_key_native_error);   ///< db2 has one, and it survives

@@ -35,8 +35,8 @@ namespace rtl
     /// failure value is also the safe direction for a type that only exists to
     /// report one.
     SQLRETURN   ret_ = SQL_ERROR;  //< db return code
-    std::string message_;          //< UTF-8
-    std::string sql_state_;        //< ASCII
+    std::string message;           //< UTF-8
+    std::string sql_state;         //< ASCII
     SQLINTEGER  native_error_ = 0; //< driver-specific error code
     // NOLINTEND(misc-non-private-member-variables-in-classes)
 
@@ -68,9 +68,9 @@ namespace rtl
    */
   [[nodiscard]] inline db_error to_db_error(const odbc_error& e)
   {
-    return db_error{.sts           = sqlstate_to_db_sts(e.sql_state_),
-                    .message       = e.message_,
-                    .sql_state     = e.sql_state_,
+    return db_error{.sts           = sqlstate_to_db_sts(e.sql_state),
+                    .message       = e.message,
+                    .sql_state     = e.sql_state,
                     .driver_status = static_cast<int16_t>(e.ret_),
                     .native_error  = static_cast<int32_t>(e.native_error_)};
   }

@@ -31,7 +31,7 @@ namespace test_db
   }
 
   inline std::string describe(const rtl::odbc_error& e)
-  { return fmt::format("sqlstate '{}' native {}: {}", e.sql_state_, static_cast<int>(e.native_error_), e.message_); }
+  { return fmt::format("sqlstate '{}' native {}: {}", e.sql_state, static_cast<int>(e.native_error_), e.message); }
 
   /**
    * @brief a size taken from the environment, or the built in default
