@@ -22,10 +22,10 @@
 #include <cstdint>
 #include <string>
 
-#if defined(DBGEN4_HAS_DB2)
-#include "odbc_error.hpp"
-#elif defined(DBGEN4_HAS_PSQL)
-#include "query.hpp"
+#ifdef DBGEN4_HAS_DB2
+#  include "odbc_error.hpp"
+#elifdef DBGEN4_HAS_PSQL
+#  include "query.hpp"
 #endif
 
 TEST_CASE("sqlstate maps to the status callers act on", "[unit][db_error]")
@@ -87,14 +87,11 @@ TEST_CASE("db_error reports what it carries", "[unit][db_error]")
 {
   SECTION("a server error names its sqlstate")
   {
-    const rtl::db_error e{.sts           = rtl::db_sts::duplicate_key,
-                          .message       = "duplicate key",
-                          .sql_state     = "23505",
-                          .driver_status = 0,
-                          .native_error  = 0};
+    const rtl::db_error e{
+      .sts = rtl::db_sts::duplicate_key, .message = "duplicate key", .sql_state = "23505", .driver_status = 0, .native_error = 0};
     CHECK(e.is_error());
-    CHECK(e.str().find("23505") != std::string::npos);
-    CHECK(e.str().find("duplicate key") != std::string::npos);
+    CHECK(e.str().contains("23505"));
+    CHECK(e.str().contains("duplicate key"));
   }
 
   SECTION("a client side error has no sqlstate to name")
@@ -102,8 +99,8 @@ TEST_CASE("db_error reports what it carries", "[unit][db_error]")
     const rtl::db_error e{
       .sts = rtl::db_sts::error, .message = "statement is not prepared", .sql_state = "", .driver_status = 0, .native_error = 0};
     CHECK(e.is_error());
-    CHECK(e.str().find("sqlstate") == std::string::npos);
-    CHECK(e.str().find("statement is not prepared") != std::string::npos);
+    CHECK_FALSE(e.str().contains("sqlstate"));
+    CHECK(e.str().contains("statement is not prepared"));
   }
 
   SECTION("is_error() follows the status, not the presence of a message")
@@ -116,13 +113,15 @@ TEST_CASE("db_error reports what it carries", "[unit][db_error]")
   }
 }
 
-#if defined(DBGEN4_HAS_DB2)
+#ifdef DBGEN4_HAS_DB2
 TEST_CASE("an odbc_error copies into a db_error without losing a field", "[unit][db_error][db2]")
 {
+  constexpr int32_t db2_duplicate_key_native_error = -803; ///< db2's own number for a duplicate key
+
   auto e          = rtl::odbc_error::client("something the runtime caught itself");
   e.sql_state_    = "23505";
   e.ret_          = SQL_ERROR;
-  e.native_error_ = -803; ///< db2's own number for a duplicate key
+  e.native_error_ = db2_duplicate_key_native_error;
 
   const auto d = rtl::to_db_error(e);
 
@@ -130,14 +129,13 @@ TEST_CASE("an odbc_error copies into a db_error without losing a field", "[unit]
   CHECK(d.message == e.message_);
   CHECK(d.sql_state == "23505");
   CHECK(d.driver_status == static_cast<int16_t>(SQL_ERROR)); ///< SQLRETURN, untranslated
-  CHECK(d.native_error == -803);                             ///< db2 has one, and it survives
+  CHECK(d.native_error == db2_duplicate_key_native_error);   ///< db2 has one, and it survives
   CHECK(d.is_error());
 }
-#elif defined(DBGEN4_HAS_PSQL)
+#elifdef DBGEN4_HAS_PSQL
 TEST_CASE("a psql_error copies into a db_error without losing a field", "[unit][db_error][psql]")
 {
-  const rtl::psql_error e{
-    .message = "duplicate key value violates unique constraint", .sql_state = "23505", .status = PGRES_FATAL_ERROR};
+  const rtl::psql_error e{.message = "duplicate key value violates unique constraint", .sql_state = "23505", .status = PGRES_FATAL_ERROR};
 
   const auto d = rtl::to_db_error(e);
 

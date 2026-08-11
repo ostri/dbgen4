@@ -387,7 +387,9 @@ namespace
         if (t.commits % report_after == 0) log.info("async commit #{}: {} rows written so far", t.commits, rows_written);
       }
       else
+      {
         t.writing += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - write_from);
+      }
     }
 
     if (blocks % commit_after != 0) commit_and_time(adb, t, std::chrono::steady_clock::now(), "final commit");
@@ -409,13 +411,13 @@ namespace
   {
     auto& log = dbgen4::test::test_logger();
     log.info("{}: {} rows in {} ms ({:.0f} rows/s) - filling {} ms, writing {} ms, {} commits",
-              what,
-              rows,
-              t.total.count() / us_per_ms,
-              per_second(rows, t.total),
-              t.filling.count() / us_per_ms,
-              t.writing.count() / us_per_ms,
-              t.commits);
+             what,
+             rows,
+             t.total.count() / us_per_ms,
+             per_second(rows, t.total),
+             t.filling.count() / us_per_ms,
+             t.writing.count() / us_per_ms,
+             t.commits);
   }
 } // namespace
 
@@ -434,16 +436,16 @@ TEST_CASE("insert throughput: synchronous against async_db, three tables", "[.be
   log.set_level(logger::level::info);
 
   log.info("benchmark starting: backend={} host={} db={} buffer_size={} iterations={} tables={} "
-            "commit_every={} fill_delay_ms={} total_rows={}",
-            rtl::backend_name(),
-            test_db::env_or("DBGEN4_TEST_HOST", "localhost"),
-            test_db::env_or("DBGEN4_TEST_DB", "test"),
-            rows_per_block,
-            blocks,
-            table_count,
-            commit_every(),
-            fill_delay_ms(),
-            total_rows);
+           "commit_every={} fill_delay_ms={} total_rows={}",
+           rtl::backend_name(),
+           test_db::env_or("DBGEN4_TEST_HOST", "localhost"),
+           test_db::env_or("DBGEN4_TEST_DB", "test"),
+           rows_per_block,
+           blocks,
+           table_count,
+           commit_every(),
+           fill_delay_ms(),
+           total_rows);
 
   clear_tables(db);
   const auto sync_t = sync_insert(db, rows_per_block, blocks);

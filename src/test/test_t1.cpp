@@ -57,13 +57,16 @@ TEST_CASE("the buffer dimension defaults to what the yaml asked for", "[generate
 
 TEST_CASE("the dimension can be chosen at construction and changed after", "[generated][t1]")
 {
-  const p explicit_size(7);
-  CHECK(explicit_size.buffer_size() == 7);
+  constexpr size_t initial_size = 7;
+  constexpr size_t resized      = 64;
+
+  const p explicit_size(initial_size);
+  CHECK(explicit_size.buffer_size() == initial_size);
 
   p          par;
   const auto before = par.layout_generation();
-  par.set_buffer_size(64);
-  CHECK(par.buffer_size() == 64);
+  par.set_buffer_size(resized);
+  CHECK(par.buffer_size() == resized);
   CHECK(par.layout_generation() != before); // the resize has to be visible to query
 
   // a buffer of no rows makes no sense; it is quietly one instead
@@ -74,23 +77,30 @@ TEST_CASE("the dimension can be chosen at construction and changed after", "[gen
 
 TEST_CASE("a value written to one row is not visible in another", "[generated][t1]")
 {
+  constexpr size_t buffer_size = 4;
+  constexpr int    first_val   = 11;
+  constexpr int    second_val  = 22;
+
   p par;
-  par.set_buffer_size(4);
+  par.set_buffer_size(buffer_size);
 
-  par.set_par_1(11, 0);
-  par.set_par_1(22, 3);
+  par.set_par_1(first_val, 0);
+  par.set_par_1(second_val, 3);
 
-  CHECK(par.par_1(0) == 11);
-  CHECK(par.par_1(3) == 22);
-  CHECK(par.par_1(1) != 11); // untouched rows keep their own value
+  CHECK(par.par_1(0) == first_val);
+  CHECK(par.par_1(3) == second_val);
+  CHECK(par.par_1(1) != first_val); // untouched rows keep their own value
 }
 
 TEST_CASE("null is set and reported per row", "[generated][t1]")
 {
-  p par;
-  par.set_buffer_size(2);
+  constexpr size_t buffer_size = 2;
+  constexpr int    val         = 5;
 
-  par.set_par_1(5, 0);
+  p par;
+  par.set_buffer_size(buffer_size);
+
+  par.set_par_1(val, 0);
   CHECK_FALSE(par.is_par_1_null(0));
 
   par.set_par_1_null(0);
@@ -104,34 +114,53 @@ TEST_CASE("null is set and reported per row", "[generated][t1]")
 
 TEST_CASE("the per row status array follows the buffer dimension", "[generated][t1]")
 {
+  constexpr size_t buffer_size = 9;
+
   p par;
-  par.set_buffer_size(9);
-  REQUIRE(par.row_status().size() == 9);
+  par.set_buffer_size(buffer_size);
+  REQUIRE(par.row_status().size() == buffer_size);
 
   par.clear_row_status();
   for (const auto s : par.row_status()) CHECK(s == 0);
 }
 
-TEST_CASE("row_wise mirrors the column-wise storage by reference", "[generated][t1]")
+TEST_CASE("row() and row_wise() agree with the column-wise getters", "[generated][t1]")
 {
+  constexpr size_t buffer_size = 4;
+  constexpr int    first_val   = 11;
+  constexpr int    second_val  = 22;
+
   p par;
-  par.set_buffer_size(4);
+  par.set_buffer_size(buffer_size);
+  par.set_par_1(first_val, 0);
+  par.set_par_1(second_val, 3);
 
-  par.set_par_1(11, 0);
-  par.set_par_1(22, 3);
-
-  // row() and row_wise() agree with the column-wise getters
   CHECK(par.row(0).par_1.get() == par.par_1(0));
   CHECK(par.row(3).par_1.get() == par.par_1(3));
   CHECK(par.row_wise().size() == par.buffer_size());
+}
 
-  // the reference is live: a value written after the row was fetched is
-  // visible through the same row_t, no re-fetch needed
+TEST_CASE("the row_t reference stays live: a value written after the row was fetched is visible through it", "[generated][t1]")
+{
+  constexpr size_t buffer_size = 4;
+  constexpr int    third_val   = 99;
+
+  p par;
+  par.set_buffer_size(buffer_size);
+
   const auto& row0 = par.row(0);
-  par.set_par_1(99, 0);
-  CHECK(row0.par_1.get() == 99);
+  par.set_par_1(third_val, 0);
+  CHECK(row0.par_1.get() == third_val);
+}
 
-  // same for the null indicator
+TEST_CASE("the row_t reference stays live for the null indicator too", "[generated][t1]")
+{
+  constexpr size_t buffer_size = 4;
+
+  p par;
+  par.set_buffer_size(buffer_size);
+
+  const auto& row0 = par.row(0);
   CHECK(row0.is_par_1_null.get() != rtl::null_data); // not null yet
   par.set_par_1_null(0);
   CHECK(row0.is_par_1_null.get() == rtl::null_data);
@@ -142,17 +171,22 @@ TEST_CASE("row_wise mirrors the column-wise storage by reference", "[generated][
 
 TEST_CASE("row_wise is rebuilt on resize", "[generated][t1]")
 {
+  constexpr size_t small_size = 2;
+  constexpr size_t large_size = 50;
+  constexpr int    first_val  = 7;
+  constexpr int    second_val = 42;
+
   p par;
-  par.set_buffer_size(2);
-  par.set_par_1(7, 1);
-  CHECK(par.row(1).par_1.get() == 7);
+  par.set_buffer_size(small_size);
+  par.set_par_1(first_val, 1);
+  CHECK(par.row(1).par_1.get() == first_val);
 
   // growing the buffer moves the underlying vectors - row_wise() has to
   // follow, not keep pointing at freed storage
-  par.set_buffer_size(50);
-  CHECK(par.row_wise().size() == 50);
-  par.set_par_1(42, 49);
-  CHECK(par.row(49).par_1.get() == 42);
+  par.set_buffer_size(large_size);
+  CHECK(par.row_wise().size() == large_size);
+  par.set_par_1(second_val, large_size - 1);
+  CHECK(par.row(large_size - 1).par_1.get() == second_val);
 }
 
 // row_wise() for every supported result column type, exercised with a live

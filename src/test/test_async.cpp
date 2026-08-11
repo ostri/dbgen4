@@ -22,17 +22,19 @@
 #include "test_db.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include <cstdint>
+#include <expected>
 #include <fmt/format.h>
 #include <string>
 
 namespace
 {
-  constexpr int32_t  async_first = 7300; ///< a key range of its own
-  constexpr int16_t  async_year  = 2026;
-  constexpr uint16_t async_month = 4;
+  constexpr int32_t  async_first   = 7300; ///< a key range of its own
+  constexpr int16_t  async_year    = 2026;
+  constexpr uint16_t async_month   = 4;
+  constexpr int32_t  days_in_month = 28; ///< keeps async_date() inside February regardless of id
 
   rtl::date async_date(int32_t id)
-  { return {.year = async_year, .month = async_month, .day = static_cast<uint16_t>(1 + ((id - async_first) % 28))}; }
+  { return {.year = async_year, .month = async_month, .day = static_cast<uint16_t>(1 + ((id - async_first) % days_in_month))}; }
 
   /// remove a key range synchronously, so a case starts from a known state
   template <typename Db>
@@ -48,12 +50,49 @@ namespace
     REQUIRE(rtl::is_success(db.commit()));
   }
 
+  /// submits one prepared statement for every id in [first, last], setting
+  /// the same three fields "name" is derived from - the only thing that
+  /// differs between an insert pass and an update pass is which prepared
+  /// statement and which "name" prefix gets used
+  template <typename Stmt>
+  void submit_range(rtl::async_db& adb, Stmt& stmt, int32_t first, int32_t last, const char* name_prefix)
+  {
+    for (int32_t id = first; id <= last; ++id)
+    {
+      stmt.param()->set_id(id);
+      stmt.param()->set_name(fmt::format("{} {}", name_prefix, id));
+      stmt.param()->set_created(async_date(id));
+      adb.submit(stmt);
+    }
+  }
+
+  /// drains fetch_more() on a select statement until it reports "no more
+  /// rows", REQUIRE-ing every step along the way succeeded - factored out
+  /// of its one caller so that caller reads as "run this select and count
+  /// what came back", not as the loop itself
+  template <typename Stmt>
+  size_t drain(rtl::async_db& adb, Stmt& sel, std::expected<bool, rtl::db_error> first_result)
+  {
+    size_t rows_seen = 0;
+    auto   got       = first_result;
+    REQUIRE(got.has_value());
+    while (*got)
+    {
+      rows_seen += sel.result()->occupied();
+      got = adb.fetch_more(sel);
+      REQUIRE(got.has_value());
+    }
+    return rows_seen;
+  }
+
   /// @return how many rows of a key range the table holds, read synchronously
   template <typename Db>
   size_t count_async_range(Db& db, int32_t first, int32_t last)
   {
+    constexpr size_t fetch_buffer_size = 8;
+
     dbx::crud::s_sel_range::stmt sel(&db, dbx::crud::s_sel_range::qry::sql());
-    sel.get_result_buffer()->set_buffer_size(8);
+    sel.get_result_buffer()->set_buffer_size(fetch_buffer_size);
     require_ok(sel.prepare(), "prepare(count async range)");
     sel.get_param()->set_id_from(first);
     sel.get_param()->set_id_to(last);
@@ -67,8 +106,8 @@ namespace
 
 TEST_CASE("a sequence of statements lands in one transaction", "[crud][generated][live-db][async]")
 {
-  live_db          live;
-  auto&            db    = live.db;
+  live_db           live;
+  auto&             db    = live.db;
   constexpr int32_t first = async_first;
   constexpr int32_t rows  = 6;
   constexpr int32_t last  = first + rows - 1;
@@ -118,20 +157,12 @@ TEST_CASE("different statements share one transaction and one worker", "[crud][g
     REQUIRE(ins.has_value());
     REQUIRE(upd.has_value());
 
-    for (int32_t id = first; id <= last; ++id)
-    {
-      ins->param()->set_id(id);
-      ins->param()->set_name(fmt::format("before {}", id));
-      ins->param()->set_created(async_date(id));
-      adb.submit(*ins);
-    }
-    for (int32_t id = first; id <= last; ++id)
-    {
-      upd->param()->set_id(id);
-      upd->param()->set_name(fmt::format("after {}", id));
-      upd->param()->set_created(async_date(id));
-      adb.submit(*upd);
-    }
+    /// submits one prepared statement for every id in [first, last], setting
+    /// the same three fields "name" is derived from - the only thing that
+    /// differs between the insert pass below and the update pass is which
+    /// prepared statement and which "name" prefix gets used
+    submit_range(adb, *ins, first, last, "before");
+    submit_range(adb, *upd, first, last, "after");
 
     const auto committed = adb.commit();
     if (! committed) FAIL(fmt::format("commit failed: {}", committed.error().str()));
@@ -170,28 +201,14 @@ TEST_CASE("a select runs through the facade and sees the whole transaction", "[c
     REQUIRE(ins.has_value());
     REQUIRE(sel.has_value());
 
-    for (int32_t id = first; id <= last; ++id)
-    {
-      ins->param()->set_id(id);
-      ins->param()->set_name(fmt::format("sel {}", id));
-      ins->param()->set_created(async_date(id));
-      adb.submit(*ins);
-    }
+    submit_range(adb, *ins, first, last, "sel");
 
     /// the select drains the submitted inserts first, so it sees all of them
     /// even though they were never waited for individually
     sel->param()->set_id_from(first);
     sel->param()->set_id_to(last);
 
-    size_t seen = 0;
-    auto   got  = adb.execute_sync(*sel);
-    REQUIRE(got.has_value());
-    while (*got)
-    {
-      seen += sel->result()->occupied();
-      got = adb.fetch_more(*sel);
-      REQUIRE(got.has_value());
-    }
+    const size_t seen = drain(adb, *sel, adb.execute_sync(*sel));
     CHECK(seen == static_cast<size_t>(rows));
 
     const auto committed = adb.commit();

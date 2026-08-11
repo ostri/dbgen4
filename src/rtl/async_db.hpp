@@ -116,18 +116,14 @@ namespace rtl
      */
     [[nodiscard]] params* param() const noexcept
       requires(params::has_parameters())
-    {
-      return par_.get();
-    }
+    { return par_.get(); }
 
     /**
      * @brief the result buffer, readable after execute_sync()
      */
     [[nodiscard]] results* result() const noexcept
       requires(results::has_results())
-    {
-      return res_.get();
-    }
+    { return res_.get(); }
 
     [[nodiscard]] bool   is_valid() const noexcept { return id_ != npos; }
     [[nodiscard]] size_t id() const noexcept { return id_; }
@@ -164,8 +160,8 @@ namespace rtl
     {
       struct column
       {
-        std::vector<std::byte>  values;     ///< the value array, bytes as they lie
-        std::vector<int32_t>    indicators; ///< length/null indicator per row
+        std::vector<std::byte> values;     ///< the value array, bytes as they lie
+        std::vector<int32_t>   indicators; ///< length/null indicator per row
       };
       std::vector<column> columns;
     };
@@ -264,6 +260,7 @@ namespace rtl
           for (size_t i = 0; i < pi.size() && i < snap.columns.size(); ++i)
           {
             const auto& col = snap.columns[i]; // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
             std::memcpy(pi[i].value_ptr, col.values.data(), col.values.size());
             std::copy_n(col.indicators.begin(), std::min(rows, col.indicators.size()), pi[i].indicator_ptr); // NOLINT
           }
@@ -334,8 +331,8 @@ namespace rtl
      */
     template <typename params, typename results>
     [[nodiscard]] std::expected<query_handle<params, results>, db_error> prepare(std::string_view sql,
-                                                                                size_t           param_rows  = 1,
-                                                                                size_t           result_rows = 1);
+                                                                                 size_t           param_rows  = 1,
+                                                                                 size_t           result_rows = 1);
 
     /**
      * @brief hand a statement to the worker and return without waiting
@@ -419,17 +416,17 @@ namespace rtl
     /// record the first error and leave later ones alone
     void note_error(const db_error& e);
 
-    db&                                          db_;
+    db&                                             db_;
     std::vector<std::unique_ptr<detail::task_base>> tasks_;
 
     mutable std::mutex      mtx_;
     std::condition_variable to_worker_;   ///< a job is waiting, or it is time to stop
     std::condition_variable from_worker_; ///< the queue drained, or a job finished
 
-    std::optional<job>      pending_;  ///< the queue, one deep by design
-    bool                    busy_    = false; ///< the worker has a job in hand
-    bool                    stop_    = false;
-    std::optional<db_error> error_;   ///< sticky: the first failure wins
+    std::optional<job>      pending_;      ///< the queue, one deep by design
+    bool                    busy_ = false; ///< the worker has a job in hand
+    bool                    stop_ = false;
+    std::optional<db_error> error_; ///< sticky: the first failure wins
 
     std::thread worker_;
   };
@@ -439,9 +436,7 @@ namespace rtl
   // --------------------------------------------------------------------------
 
   template <typename params, typename results>
-  std::expected<query_handle<params, results>, db_error> async_db::prepare(std::string_view sql,
-                                                                          size_t           param_rows,
-                                                                          size_t           result_rows)
+  std::expected<query_handle<params, results>, db_error> async_db::prepare(std::string_view sql, size_t param_rows, size_t result_rows)
   {
     using query_type = query<params, results>;
 
@@ -449,37 +444,39 @@ namespace rtl
     /// connection. unique_ptr keeps it at a fixed address for its whole life,
     /// which the drivers require - see the note on query's move constructor.
     std::unique_ptr<detail::task<params, results>> t;
-    std::optional<db_error>                   err;
+    std::optional<db_error>                        err;
 
     const std::string sql_copy{sql}; ///< the view may not outlive the call
 
-    run_on_worker([&] {
-      /// db and database are separate bases - db_psql derives from both, and
-      /// query<> wants the latter. The cast is what connects the connection
-      /// object the caller handed over to the interface a query needs.
-      auto* d = dynamic_cast<database*>(&db_);
-      if (d == nullptr)
+    run_on_worker(
+      [&]
       {
-        err = db_error{.sts           = db_sts::invalid_handle,
-                       .message       = "the database object does not implement rtl::database",
-                       .sql_state     = "",
-                       .driver_status = 0,
-                       .native_error  = 0};
-        return;
-      }
-      auto q = query_type(d, sql_copy);
-      /// Sizing has to come before prepare(): it reallocates the column
-      /// arrays, and prepare() is what records where they ended up.
-      if constexpr (params::has_parameters())
-        if (param_rows > 1) q.get_param()->set_buffer_size(param_rows);
-      if constexpr (results::has_results()) q.get_result_buffer()->set_buffer_size(result_rows);
-      if (auto r = q.prepare(); ! r)
-      {
-        err = to_db_error(r.error());
-        return;
-      }
-      t = std::make_unique<detail::task<params, results>>(std::move(q));
-    });
+        /// db and database are separate bases - db_psql derives from both, and
+        /// query<> wants the latter. The cast is what connects the connection
+        /// object the caller handed over to the interface a query needs.
+        auto* d = dynamic_cast<database*>(&db_);
+        if (d == nullptr)
+        {
+          err = db_error{.sts           = db_sts::invalid_handle,
+                         .message       = "the database object does not implement rtl::database",
+                         .sql_state     = "",
+                         .driver_status = 0,
+                         .native_error  = 0};
+          return;
+        }
+        auto q = query_type(d, sql_copy);
+        /// Sizing has to come before prepare(): it reallocates the column
+        /// arrays, and prepare() is what records where they ended up.
+        if constexpr (params::has_parameters())
+          if (param_rows > 1) q.get_param()->set_buffer_size(param_rows);
+        if constexpr (results::has_results()) q.get_result_buffer()->set_buffer_size(result_rows);
+        if (auto r = q.prepare(); ! r)
+        {
+          err = to_db_error(r.error());
+          return;
+        }
+        t = std::make_unique<detail::task<params, results>>(std::move(q));
+      });
 
     if (err) return std::unexpected(*err);
 
@@ -522,10 +519,12 @@ namespace rtl
     const void* src = nullptr;
     if constexpr (params::has_parameters()) src = h.param();
     auto snap = std::make_shared<detail::param_snapshot>(tasks_.at(id)->snapshot_params(src));
-    post_to_worker([this, id, snap] {
-      tasks_.at(id)->restore_params(*snap);
-      if (auto e = tasks_.at(id)->execute(); e) note_error(*e);
-    });
+    post_to_worker(
+      [this, id, snap]
+      {
+        tasks_.at(id)->restore_params(*snap);
+        if (auto e = tasks_.at(id)->execute(); e) note_error(*e);
+      });
   }
 
   template <typename params, typename results>
@@ -546,21 +545,23 @@ namespace rtl
     detail::param_snapshot snap;
     if constexpr (params::has_parameters()) snap = tasks_.at(id)->snapshot_params(h.param());
 
-    run_on_worker([&] {
-      if (has_error()) return; ///< the transaction is already lost
-      if constexpr (params::has_parameters()) tasks_.at(id)->restore_params(snap);
-      if (auto e = tasks_.at(id)->execute(); e)
+    run_on_worker(
+      [&]
       {
-        note_error(*e);
-        return;
-      }
-      if constexpr (results::has_results())
-      {
-        std::optional<db_error> ferr;
-        fetched = tasks_.at(id)->fetch(ferr);
-        if (ferr) note_error(*ferr);
-      }
-    });
+        if (has_error()) return; ///< the transaction is already lost
+        if constexpr (params::has_parameters()) tasks_.at(id)->restore_params(snap);
+        if (auto e = tasks_.at(id)->execute(); e)
+        {
+          note_error(*e);
+          return;
+        }
+        if constexpr (results::has_results())
+        {
+          std::optional<db_error> ferr;
+          fetched = tasks_.at(id)->fetch(ferr);
+          if (ferr) note_error(*ferr);
+        }
+      });
 
     if (auto e = error()) return std::unexpected(*e);
     return fetched;
@@ -579,12 +580,14 @@ namespace rtl
 
     const size_t id      = h.id();
     bool         fetched = false;
-    run_on_worker([&] {
-      if (has_error()) return;
-      std::optional<db_error> ferr;
-      fetched = tasks_.at(id)->fetch(ferr);
-      if (ferr) note_error(*ferr);
-    });
+    run_on_worker(
+      [&]
+      {
+        if (has_error()) return;
+        std::optional<db_error> ferr;
+        fetched = tasks_.at(id)->fetch(ferr);
+        if (ferr) note_error(*ferr);
+      });
 
     if (auto e = error()) return std::unexpected(*e);
     return fetched;

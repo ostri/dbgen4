@@ -284,7 +284,10 @@ namespace rtl
       values.reserve(pd.size());
       for (size_t i = 0; i < pd.size(); ++i)
       {
+        // i < pd.size(), row < buffer_size()
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access,cppcoreguidelines-pro-bounds-pointer-arithmetic)
         const bool is_null = pi[i].indicator_ptr[row] == null_data;
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
         holders.push_back(is_null ? std::string{} : detail::load_value(pd[i], pi[i], row));
         values.push_back(is_null ? nullptr : holders.back().c_str());
       }
@@ -370,6 +373,9 @@ namespace rtl
 
       PGconn* conn = db_->get_conn();
 
+      // holders is only modified inside "if constexpr (has_p)" below, which the has_p == false
+      // instantiation of this template does not compile at all
+      // NOLINTNEXTLINE(misc-const-correctness)
       std::vector<std::string> holders;
       std::vector<const char*> values;
       if constexpr (has_p)
@@ -471,7 +477,9 @@ namespace rtl
         const detail::result_holder res{PQgetResult(conn)};
         const auto                  est = PQresultStatus(res.get());
         if (! first_error && est != PGRES_COMMAND_OK && est != PGRES_TUPLES_OK) first_error = psql_error::from_result(res.get(), conn);
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access) - r < sent == status_span.size()
         status_span[r] = (! first_error) ? psql::param_status_ok : psql::param_status_error;
+        // - r < sent == status_span.size()
         {
           const detail::result_holder end_of_command{PQgetResult(conn)};
         } // nullptr - marks the end of this row's result
@@ -534,8 +542,10 @@ namespace rtl
             }
             const char* raw = PQgetvalue(rows_.get(), src_row, static_cast<int>(c));
             const auto  len = static_cast<size_t>(PQgetlength(rows_.get(), src_row, static_cast<int>(c)));
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access) - c < rd.size() == ri.size()
             if (! detail::store_value(rd[c], ri[c], r, std::string_view(raw, len)))
             {
+              // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access) - c < rd.size()
               db_->get_logger()->warn("Column '{}' value could not be converted - stored as null.", rd[c].name);
               ri[c].indicator_ptr[r] = null_data; // NOLINT
             }

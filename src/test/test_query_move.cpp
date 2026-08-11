@@ -38,8 +38,7 @@ namespace
   constexpr int16_t  move_year  = 2026;
   constexpr uint16_t move_month = 3;
 
-  rtl::date move_date(int32_t id)
-  { return {.year = move_year, .month = move_month, .day = static_cast<uint16_t>(1 + (id - move_first))}; }
+  rtl::date move_date(int32_t id) { return {.year = move_year, .month = move_month, .day = static_cast<uint16_t>(1 + (id - move_first))}; }
 
   /// remove the rows this file uses, so a rerun starts from a known state
   template <typename Db>
@@ -86,7 +85,7 @@ TEST_CASE("a moved-from query does not free the statement its target now owns", 
     /// the move itself - after it, src must own nothing
     dbx::crud::s_ins::stmt dst(std::move(src));
 
-    // NOLINTNEXTLINE(bugprone-use-after-move,clang-analyzer-cplusplus.Move) - checking exactly that state
+    // NOLINTNEXTLINE(bugprone-use-after-move,hicpp-invalid-access-moved,clang-analyzer-cplusplus.Move) - checking exactly that state
     CHECK_FALSE(src.is_prepared());
     CHECK(dst.is_prepared());
 
@@ -145,7 +144,7 @@ TEST_CASE("a query with results survives a move with its result set intact", "[c
     /// move after execute: the result set is mid-flight, and the bound
     /// buffers must travel with it rather than being freed underneath
     dbx::crud::s_sel_range::stmt dst(std::move(src));
-    // NOLINTNEXTLINE(bugprone-use-after-move,clang-analyzer-cplusplus.Move)
+    // NOLINTNEXTLINE(bugprone-use-after-move,hicpp-invalid-access-moved,clang-analyzer-cplusplus.Move)
     CHECK_FALSE(src.is_prepared());
 
     for (auto got = dst.fetch(); got && *got; got = dst.fetch()) rows += dst.get_result()->occupied();
@@ -184,7 +183,7 @@ TEST_CASE("prepared queries can live in a vector that reallocates", "[crud][gene
     /// every statement in the vector must still be the one it was prepared as
     for (int32_t i = 0; i < count; ++i)
     {
-      auto& q = stmts[static_cast<size_t>(i)];
+      auto& q = stmts.at(static_cast<size_t>(i));
       CHECK(q.is_prepared());
       const int32_t id = first + i;
       q.get_param()->set_id(id);

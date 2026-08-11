@@ -82,7 +82,7 @@ namespace
     constexpr int first_printable = 0x20;
     constexpr int last_printable  = 0x7E;
 
-    std::mt19937                      gen(static_cast<uint32_t>(id));
+    std::mt19937                       gen(static_cast<uint32_t>(id));
     std::uniform_int_distribution<int> dist(first_printable, last_printable);
 
     std::string s(tran_width, '\0');
@@ -136,7 +136,12 @@ namespace
     auto got = cnt.fetch();
     require_ok(got, "fetch(perf_count)");
     REQUIRE(*got);
-    return cnt.get_result()->cnt();
+    // cnt() is psql's int64_t / db2's int32_t (count(*) is bigint on one
+    // backend, integer on the other) - this test never writes anywhere near
+    // INT32_MAX rows, and every caller already compares against an int32_t
+    // (perf_rows), so the cast is intentional (and a no-op on db2).
+    // NOLINTNEXTLINE(cppcoreguidelines-narrowing-conversions,readability-redundant-casting)
+    return static_cast<int32_t>(cnt.get_result()->cnt());
   }
 
   /// one row of a fetched window, checked against what write_all_rows put there

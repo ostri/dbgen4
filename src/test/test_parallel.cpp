@@ -59,7 +59,7 @@ namespace
   std::string shell_quote(const std::string& arg)
   {
     std::string q = "'";
-    for (char c : arg)
+    for (const char c : arg)
     {
       if (c == '\'') q += "'\\''";
       else q += c;
@@ -105,7 +105,8 @@ TEST_CASE("parallel generation of five yaml files with two worker threads", "[pa
   cmd += " -j" + std::to_string(worker_count);
   for (const auto& f : yaml_files) cmd += " " + shell_quote(f.string());
 
-  const int raw_status = std::system(cmd.c_str()); // NOLINT(cert-env33-c,concurrency-mt-unsafe)
+  // NOLINTNEXTLINE(cert-env33-c,concurrency-mt-unsafe,bugprone-command-processor) - the generator has no library API, only this CLI
+  const int raw_status = std::system(cmd.c_str());
   REQUIRE(raw_status != -1);
   const int exit_code = WIFEXITED(raw_status) ? WEXITSTATUS(raw_status) : -1; // NOLINT(concurrency-mt-unsafe)
   CHECK(exit_code == 0);

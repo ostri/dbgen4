@@ -138,8 +138,8 @@ namespace rtl
   template <typename params, typename results>
   inline e_void query<params, results>::prepare() noexcept
   {
-    auto*   logger = db_->get_logger();
-    SQLHDBC conn   = db_->get_conn();
+    auto* const   logger = db_->get_logger();
+    const SQLHDBC conn   = db_->get_conn();
 
     if (is_prepared()) SQLFreeHandle(SQL_HANDLE_STMT, stmt_);
     SQLHSTMT  new_stmt = SQL_NULL_HSTMT;
@@ -157,8 +157,8 @@ namespace rtl
       auto           param_init  = par_->buffer_description_init();
       for (size_t i = 0; i < param_const.size(); ++i)
       {
-        const auto& c = param_const[i];
-        const auto& r = param_init[i];
+        const auto& c = param_const[i]; // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access) - i < param_const.size()
+        const auto& r = param_init[i];  // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access) - i < param_init.size()
         ret           = SQLBindParameter(stmt_,
                                          static_cast<SQLUSMALLINT>(i) + 1,
                                          SQL_PARAM_INPUT,
@@ -174,6 +174,8 @@ namespace rtl
                                reinterpret_cast<SQLLEN*>(r.indicator_ptr)); // NOLINT - width checked in db2_types.hpp
         if (! SQL_SUCCEEDED(ret)) return std::unexpected(odbc_error(ret, stmt_, handle_type_enum::stmt, static_cast<SQLSMALLINT>(i + 1)));
       }
+      // the ODBC API itself asks for a size encoded as a pointer here
+      // NOLINTNEXTLINE(performance-no-int-to-ptr)
       SQLSetStmtAttr(stmt_, SQL_ATTR_PARAMSET_SIZE, reinterpret_cast<SQLPOINTER>(par_->buffer_size()), 0);
       SQLSetStmtAttr(stmt_, SQL_ATTR_PARAMS_PROCESSED_PTR, &params_processed_, 0);
       if (par_->is_batch())
@@ -194,8 +196,8 @@ namespace rtl
       auto           result_init  = res_->buffer_description_init();
       for (size_t i = 0; i < result_const.size(); ++i)
       {
-        const auto& c = result_const[i];
-        const auto& r = result_init[i];
+        const auto& c = result_const[i]; // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access) - i < result_const.size()
+        const auto& r = result_init[i];  // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access) - i < result_init.size()
         ret           = SQLBindCol(stmt_,
                                    static_cast<SQLUSMALLINT>(i) + 1,
                                    db2::to_odbc_c(c.type),
@@ -204,6 +206,8 @@ namespace rtl
                                    reinterpret_cast<SQLLEN*>(r.indicator_ptr));
         if (! SQL_SUCCEEDED(ret)) return std::unexpected(odbc_error(ret, stmt_, handle_type_enum::stmt, static_cast<SQLSMALLINT>(i + 1)));
       }
+      // the ODBC API itself asks for a size encoded as a pointer here
+      // NOLINTNEXTLINE(performance-no-int-to-ptr)
       SQLSetStmtAttr(stmt_, SQL_ATTR_ROW_ARRAY_SIZE, reinterpret_cast<SQLPOINTER>(res_->buffer_size()), 0);
       SQLSetStmtAttr(stmt_, SQL_ATTR_ROWS_FETCHED_PTR, &rows_fetched_, 0);
     }
@@ -249,7 +253,7 @@ namespace rtl
     auto* logger = db_->get_logger();
     if constexpr (has_p) par_->clear_row_status();
 
-    SQLRETURN ret = SQLExecute(stmt_);
+    const SQLRETURN ret = SQLExecute(stmt_);
     /// SQL_NO_DATA is not a failure: an update or delete that matched no row
     /// did exactly what it was asked to. Callers that care ask affected_rows().
     if (! SQL_SUCCEEDED(ret) && ret != SQL_NO_DATA) return std::unexpected(odbc_error(ret, stmt_, handle_type_enum::stmt));
@@ -297,8 +301,8 @@ namespace rtl
     if constexpr (! has_r) return false; // NOLINT(readability-inconsistent-ifelse-braces)
     else
     {
-      rows_fetched_ = 0;
-      SQLRETURN ret = SQLFetchScroll(stmt_, SQL_FETCH_NEXT, 0);
+      rows_fetched_       = 0;
+      const SQLRETURN ret = SQLFetchScroll(stmt_, SQL_FETCH_NEXT, 0);
       if (ret == SQL_NO_DATA)
       {
         res_->set_occupied(0);

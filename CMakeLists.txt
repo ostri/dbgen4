@@ -441,9 +441,11 @@ endif()
 # keeping clang-tidy clean, so it cannot be left out. The compilation database
 # also lists every CPM dependency's sources (fmt, spdlog, yaml-cpp, Catch2),
 # which would otherwise be tidied as their own translation units too.
-# src/test/ is excluded from the src/ half of the filter, same as
-# CXX_CLANG_TIDY "" on the unit_tests target below: Catch2's macros trigger
-# clang-tidy false positives there.
+# src/test/ is included, same as ach's own ach_tidy target - the Catch2
+# macro false positives that used to be the reason for excluding it
+# (TEST_CASE/CHECK expanding to do { ... } while(0)) are handled the same
+# way ach handles them: cppcoreguidelines-avoid-do-while is off project-wide
+# (see .clang-tidy's own comment), not by skipping the files outright.
 #
 # The generated files only exist after the targets that produce them have
 # run at least once - tidy depends on generate_smoke_test and
@@ -458,7 +460,7 @@ if(RUN_CLANG_TIDY_EXECUTABLE)
             -config-file=${CMAKE_CURRENT_SOURCE_DIR}/.clang-tidy
             -quiet
             -header-filter "^(${CMAKE_CURRENT_SOURCE_DIR}/src/.*\\.hpp|${CMAKE_CURRENT_BINARY_DIR}/out/.*\\.hpp)$"
-            -source-filter "^(${CMAKE_CURRENT_SOURCE_DIR}/src/(?!test/).*\\.cpp|${CMAKE_CURRENT_BINARY_DIR}/out/(?!.*/?test_).*\\.cpp)$"
+            -source-filter "^(${CMAKE_CURRENT_SOURCE_DIR}/src/.*\\.cpp|${CMAKE_CURRENT_BINARY_DIR}/out/.*\\.cpp)$"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         COMMENT "Running clang-tidy (parallel)"
         VERBATIM
@@ -858,10 +860,15 @@ if(BUILD_TESTING)
         src/test/main.cpp
         src/test/parser_test.cpp
         src/test/db_error_test.cpp
+        src/test/unique_id_test.cpp
         ${GEN_SRC_FILES}
     )
+    # Only matters if CMAKE_CXX_CLANG_TIDY (compile-time tidy integration) is
+    # ever turned on for the whole build - the `tidy` custom target above does
+    # not use this property at all, and does cover src/test/ (see its own
+    # -source-filter comment).
     set_target_properties(unit_tests PROPERTIES
-      CXX_CLANG_TIDY ""          # no clang-tidy for test cases (catch triggers false positives)
+      CXX_CLANG_TIDY ""
     )
 
     # the unit tests exercise the generator, which needs make_db() from some
