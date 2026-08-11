@@ -166,7 +166,7 @@ namespace rtl
       if (ret == db_sts::success)
       {
         set_connection_info(host, port, name, user);
-        log_().info("Connected to db: {}", connection());
+        log_().debug("db connected:     {}", connection());
       }
     }
     return ret;
@@ -185,7 +185,7 @@ namespace rtl
       if (! is_success(static_cast<db_sts>(ret)))
         chk_error(ret, SQL_HANDLE_DBC, data()->conn_handle, "disconnecting from DB2 database", log_());
       free_conn_handle();
-      log_().info("Database disconnected: {}", connection());
+      log_().debug("db disconnected: {}", connection());
     }
 
     if (data()->env_handle != 0) free_env_handle();

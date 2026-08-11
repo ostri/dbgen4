@@ -109,7 +109,7 @@ namespace rtl
     if (ret == db_sts::success)
     {
       set_connection_info(host, port, database_name, user);
-      log_().info("Connected to db: {}", connection());
+      log_().debug("db connected:     {}", connection());
     }
     return ret;
   }
@@ -122,7 +122,7 @@ namespace rtl
     rollback();
     PQfinish(d->conn);
     d->conn = nullptr;
-    log_().info("Database disconnected: {}", connection());
+    log_().debug("db disconnected: {}", connection());
     return db_sts::success;
   }
 
