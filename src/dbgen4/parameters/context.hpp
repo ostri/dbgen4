@@ -9,14 +9,16 @@ namespace dbgen4
   class context
   {
   public:
-    explicit context(const cmd_line_params& cmd)
-    : cmd_(cmd)
-    {
-    }
+    explicit context(const cmd_line_params& cmd);
     [[nodiscard]] const cmd_line_params& cmd() const;
   private:
     /// members
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     const cmd_line_params& cmd_; ///< reference to parameters
   };
+
+  inline context::context(const cmd_line_params& cmd)
+  : cmd_(cmd)
+  {
+  }
 } // namespace dbgen4

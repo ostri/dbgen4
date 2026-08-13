@@ -39,3 +39,5 @@ externals
 .vscode/dbgen4.log
 # dbgen4 logs
 logs/
+
+compile_commands.json

@@ -24,6 +24,9 @@ constexpr static const build_type_enum build_type = build_type_enum::release;
  * @return true if Debug build, false if Release
  */
 consteval bool is_debug_build() { return build_type == build_type_enum::debug; }
+consteval bool is_release_build() { return ! is_debug_build(); }
+consteval bool is_release() { return ! is_debug_build(); }
+consteval bool is_debug() { return is_debug_build(); }
 
 /**
  * @brief Get build type as string

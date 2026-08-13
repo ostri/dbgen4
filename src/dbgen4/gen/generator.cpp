@@ -4,7 +4,6 @@
 #include "context.hpp"
 #include "inja.hpp"
 #include "parser_errors.hpp"
-// #include <climits>
 #include <expected>
 #include <filesystem>
 #include "magic_enum_config.hpp" // IWYU pragma: keep.
@@ -31,31 +30,32 @@ namespace
   {
     if (args.size() < 2) throw std::runtime_error("pad needs at least 2 args");
     // required arguments
-    std::string str = to_str(args.at(0));
+    std::string  str = to_str(args.at(0));
     const size_t len = args.at(1)->get<size_t>();
-
     // optional arguments
     const std::string leading   = (args.size() > 2) ? args.at(2)->get<std::string>() : "";
     const std::string trailing  = (args.size() > 3) ? args.at(3)->get<std::string>() : leading;
     std::string       fill_char = (args.size() > 4) ? args.at(4)->get<std::string>() : " ";
-
     // pad char is single character, blank is default;
     char pad_char = ' ';
     if (! fill_char.empty()) pad_char = fill_char[0]; // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
-
     // combine leading string and trailing
     str = leading + str + trailing;
     if (str.size() >= len) return str;
     const std::string pad(len - str.size(), pad_char);
-    auto        tmp = str + pad;
+    auto              tmp = str + pad;
     log.trace("Padded value: '{}' len: {} pad_char: '{}' pad '{}'", tmp, len, pad_char, pad);
     return tmp;
   }
+  /**
+   * @brief left pad the string with the given fill character or blank
+   *
+   */
   std::string lpad_impl(inja::Arguments& args, logger::Logger& log)
   {
     if (args.size() < 2) throw std::runtime_error("pad needs at least 2 args");
     // required arguments
-    std::string str = to_str(args.at(0));
+    std::string  str = to_str(args.at(0));
     const size_t len = args.at(1)->get<size_t>();
 
     // optional arguments
@@ -71,7 +71,7 @@ namespace
     str = leading + str + trailing;
     if (str.size() >= len) return str;
     const std::string pad(len - str.size(), pad_char);
-    auto        tmp = pad + str;
+    auto              tmp = pad + str;
     log.trace("L Padded value: '{}' len: {} pad_char: '{}' pad '{}'", tmp, len, pad_char, pad);
     return tmp;
   }
@@ -126,6 +126,12 @@ namespace dbgen4
    */
   map_fn         generator::get_fn_tpl() const { return fn_tpl_; }
   const context& generator::ctx() const { return ctx_; }
+  /**
+   * @brief Construct a new generator::generator object
+   *
+   * @param ctx  context
+   * @param log  logger
+   */
   generator::generator(const context& ctx, logger::Logger& log)
   : ctx_(ctx)
   , log_ref_(log) { };
@@ -189,11 +195,11 @@ namespace dbgen4
   exit_status_enum generator::error(const str_t& filename_tpl, const str_t& template_str, const inja::InjaError& e, exit_status_enum code)
   {
     log_().critical("Render error file: '{}' error: '{}' line: {} col: {} template: \n{}.",
-                     filename_tpl,
-                     e.what(),
-                     e.location.line,
-                     e.location.column,
-                     template_str);
+                    filename_tpl,
+                    e.what(),
+                    e.location.line,
+                    e.location.column,
+                    template_str);
     return code;
   }
 
@@ -204,7 +210,7 @@ namespace dbgen4
    */
   e_void generator::prepare_templates()
   {
-    str_t fn; /// must be outside due to catch
+    str_t       fn; /// must be outside due to catch
     const str_t template_str = "Prepare templates";
     try
     {
@@ -301,6 +307,13 @@ namespace dbgen4
     default: std::unreachable();
     }
   }
+  /**
+   * @brief generate the raw type for the buffer
+   *
+   * @param sql_type
+   * @param len column length
+   * @return str_t
+   */
   str_t generator::attr_storage_raw_type(rtl::sql_type sql_type, size_t len)
   {
     const auto* dscr    = rtl::get_sql_mapping(sql_type);
@@ -396,7 +409,8 @@ namespace dbgen4
       /// readability-implicit-bool-conversion wants in place of the narrowing
       /// conversion a bare assignment would do.
       if (dscr->cpp_type_name == "bool")
-        return fmt::format("{{ {0}_.at(row) = static_cast<uint8_t>(v); len_{0}_.at(row) = static_cast<int32_t>(sizeof({0}_.at(0)));}}", name);
+        return fmt::format("{{ {0}_.at(row) = static_cast<uint8_t>(v); len_{0}_.at(row) = static_cast<int32_t>(sizeof({0}_.at(0)));}}",
+                           name);
       [[fallthrough]];
     case rtl::sql_cat::structure:
       return fmt::format("{{ {0}_.at(row) = v; len_{0}_.at(row) = static_cast<int32_t>(sizeof({0}_.at(0)));}}", name);
@@ -440,9 +454,7 @@ namespace dbgen4
     case rtl::sql_cat::structure: return fmt::format("fmt::format(\"{{}}\", {0}(n))", name);
     case rtl::sql_cat::atomic: // return fmt::format("{0}(n))", name);
     case rtl::sql_cat::c_string: return fmt::format("{0}(n)", name);
-    case rtl::sql_cat::w_string:
-      return fmt::format("dbgen4::to_utf8({0}(n))", name);
-      //    case rtl::sql_cat::b_string: return fmt::format("dbgen4::to_hex(&{0}_.at(n)[0])", name);
+    case rtl::sql_cat::w_string: return fmt::format("dbgen4::to_utf8({0}(n))", name);
     case rtl::sql_cat::b_string: return fmt::format("dbgen4::to_hex({0}(n))", name);
     default: __builtin_unreachable();
     }
@@ -470,9 +482,9 @@ namespace dbgen4
                         [this](inja::Arguments& args) -> std::string
                         {
                           // NOLINTBEGIN(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
-                          const json& buf        = *args[0];                    // data
+                          const json&       buf        = *args[0];                    // data
                           const std::string class_name = args[1]->get<std::string>(); // name
-                          auto        buf_size   = args[2]->get<int>();         // buffer size
+                          auto              buf_size   = args[2]->get<int>();         // buffer size
 
                           /// a parameter buffer and a result buffer derive from
                           /// different roots and carry different members
@@ -536,6 +548,12 @@ namespace dbgen4
     }
     return {};
   };
+  /**
+   * @brief fetch the template filename for the given template type
+   *
+   * @param tpl_id
+   * @return str_t
+   */
   str_t generator::template_filename(inja_tpl_enum tpl_id) const
   {
     auto frag = ME::enum_name(tpl_id);
@@ -550,9 +568,7 @@ namespace dbgen4
   }
   /**
    * @brief (part of json) result/param attr data
-   *
-   * @param s
-   * @return e_json
+   * @param el element meta description
    */
   json generator::attr_mappings(rtl::meta_dscr const& el)
   {
@@ -565,19 +581,19 @@ namespace dbgen4
     tmp_col["base-type"] = dscr->cpp_type_name;
     /// enumerator name of the neutral type - the template emits it as
     /// rtl::sql_type::<<type>> and each backend translates it when binding
-    tmp_col["type"]      = ME::enum_name(el.type);
-    tmp_col["mnemonic"]  = dscr->mnemonic;
-    tmp_col["size"]      = el.size;
-    tmp_col["digits"]    = el.digits;
-    tmp_col["nullable"]  = el.nullable;
-    tmp_col["category"]  = ME::enum_name(dscr->category);
-    tmp_col["as-param"]  = unqualified(dscr->par_type_name);
-    tmp_col["as-result"] = unqualified(dscr->ret_type_name);
-    tmp_col["storage"]       = attr_storage_type(el.type, el.name);
-    tmp_col["storage-raw"]   = attr_storage_raw_type(el.type, el.size);
-    tmp_col["getter-code"]   = attr_getter_code(el.type, el.name);
-    tmp_col["setter-code"]   = attr_setter_code(el.type, el.name);
-    tmp_col["dump-value"]    = attr_dump_value_to_string(el.type, el.name);
+    tmp_col["type"]        = ME::enum_name(el.type);
+    tmp_col["mnemonic"]    = dscr->mnemonic;
+    tmp_col["size"]        = el.size;
+    tmp_col["digits"]      = el.digits;
+    tmp_col["nullable"]    = el.nullable;
+    tmp_col["category"]    = ME::enum_name(dscr->category);
+    tmp_col["as-param"]    = unqualified(dscr->par_type_name);
+    tmp_col["as-result"]   = unqualified(dscr->ret_type_name);
+    tmp_col["storage"]     = attr_storage_type(el.type, el.name);
+    tmp_col["storage-raw"] = attr_storage_raw_type(el.type, el.size);
+    tmp_col["getter-code"] = attr_getter_code(el.type, el.name);
+    tmp_col["setter-code"] = attr_setter_code(el.type, el.name);
+    tmp_col["dump-value"]  = attr_dump_value_to_string(el.type, el.name);
     // NOLINTEND(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
     return tmp_col;
   }
@@ -595,25 +611,15 @@ namespace dbgen4
     j["cpp-file"] = this->filename(gen_fn_tpl_names::cpp);
     j["hpp-file"] = this->filename(gen_fn_tpl_names::hpp);
     const fs::path path(this->filename(gen_fn_tpl_names::hpp));
-    auto     hpp_include  = path.filename().string();
-    j["hpp-include-file"] = hpp_include;
+    auto           hpp_include = path.filename().string();
+    j["hpp-include-file"]      = hpp_include;
 
     j["summary"]     = s.summary();
     j["description"] = join(prefix_split(trim_whitespace_view(s.description()), '\n', " *   "), "\n");
     j["version"]     = "0.1.0"; // FIXME(ostri) magic string
-    // yaml file's own stem (see set_yaml_fn_and_barename()) - wraps every
-    // statement's dbx::s_<id> in its own dbx::<schema>::s_<id> instead, so
-    // two yaml files that both happen to use the same statement id (e.g.
-    // "ins"/"nice", the common case) can still be #included in the same
-    // translation unit without redefining the same dbx::s_ins.
-    j["schema"] = barename_;
-    // NOLINTEND(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
-    // auto now         = std::chrono::system_clock::now();
-    // auto local       = std::chrono::current_zone()->to_local(now);
-
-    // j["timestamp"]  = fmt::format("{:%Y-%m-%d %H:%M:%S}", local);
+    j["schema"]      = barename_;
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
-    j["timestamp"]  = fmt::format("{:%Y-%m-%d %H:%M:%S}", std::chrono::current_zone()->to_local(std::chrono::system_clock::now()));
+    j["timestamp"] = fmt::format("{:%Y-%m-%d %H:%M:%S}", std::chrono::current_zone()->to_local(std::chrono::system_clock::now()));
 
     /// Which helper headers the emitted code will actually reach for. Only
     /// dump() needs any of them, and which one depends on the storage
@@ -631,7 +637,9 @@ namespace dbgen4
       {
       case rtl::sql_cat::structure: needs_rtl_fmt = true; break; // fmt::format("{}", date)
       case rtl::sql_cat::w_string: needs_utf8 = true; break;     // dbgen4::to_utf8
-      case rtl::sql_cat::b_string: needs_hex = true; break;      // dbgen4::to_hex
+      case rtl::sql_cat::b_string:
+        needs_hex = true;
+        break; // dbgen4::to_hex
       /// printed as they are, so no helper header - and a category nobody
       /// added yet needs none either, which is why they share the branch
       case rtl::sql_cat::atomic:
@@ -671,17 +679,12 @@ namespace dbgen4
         note_helpers(el);
         s["param"].push_back(attr_mappings(el));
       }
-
       j["statements"].push_back(s);
     }
-
     j["needs-rtl-fmt"] = needs_rtl_fmt;
     j["needs-utf8"]    = needs_utf8;
     j["needs-hex"]     = needs_hex;
     // NOLINTEND(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
-
     return j;
   };
-
-
 } // namespace dbgen4

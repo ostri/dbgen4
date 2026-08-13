@@ -1,7 +1,6 @@
 //
 // Created by ostri on 2024/02/04
 //
-
 #include "cmd_line_params.hpp"
 #include "common.hpp"
 #include "parser_errors.hpp"
@@ -10,8 +9,6 @@
 #include "magic_enum_config.hpp" // IWYU pragma: keep.
 #include <magic_enum.hpp>
 namespace ME = magic_enum; // NOLINT(misc-unused-alias-decls)
-
-
 #include "CLI/App.hpp"
 #include "CLI/Config.hpp"    // IWYU pragma: export
 #include "CLI/Formatter.hpp" // IWYU pragma: export
@@ -88,7 +85,13 @@ namespace dbgen4
                            s);
     return msg;
   }
-
+  /**
+   * @brief load the parameters from the command line and environment variables
+   * @param argc number of parameters
+   * @param argv array of parameters
+   * @param env array of environment variables
+   * @return exit_status_enum
+   */
   exit_status_enum cmd_line_params::load_parameters(int argc, char** argv, char** /*env*/)
   {
     CLI::App app{"Generator of db layer for c++ programs."};
@@ -102,7 +105,7 @@ namespace dbgen4
     // clang-format off
     /// database type
     auto help_str = fmt::format("database type : [{}]", s);
-    app.add_option("-t,--db-type", enum_str, help_str      )
+    app.add_option("-t,--db-type", enum_str, help_str)
       ->default_val(db_type_enum::sql)
       ->check([s, this](const std::string& v)
       {
@@ -115,7 +118,6 @@ namespace dbgen4
           auto msg = fmt::format("Database type '{}' is not valid. Valid values are '{}'.", v, s);
           throw CLI::ConversionError(msg);
         }
-        //return true;
         return "";
       });
     /// host name
@@ -172,9 +174,6 @@ namespace dbgen4
       const std::vector<const char*> arg = {};
       if (argc == 1)
       {
-        // char* fake_argv[] = {argv[0], (char*)"--help"}; // NOLINT
-        // argc              = 2;
-        // argv              = fake_argv; // NOLINT
         std::array<char*, 3> arg = {argv[0], const_cast<char*>("--help"), nullptr}; // NOLINT
         app.parse(arg.size() - 1, arg.data());
       }
@@ -191,7 +190,7 @@ namespace dbgen4
 
       log_().info(R"(Command line parameter values :
 {})",
-                   dump(2));
+                  dump(2));
       return exit_status_enum::ok;
     }
     catch (const CLI::CallForAllHelp& e)
@@ -227,13 +226,13 @@ namespace dbgen4
       throw;
     }
   }
-
+  /**
+   * @brief set log level based on verbosity flag and build type
+   * @param verbose verbosity flag  - true if verbose
+   */
   void cmd_line_params::set_log_level(bool verbose) const
   {
-    if (is_debug_build()) { log_().set_level(verbose ? logger::level::trace : logger::level::info); }
-    else
-    {
-      log_().set_level(verbose ? logger::level::info : logger::level::warn);
-    };
+    if constexpr (is_debug()) log_().set_level(verbose ? logger::level::trace : logger::level::info);
+    else log_().set_level(verbose ? logger::level::info : logger::level::warn);
   }
 }; // namespace dbgen4

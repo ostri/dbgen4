@@ -1,18 +1,13 @@
 #include "appl.hpp"
 #include "build_type.hpp"
 #include "context.hpp"
-// #include "data_statements.hpp"
 #include "parser.hpp"
 #include <stdexcept>
 #include "magic_enum_config.hpp" // IWYU pragma: keep.
 #include <magic_enum.hpp>
 namespace ME = magic_enum; // NOLINT(misc-unused-alias-decls)
 
-// #include <vector>
-// #include <string>
-//  #include "build_type.hpp"
 #include "common.hpp"
-// #include "pars_result.hpp"
 #include "parser_errors.hpp"
 #include "rtl.hpp"
 #include <algorithm>
@@ -65,7 +60,6 @@ namespace dbgen4
       log_().info("File '{}' source code generation failed. status: {}", filename, ME::enum_name(res.error()));
       return std::unexpected(res.error());
     }
-    //    log_().info("Generated hpp file:\n{}", res.value());
     log_().info("Data model generation from file '{}' successful", filename);
     return r.value();
   }
@@ -171,10 +165,10 @@ namespace dbgen4
       const auto dialect = ME::enum_name(p_.db_type());
       if (p_.db_type() != db_type_enum::sql && dialect != rtl::backend_name())
         log_().warn("Requested sql dialect '{}' but this executable is built against the '{}' backend. "
-                     "Statements will be described by '{}'.",
-                     dialect,
-                     rtl::backend_name(),
-                     rtl::backend_name());
+                    "Statements will be described by '{}'.",
+                    dialect,
+                    rtl::backend_name(),
+                    rtl::backend_name());
 
       auto r = db.connect(p_.host(), p_.port(), p_.db_name(), p_.user(), p_.pass());
       log_().info("Database connection status: {}", ME::enum_name<db_sts>(r));
@@ -185,8 +179,8 @@ namespace dbgen4
       }
       db.disconnect();
 
-      const context ctx(p_);           /// package cmd line parameters
-      generator     gen(ctx, log_());  /// bare bone generator, template for the per-worker copies
+      const context ctx(p_);          /// package cmd line parameters
+      generator     gen(ctx, log_()); /// bare bone generator, template for the per-worker copies
       auto          res = gen.register_callbacks();
       if (! res) return res.error(); /// errors in template generation
       res = gen.prepare_templates();
@@ -226,10 +220,10 @@ namespace dbgen4
                                               static_cast<double>(total_files)
                                           : 0.0;
       log_().info("Summary: {} worker thread(s), {} ms total, {} yaml file(s) processed, {:.2f} ms average per file",
-                   worker_count,
-                   run_ms,
-                   total_files,
-                   avg_ms);
+                  worker_count,
+                  run_ms,
+                  total_files,
+                  avg_ms);
 
       log_().info("Application exit code '{}' '{}'", ME::enum_integer(sts), ME::enum_name(sts));
       return sts;
