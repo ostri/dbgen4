@@ -60,6 +60,34 @@ statements:
     psql: |
       delete from crud_test where id = $1
 
+  - id: slow_count
+    summary: deliberately slow, cancellable select - for testing async_db::cancel()
+    dscr: |
+      Counts up a recursive CTE to a few million rows, taking a few seconds on
+      either backend - not because the count itself is useful, but because it
+      is a portable (no server-side sleep()/WAITFOR needed), reliably
+      interruptible way to have a statement genuinely still running when
+      another thread calls cancel() on it (see test_cancel.cpp). Only DB2's
+      own CTE syntax differs (no RECURSIVE keyword, and the anchor member
+      needs an explicit FROM); the row count itself is tuned per backend
+      since the two engines are not equally fast at evaluating one.
+    res-buf-size: 1
+    result-names: [cnt]
+    db2: |
+      with slow(n) as (
+        select 1 from sysibm.sysdummy1
+        union all
+        select n+1 from slow where n < 15000000
+      )
+      select count(*) as cnt from slow
+    psql: |
+      with recursive slow(n) as (
+        select 1
+        union all
+        select n+1 from slow where n < 8000000
+      )
+      select count(*) as cnt from slow
+
   # ---------------------------------------------------------------------------
   # all types round trip - one column per sql type the generator maps today
   # ---------------------------------------------------------------------------

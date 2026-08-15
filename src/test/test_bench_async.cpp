@@ -346,12 +346,14 @@ namespace
   template <typename Db>
   run_timing async_insert(Db& db, size_t rows_per_block, size_t blocks)
   {
-    auto&         log = dbgen4::test::test_logger();
-    rtl::async_db adb(db);
+    auto& log   = dbgen4::test::test_logger();
+    auto  adb_h = rtl::async_db::create(db);
+    REQUIRE(adb_h.has_value());
+    auto& adb = *adb_h.value();
 
-    auto ins1 = adb.prepare<dbx::crud::s_perf_ins::p, rtl::no_results>(dbx::crud::s_perf_ins::qry::sql(), rows_per_block);
-    auto ins2 = adb.prepare<dbx::crud::s_perf_ins2::p, rtl::no_results>(dbx::crud::s_perf_ins2::qry::sql(), rows_per_block);
-    auto ins3 = adb.prepare<dbx::crud::s_perf_ins3::p, rtl::no_results>(dbx::crud::s_perf_ins3::qry::sql(), rows_per_block);
+    auto ins1 = adb.template prepare<dbx::crud::s_perf_ins::p, rtl::no_results>(dbx::crud::s_perf_ins::qry::sql(), rows_per_block);
+    auto ins2 = adb.template prepare<dbx::crud::s_perf_ins2::p, rtl::no_results>(dbx::crud::s_perf_ins2::qry::sql(), rows_per_block);
+    auto ins3 = adb.template prepare<dbx::crud::s_perf_ins3::p, rtl::no_results>(dbx::crud::s_perf_ins3::qry::sql(), rows_per_block);
     REQUIRE(ins1.has_value());
     REQUIRE(ins2.has_value());
     REQUIRE(ins3.has_value());

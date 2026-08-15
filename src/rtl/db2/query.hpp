@@ -65,6 +65,23 @@ namespace rtl
     [[nodiscard]] cond<has_r, size_t>  occupied_count() const noexcept;
     void                               reset(this query& self) noexcept;
     [[nodiscard]] SQLHSTMT             stmt() const noexcept;
+    /**
+     * @brief abort whatever this statement is currently doing on the server
+     *
+     * Safe to call from a thread other than the one blocked inside
+     * execute()/fetch() - that is the whole point (see rtl::async_db::cancel(),
+     * the one caller this exists for today). ODBC's SQLCancel targets a
+     * specific statement handle (unlike psql's PQcancelBlocking, which acts
+     * on the whole connection, see psql/query.hpp's own cancel() for that
+     * side) - stmt_ is exactly that handle, so no extra bookkeeping is needed
+     * here to know which statement is "the one running".
+     *
+     * @return true if the driver accepted the cancel request; false if there
+     *         is no statement handle to cancel (never prepared, or already
+     *         freed) - either way says nothing about whether the statement
+     *         actually stopped, only that the request was sent
+     */
+    [[nodiscard]] bool cancel() const noexcept;
   private:
     const database* db_   = nullptr;                  //< the database connection this query belongs to
     SQLHSTMT        stmt_ = SQL_NULL_HSTMT;           //< the statement handle, allocated in prepare() and freed in the destructor
@@ -168,7 +185,7 @@ namespace rtl
                                          c.decimal_digits,
                                          r.value_ptr,
                                          /// the driver needs the room it may write into. Ignored for the
-                               /// fixed size C types, but a character or binary column bound with
+                                         /// fixed size C types, but a character or binary column bound with
                                /// 0 here comes back empty - stride is exactly the array's byte size
                                static_cast<SQLLEN>(r.stride),
                                reinterpret_cast<SQLLEN*>(r.indicator_ptr)); // NOLINT - width checked in db2_types.hpp
@@ -406,5 +423,12 @@ namespace rtl
   template <typename params, typename results>
   inline SQLHSTMT query<params, results>::stmt() const noexcept
   { return stmt_; }
+
+  template <typename params, typename results>
+  inline bool query<params, results>::cancel() const noexcept
+  {
+    if (stmt_ == SQL_NULL_HSTMT) return false;
+    return SQL_SUCCEEDED(SQLCancel(stmt_));
+  }
 
 } // namespace rtl

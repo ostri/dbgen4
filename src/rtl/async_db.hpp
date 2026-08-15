@@ -51,6 +51,52 @@
  * the databases do - after a failed statement PostgreSQL puts the transaction
  * into 25P02 and refuses everything until a rollback anyway.
  *
+ * ## Polling instead of blocking: exec()/is_finished()
+ *
+ * submit()/execute_sync() are the original pair: submit() tells the caller
+ * nothing at all (not even "accepted"), execute_sync() tells the caller
+ * everything but only once the whole pipeline has drained. exec()/is_finished()
+ * sit between the two, modelled on the ODBC "SQL_STILL_EXECUTING" pattern
+ * (SQLExecute on a statement handle set to SQL_ATTR_ASYNC_ENABLE returns
+ * immediately with SQL_STILL_EXECUTING while the driver is still working, and
+ * the caller re-issues the same call to find out whether it is done yet) -
+ * adapted here to the one-job-deep queue this facade already has, rather than
+ * to a single statement handle:
+ *
+ * - **exec()** is asynchronous by definition - it hands a job to the worker
+ *   and returns - but it *blocks* if the one-deep queue is not free yet
+ *   (a job is still pending, or the worker is still busy with the previous
+ *   one). There is nothing to poll for at the point of a full queue: the
+ *   caller has no other job it could be doing that would not itself need this
+ *   same queue slot, so exec() simply waits for room the way submit() always
+ *   silently did - the difference is that exec() also carries a return value.
+ * - **is_finished()** never blocks. It reports `still_pending` while the
+ *   worker has not yet finished the last job handed to it (via exec()),
+ *   `finished` once the queue is empty and the worker is idle - the same
+ *   condition drain() waits for, just observed instead of waited on - or the
+ *   sticky error if that last job (or an earlier one still remembered) failed.
+ *   Because the queue is exactly one job deep, "the queue accepted a new job"
+ *   and "the previous job is done" are the same event - there is no separate
+ *   per-job result to track, only ever one job in flight and, briefly, one
+ *   just-finished result sitting in `pending_`'s empty slot.
+ *
+ * What `finished` does NOT say is "rows are waiting" versus "the statement
+ * had no rows to begin with" - that distinction was never is_finished()'s to
+ * make. The caller already knows which kind of statement it ran: a
+ * `query_handle<P, rtl::no_results>` (insert/update/delete) has no fetch()/
+ * fetch_more() to call in the first place (see query_handle's own has_results
+ * gate below), while a `query_handle<P, R>` with a real result type does, and
+ * calling it after a `finished` result is exactly the same "drain the next
+ * buffer of rows" loop execute_sync()/fetch_more() already use. Nothing here
+ * introduces a second way to ask "was this a select" - the type the caller
+ * already has answers that.
+ *
+ * Calling exec() again before a select's own results have been fully drained
+ * is not a distinct error state: it is simply "the queue is not free yet",
+ * so exec() blocks exactly as it does for a still-running insert - the caller
+ * falls back to synchronous behaviour rather than losing the pending rows or
+ * hitting a special case.
+ *
  * ## Lifetime
  *
  * The destructor drains what was already submitted, stops the worker and
@@ -146,6 +192,23 @@ namespace rtl
     std::shared_ptr<results> res_;
   };
 
+  /**
+   * @brief what is_finished()/exec() report once a job has actually been
+   * accepted into the one-deep queue - see async_db's own "Polling instead of
+   * blocking" doc comment for the full picture.
+   *
+   * Deliberately carries no payload beyond this: which handle's results are
+   * now readable is something the caller already knows (it is whichever
+   * handle it last called exec() with), and whether that statement even
+   * has rows to fetch follows from the handle's own type
+   * (query_handle<P, R>::returns_rows), not from anything reported here.
+   */
+  enum class exec_status : uint8_t
+  {
+    still_pending, ///< the worker has not finished the last job yet
+    finished,      ///< the queue is empty and the worker is idle - the last job (if any) is done
+  };
+
   namespace detail
   {
     /**
@@ -205,6 +268,10 @@ namespace rtl
       /// copy one buffer's worth of rows into the result buffer
       /// @return whether any rows were copied; nullopt-free errors go in `err`
       [[nodiscard]] virtual bool fetch(std::optional<db_error>& err) = 0;
+      /// abort this statement's own execute()/fetch(), if one is running -
+      /// see query<>::cancel() (backend-specific) for what "abort" means on
+      /// each side, and async_db::cancel() for the one caller
+      [[nodiscard]] virtual bool cancel() const noexcept = 0;
     };
 
     /// a task holding the real query<P,R>
@@ -278,6 +345,8 @@ namespace rtl
         return *r;
       }
 
+      [[nodiscard]] bool cancel() const noexcept override { return q_.cancel(); }
+
       [[nodiscard]] query_type& qry() noexcept { return q_; }
     private:
       query_type q_;
@@ -295,13 +364,30 @@ namespace rtl
   {
   public:
     /**
-     * @brief take over a connected database for the worker thread
+     * @brief take over a connected database and start its worker thread
      *
      * The database must already be connected, and must not be touched by the
-     * caller for as long as this object lives - that is the whole contract.
-     * Ownership stays with the caller; only use of it moves here.
+     * caller for as long as the returned object lives - that is the whole
+     * contract. Ownership stays with the caller; only use of it moves here.
+     *
+     * A plain constructor cannot report failure the way the rest of this
+     * class does (std::expected throughout): std::thread's own constructor
+     * throws std::system_error if the OS refuses to create the thread (e.g.
+     * RLIMIT_NPROC or a system-wide thread cap already reached - a real
+     * possibility, not a theoretical one, for code that opens several
+     * async_db instances in a row, as -j/--parallel-style workloads do). A
+     * constructor that can throw would be the one place in this class where
+     * failure looks different from everywhere else in it, and would force a
+     * caller into try/catch just to construct one - so thread creation
+     * happens here instead, in a factory that reports it the same way
+     * prepare()/exec()/commit() already do.
+     *
+     * @return an async_db ready to use, or the failure std::thread's own
+     *         constructor reported, translated into a db_error
+     *         (db_sts::unknown; message carries std::system_error::what())
      */
-    explicit async_db(db& database);
+    [[nodiscard]] static std::expected<std::unique_ptr<async_db>, db_error> create(db& database);
+
     ~async_db();
 
     async_db(const async_db&)            = delete;
@@ -359,6 +445,45 @@ namespace rtl
       requires(! query_handle<params, results>::returns_rows);
 
     /**
+     * @brief hand a statement to the worker, blocking only if the queue is not free yet
+     *
+     * See the class's own "Polling instead of blocking" doc comment for the
+     * model this and is_finished() together implement.
+     *
+     * Works for both kinds of statement, unlike submit() (no_results only):
+     * for a row-returning handle, the point of exec() is precisely to let the
+     * caller find out later, via is_finished(), when it is safe to fetch()/
+     * fetch_more() without blocking to find out.
+     *
+     * Blocks exactly as long as the one-deep queue is occupied - i.e. exactly
+     * as long as submit() always silently blocked in that case, no longer.
+     * Once room is free, the wait is over: the previous job (if there was
+     * one) is now known to be finished, this job is now the one pending, and
+     * exec() returns without waiting for THIS job to run.
+     *
+     * @return exec_status::finished immediately (this job is now queued,
+     *         nothing was in the way) - never still_pending, since exec()
+     *         does not return until the queue actually has room - or the
+     *         first sticky error if one is already pending (the job is
+     *         silently discarded, same as submit()'s own contract).
+     */
+    template <typename params, typename results>
+    [[nodiscard]] std::expected<exec_status, db_error> exec(const query_handle<params, results>& h);
+
+    /**
+     * @brief poll whether the worker has finished the last job, without waiting
+     *
+     * Never blocks. See the class's own "Polling instead of blocking" doc
+     * comment for what `finished` does and does not tell the caller.
+     *
+     * @return still_pending while a job is queued or the worker is still
+     *         running one; finished once the queue is empty and the worker
+     *         is idle; the sticky error if the last job (or an earlier one
+     *         still remembered) failed.
+     */
+    [[nodiscard]] std::expected<exec_status, db_error> is_finished() const;
+
+    /**
      * @brief run a statement and wait for it, then fetch one buffer of rows
      *
      * Drains everything submitted before it first, so the statement sees the
@@ -402,20 +527,72 @@ namespace rtl
     [[nodiscard]] std::optional<db_error> error() const;
     /// whether a statement has failed and further submits are being discarded
     [[nodiscard]] bool has_error() const;
+
+    /**
+     * @brief abort whatever statement the worker is currently running, from
+     * any other thread
+     *
+     * Distinct from the destructor's own drain-then-stop, which waits for a
+     * running statement to finish on its own rather than interrupting it -
+     * cancel() is the one way to reach in and abort a statement that has
+     * been running longer than the caller is willing to wait for (a timeout,
+     * a user-initiated abort, ...), without waiting it out first. See the
+     * class's own "Polling instead of blocking" doc comment's sibling note on
+     * why this could not simply be part of the destructor: the destructor
+     * only ever runs once the caller is done with the object entirely, while
+     * cancel() is meant to be called while the object is still very much in
+     * use, from a thread that is not the one blocked inside exec()/
+     * execute_sync()/drain()/commit() at the time.
+     *
+     * Whether the aborted statement's own exec()/execute_sync()/drain() call
+     * (on whichever thread is blocked in it) comes back with the cancellation
+     * as its error, or with whatever error the backend happens to report for
+     * an interrupted round trip, is backend and timing dependent - either
+     * way, that call returns instead of continuing to block, which is
+     * cancel()'s entire purpose. A canceled statement still counts as a
+     * failure for the sticky-error/rollback machinery like any other.
+     *
+     * @return true if a statement was actually running and the cancel
+     *         request was sent for it; false if nothing is currently running
+     *         (there was nothing to cancel) or the request itself could not
+     *         be sent - either way says nothing about whether the statement
+     *         has actually stopped by the time this returns
+     */
+    [[nodiscard]] bool cancel() const noexcept;
   private:
+    /**
+     * @brief bind to the connection without starting the worker thread yet
+     *
+     * Only reachable through create() - see its own doc comment for why
+     * thread creation is not done here. A default-constructed worker_
+     * (not-a-thread) is what create() replaces with the real one, once
+     * std::thread's own constructor has actually succeeded.
+     */
+    explicit async_db(db& database);
+
     /// a unit of work for the worker: run it, and say whether it failed
     using job = std::function<void()>;
+
+    /**
+     * @brief a queued job together with which tasks_ entry (if any) it runs -
+     * see running_task_id_'s own doc comment for why cancel() needs this.
+     */
+    struct queued_job
+    {
+      job                   fn;
+      std::optional<size_t> task_id;
+    };
 
     void worker_loop();
     /// hand one job over and wait for the worker to finish it
     /// @param even_after_error run it even when the sticky error is set -
     ///        only COMMIT and ROLLBACK, which are what clears that state
-    void run_on_worker(const job& j, bool even_after_error = false);
+    void run_on_worker(job j, bool even_after_error = false, std::optional<size_t> task_id = std::nullopt);
     /// hand one job over and return; blocks only while the queue is full
-    void post_to_worker(job j, bool even_after_error = false);
+    void post_to_worker(job j, bool even_after_error = false, std::optional<size_t> task_id = std::nullopt);
     /// record the first error and leave later ones alone
     void note_error(const db_error& e);
-
+  private:
     db&                                             db_;
     std::vector<std::unique_ptr<detail::task_base>> tasks_;
 
@@ -423,10 +600,23 @@ namespace rtl
     std::condition_variable to_worker_;   ///< a job is waiting, or it is time to stop
     std::condition_variable from_worker_; ///< the queue drained, or a job finished
 
-    std::optional<job>      pending_;      ///< the queue, one deep by design
-    bool                    busy_ = false; ///< the worker has a job in hand
-    bool                    stop_ = false;
-    std::optional<db_error> error_; ///< sticky: the first failure wins
+    std::optional<queued_job> pending_;      ///< the queue, one deep by design
+    bool                      busy_ = false; ///< the worker has a job in hand
+    bool                      stop_ = false;
+    std::optional<db_error>   error_; ///< sticky: the first failure wins
+
+    /**
+     * @brief tasks_ index of the job currently running, if it is one exec()/
+     * submit()/execute_sync() actually queued for a user statement - what
+     * cancel() reaches for. std::nullopt for an internal job (prepare()'s own
+     * setup, commit(), rollback()) that runs directly against db_ rather than
+     * through a tasks_ entry, and for whenever nothing is running at all.
+     * Set under mtx_ right before the worker calls j() (see worker_loop()),
+     * so cancel() - called from any other thread - reads a value that is
+     * either "nothing running" or "this IS the job in flight right now",
+     * never a stale one from a job that already finished.
+     */
+    std::optional<size_t> running_task_id_;
 
     std::thread worker_;
   };
@@ -524,7 +714,58 @@ namespace rtl
       {
         tasks_.at(id)->restore_params(*snap);
         if (auto e = tasks_.at(id)->execute(); e) note_error(*e);
-      });
+      },
+      /*even_after_error=*/false,
+      /*task_id=*/id); ///< lets cancel() reach a submit()'d job too, same as an exec()'d one
+  }
+
+  template <typename params, typename results>
+  std::expected<exec_status, db_error> async_db::exec(const query_handle<params, results>& h)
+  {
+    if (! h.is_valid())
+      return std::unexpected(db_error{.sts           = db_sts::invalid_handle,
+                                      .message       = "the handle does not name a prepared statement",
+                                      .sql_state     = "",
+                                      .driver_status = 0,
+                                      .native_error  = 0});
+
+    const size_t id = h.id();
+    /// Same snapshot-before-queueing contract as submit() - see its own doc
+    /// comment. Taken unconditionally, even for a row-returning statement:
+    /// exec() does not wait for this job to run, so the caller may already be
+    /// free to reuse its own parameter buffer by the time this returns.
+    const void* src = nullptr;
+    if constexpr (params::has_parameters()) src = h.param();
+    auto snap = std::make_shared<detail::param_snapshot>(tasks_.at(id)->snapshot_params(src));
+
+    /// post_to_worker() blocks here for exactly as long as the one-deep queue
+    /// is occupied - see exec()'s own doc comment for why that wait is not
+    /// something is_finished() could have reported instead. Once it returns,
+    /// this job is the one pending (or was silently discarded because a
+    /// sticky error is already set - see post_to_worker()'s own doc comment),
+    /// and the PREVIOUS job, if any, is known to be finished.
+    post_to_worker(
+      [this, id, snap]
+      {
+        if constexpr (params::has_parameters()) tasks_.at(id)->restore_params(*snap);
+        if (auto e = tasks_.at(id)->execute(); e)
+        {
+          note_error(*e);
+          return;
+        }
+        if constexpr (results::has_results())
+        {
+          std::optional<db_error> ferr;
+          (void)tasks_.at(id)->fetch(ferr); ///< first buffer of rows, same as execute_sync()'s own first fetch()
+          if (ferr) note_error(*ferr);
+        }
+      },
+      /*even_after_error=*/false,
+      /*task_id=*/id); ///< without this, running_task_id_ never gets set for an exec()'d job, and cancel() can never find anything to
+                       ///< cancel
+
+    if (auto e = error()) return std::unexpected(*e);
+    return exec_status::finished;
   }
 
   template <typename params, typename results>
@@ -561,7 +802,9 @@ namespace rtl
           fetched = tasks_.at(id)->fetch(ferr);
           if (ferr) note_error(*ferr);
         }
-      });
+      },
+      /*even_after_error=*/false,
+      /*task_id=*/id); ///< lets another thread's cancel() reach the statement this call is blocked on
 
     if (auto e = error()) return std::unexpected(*e);
     return fetched;
@@ -587,7 +830,9 @@ namespace rtl
         std::optional<db_error> ferr;
         fetched = tasks_.at(id)->fetch(ferr);
         if (ferr) note_error(*ferr);
-      });
+      },
+      /*even_after_error=*/false,
+      /*task_id=*/id); ///< lets another thread's cancel() reach the fetch this call is blocked on
 
     if (auto e = error()) return std::unexpected(*e);
     return fetched;

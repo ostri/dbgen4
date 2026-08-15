@@ -715,6 +715,7 @@ function(add_crud_test_target backend rtl_library test_db_include_dir parallel_t
         ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_crud_batch.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_query_move.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_async.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_cancel.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_schema_namespace.cpp
         $<TARGET_OBJECTS:${parallel_test_obj}>
         ${extra_sources})

@@ -267,6 +267,34 @@ namespace rtl
 
     [[nodiscard]] bool    is_prepared() const noexcept { return prepared_; }
     [[nodiscard]] int64_t affected_rows() const noexcept { return affected_rows_; }
+
+    /**
+     * @brief abort whatever this statement is currently doing on the server
+     *
+     * Safe to call from a thread other than the one blocked inside
+     * execute()/fetch() - that is the whole point (see rtl::async_db::cancel(),
+     * the one caller this exists for today). PQcancelBlocking works on the
+     * whole connection, not a specific statement (unlike ODBC's SQLCancel,
+     * see db2/query.hpp's own cancel() for that side) - there is only ever one
+     * statement in flight on a given connection at a time in this codebase
+     * (rtl::query<> is not used concurrently from two threads on the same
+     * database - see async_db.hpp's own file comment), so that is not a
+     * distinction that matters here.
+     *
+     * @return true if the cancel request was sent; false if a PGcancelConn
+     *         could not even be created/started (e.g. the connection is
+     *         already gone) - either way says nothing about whether the
+     *         statement actually stopped, only that the request was sent
+     */
+    [[nodiscard]] bool cancel() const noexcept
+    {
+      if (db_ == nullptr) return false;
+      PGcancelConn* cancel_conn = PQcancelCreate(db_->get_conn());
+      if (cancel_conn == nullptr) return false;
+      const bool ok = PQcancelBlocking(cancel_conn) == 1;
+      PQcancelFinish(cancel_conn);
+      return ok;
+    }
   private:
     /// marshal one row of the parameter buffer into text, ready for
     /// PQexecPrepared/PQsendQueryPrepared. holders owns the storage;
