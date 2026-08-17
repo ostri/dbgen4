@@ -174,8 +174,16 @@ namespace rtl
   {
     SQLRETURN ret = SQL_SUCCESS;
     if (data()->stmt_handle != 0)
-    { // statement handle still active; rollback and disconnect
-      rollback();
+    {
+      // Deliberately NOT calling rollback() here: unlike psql (which stays inside an explicit
+      // transaction at all times - see db_psql::commit()/rollback(), both of which immediately
+      // reopen one via begin_transaction()), db2/ODBC has no open transaction left to roll back
+      // right after a successful commit() - SQLEndTran(SQL_ROLLBACK) on that connection state
+      // fails with "Invalid transaction state" (SQLSTATE 25000), which then cascades into
+      // SQLDisconnect()/SQLFreeHandle() below also failing ("Function sequence error"). Any
+      // transaction genuinely left open by a caller that never committed/rolled back is closed by
+      // the driver itself as part of SQLDisconnect() - that is standard ODBC behavior, not
+      // something this needs to do by hand.
       free_stmt_handle();
     }
     if (data()->conn_handle != 0)
