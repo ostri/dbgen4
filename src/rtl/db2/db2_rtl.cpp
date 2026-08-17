@@ -417,6 +417,17 @@ namespace rtl
     }
 
     free_stmt_handle();
+
+    // Close out the implicit transaction SQLExecDirect() just opened (this connection runs with
+    // SQL_AUTOCOMMIT_OFF - see internal_allocate_handles()): most callers already commit()/
+    // rollback() their own batch of statements explicitly and this is a harmless no-op for them,
+    // but a caller whose LAST database action in the process is exec() (e.g.
+    // conf_root_loader::drop_tmp_table(), which runs a bare DDL statement and returns without ever
+    // calling commit() itself) would otherwise leave the connection with an uncommitted implicit
+    // transaction still open right up to disconnect() - SQLDisconnect() on that connection state
+    // fails with "Invalid transaction state" (SQLSTATE 25000) on this driver, which then cascades
+    // into SQLFreeHandle() also failing.
+    commit();
     return db_sts::success;
   }
 
