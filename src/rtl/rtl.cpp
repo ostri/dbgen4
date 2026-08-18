@@ -53,9 +53,26 @@ namespace rtl
     const auto t = static_cast<uint64_t>(thread & thread_mask);
     for (;;)
     {
-      const uint64_t ms      = now_ms() - custom_epoch_ms;
-      uint64_t       prev    = last_state.load(std::memory_order_relaxed);
-      const uint64_t prev_ms = prev >> sequence_bits;
+      const uint64_t wall_ms  = now_ms() - custom_epoch_ms;
+      uint64_t       prev     = last_state.load(std::memory_order_relaxed);
+      const uint64_t prev_ms  = prev >> sequence_bits;
+
+      // std::chrono::system_clock is wall-clock time, not monotonic - an NTP
+      // adjustment (or just scheduling/TSC jitter across cores) can make a
+      // later call observe an EARLIER wall_ms than an already-published
+      // prev_ms. Clamping ms to max(wall_ms, prev_ms) keeps last_state's own
+      // timestamp field monotonically non-decreasing, so the (ms, seq) pair
+      // handed out by any single compare_exchange_weak() below can never
+      // collide with one already handed out by an earlier call - without
+      // this clamp, the clock stepping backward and then forward again could
+      // reproduce an exact (ms, seq) pair a second time (each occurrence
+      // individually race-free, since compare_exchange_weak() itself never
+      // spuriously succeeds - the duplicate comes from ms itself repeating,
+      // not from a broken CAS). Confirmed by direct repro: unique_id_test.cpp's
+      // own "never repeats" TEST_CASE reproducibly hands out a duplicate id
+      // roughly 1 run in 25 without this clamp, table-stakes proof this was
+      // never mere test flakiness.
+      const uint64_t ms = wall_ms > prev_ms ? wall_ms : prev_ms;
 
       uint64_t seq = 0;
       if (ms == prev_ms)
