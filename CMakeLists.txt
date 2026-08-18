@@ -558,6 +558,20 @@ if(NOT EXISTS ${SOURCE_TEST_CPP})
     message(FATAL_ERROR "File src/test/test_t1.cpp is missing – smoke test can't be built!")
 endif()
 
+# dbgen4-db2 calls logger::load_logger_config() with no argument, which looks for LOG_CONFIG then
+# falls back to "logger.conf" in its current working directory - neither exists here, so without
+# LOG_CONFIG the generator run below prints its console-only fallback notice. Point LOG_CONFIG at
+# the log.debug.json/log.release.json this same build already copies to
+# ${CMAKE_CURRENT_BINARY_DIR}/config (see the "Copy config files" section above) so the generator
+# picks up real settings instead (same fix add_crud_test_target() applies to its own generator
+# invocations, and ach's own ach_generate_db_access() applies to its dbgen4-${ACH_DB_BACKEND} calls).
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    set(smoke_test_log_config_variant "release")
+else()
+    set(smoke_test_log_config_variant "debug")
+endif()
+set(smoke_test_log_config ${CMAKE_CURRENT_BINARY_DIR}/config/log.${smoke_test_log_config_variant}.json)
+
 # 1. code generation
 add_custom_command(
     OUTPUT
@@ -567,7 +581,8 @@ add_custom_command(
         ${GEN_TEST_CPP}
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
             ${SOURCE_TEST_CPP} ${GEN_TEST_CPP}
-    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-db2
+    COMMAND ${CMAKE_COMMAND} -E env LOG_CONFIG=${smoke_test_log_config}
+            ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-db2
             -o ${GEN_OUTPUT_DIR}
             -v -t db2 -n ${DB2_TEST_DB} -u ${DB2_TEST_USER} -p ${DB2_TEST_PASS}
             ${TEST_YAML}
@@ -654,9 +669,24 @@ function(add_crud_test_target backend rtl_library test_db_include_dir parallel_t
 
     file(MAKE_DIRECTORY ${out_dir})
 
+    # dbgen4-${backend} calls logger::load_logger_config() with no argument, which looks for
+    # LOG_CONFIG then falls back to "logger.conf" in its current working directory - neither exists
+    # here, so without LOG_CONFIG every generator run below prints its console-only fallback notice.
+    # Point LOG_CONFIG at the log.debug.json/log.release.json this same build already copies to
+    # ${CMAKE_CURRENT_BINARY_DIR}/config (see the "Copy config files" section above) so the generator
+    # picks up real settings instead (same fix ach's own ach_generate_db_access() applies to its own
+    # dbgen4-${ACH_DB_BACKEND} invocations, see its CMakeLists.txt).
+    if(CMAKE_BUILD_TYPE STREQUAL "Release")
+        set(crud_test_log_config_variant "release")
+    else()
+        set(crud_test_log_config_variant "debug")
+    endif()
+    set(crud_test_log_config ${CMAKE_CURRENT_BINARY_DIR}/config/log.${crud_test_log_config_variant}.json)
+
     add_custom_command(
         OUTPUT ${crud_stamp} ${crud_hpp} ${crud_cpp}
-        COMMAND ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-${backend}
+        COMMAND ${CMAKE_COMMAND} -E env LOG_CONFIG=${crud_test_log_config}
+                ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-${backend}
                 -o ${out_dir}
                 -t ${backend} --host ${${test_db_env}_HOST} --port ${${test_db_env}_PORT}
                 -n ${${test_db_env}_DB} -u ${${test_db_env}_USER} -p ${${test_db_env}_PASS}
@@ -678,7 +708,8 @@ function(add_crud_test_target backend rtl_library test_db_include_dir parallel_t
     set(crud2_stamp ${out_dir}/crud2.stamp)
     add_custom_command(
         OUTPUT ${crud2_stamp} ${crud2_hpp} ${crud2_cpp}
-        COMMAND ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-${backend}
+        COMMAND ${CMAKE_COMMAND} -E env LOG_CONFIG=${crud_test_log_config}
+                ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-${backend}
                 -o ${out_dir}
                 -t ${backend} --host ${${test_db_env}_HOST} --port ${${test_db_env}_PORT}
                 -n ${${test_db_env}_DB} -u ${${test_db_env}_USER} -p ${${test_db_env}_PASS}
