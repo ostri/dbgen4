@@ -18,8 +18,10 @@
  */
 #include "db_error.hpp"
 #include "rtl.hpp"
+#include "test_logger.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include <cstdint>
+#include <expected>
 #include <string>
 
 #ifdef DBGEN4_HAS_DB2
@@ -132,6 +134,23 @@ TEST_CASE("an odbc_error copies into a db_error without losing a field", "[unit]
   CHECK(d.native_error == db2_duplicate_key_native_error);   ///< db2 has one, and it survives
   CHECK(d.is_error());
 }
+
+TEST_CASE("chk() collapses a prepare()/execute() result to bool, logging only on failure", "[unit][db_error][db2]")
+{
+  auto& log = dbgen4::test::test_logger();
+
+  SECTION("success passes straight through, nothing logged")
+  {
+    const std::expected<void, rtl::odbc_error> ok;
+    CHECK(rtl::chk(ok, log, "test context"));
+  }
+  SECTION("failure logs and returns false")
+  {
+    auto                                       e      = rtl::odbc_error::client("something the runtime caught itself");
+    const std::expected<void, rtl::odbc_error> failed = std::unexpected(e);
+    CHECK_FALSE(rtl::chk(failed, log, "test context"));
+  }
+}
 #elifdef DBGEN4_HAS_PSQL
 TEST_CASE("a psql_error copies into a db_error without losing a field", "[unit][db_error][psql]")
 {
@@ -157,4 +176,28 @@ TEST_CASE("a pipelined row that never ran keeps that apart from one that failed"
 
   CHECK(rtl::to_db_error(failed).driver_status != rtl::to_db_error(never_ran).driver_status);
 }
+
+TEST_CASE("chk() collapses a prepare()/execute() result to bool, logging only on failure", "[unit][db_error][psql]")
+{
+  auto& log = dbgen4::test::test_logger();
+
+  SECTION("success passes straight through, nothing logged")
+  {
+    const std::expected<void, rtl::psql_error> ok;
+    CHECK(rtl::chk(ok, log, "test context"));
+  }
+  SECTION("failure logs and returns false")
+  {
+    const std::expected<void, rtl::psql_error> failed =
+      std::unexpected(rtl::psql_error{.message = "duplicate key", .sql_state = "23505", .status = PGRES_FATAL_ERROR});
+    CHECK_FALSE(rtl::chk(failed, log, "test context"));
+  }
+}
 #endif
+
+TEST_CASE("chk() collapses a commit()/rollback() db_sts to bool", "[unit][db_error]")
+{
+  auto& log = dbgen4::test::test_logger();
+  CHECK(rtl::chk(rtl::db_sts::success, log, "test context"));
+  CHECK_FALSE(rtl::chk(rtl::db_sts::error, log, "test context"));
+}

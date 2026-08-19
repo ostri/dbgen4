@@ -32,7 +32,9 @@
  */
 
 #include "rtl.hpp"
+#include <logger/logger.hpp>
 #include <cstdint>
+#include <expected>
 #include <string>
 #include <string_view>
 
@@ -83,5 +85,46 @@ namespace rtl
    * the same reason: no #ifdef at the call site, and rtl stays free of any
    * knowledge of odbc_error or psql_error.
    */
+
+  /**
+   * @brief log-and-collapse-to-bool for a query<>::prepare()/execute()/fetch() result
+   *
+   * The pattern this replaces - `if (! x) { log().error(fmt::format(...)); return false; }` -
+   * repeats at every call site that runs a generated statement, differing only in which context
+   * string it logs. This does the same job in one line: true straight through on success, false
+   * with an error already logged (via to_db_error(result.error()).str() - found by ADL, same
+   * arrangement to_db_error() itself already documents above) on failure.
+   *
+   * Deliberately does NOT roll back or return anything from the failed operation itself - that
+   * decision (roll back once, at the caller's own single exit point, rather than after every failed
+   * step) stays with the caller, since only the caller knows whether more than one statement is
+   * sharing that transaction.
+   *
+   * @tparam E whatever error type the backend's own query<> reports (psql_error, odbc_error, ...) -
+   *           unconstrained here; to_db_error(e) itself only compiles for backends actually linked in.
+   * @param result  what prepare()/execute()/fetch() just returned.
+   * @param log     logs to, only on failure.
+   * @param context prefixed to the logged line, e.g. "on_doc_close: prepare(update docs)".
+   * @return true if result held a value, false otherwise.
+   */
+  template <typename E>
+  [[nodiscard]] bool chk(const std::expected<void, E>& result, const logger::Logger& log, std::string_view context)
+  {
+    if (result) return true;
+    log.error("{}: {}", context, to_db_error(result.error()).str());
+    return false;
+  }
+
+  /**
+   * @brief chk()'s own overload for db::commit()/db::rollback() - see the std::expected<void, E>
+   * overload's own doc comment for the rest.
+   * @param sts     what commit()/rollback() just returned.
+   */
+  [[nodiscard]] inline bool chk(db_sts sts, const logger::Logger& log, std::string_view context)
+  {
+    if (is_success(sts)) return true;
+    log.error("{}: {}", context, db_status_to_string(sts));
+    return false;
+  }
 
 } // namespace rtl
