@@ -139,6 +139,9 @@ namespace rtl
                       int32_t* str_len_or_ind_ptr);
 
 
+    /// same object, upcast to rtl::database - see rtl::db::as_database()'s own doc comment
+    [[nodiscard]] database& as_database() noexcept override { return *this; }
+
     /// --- rtl::database, so that generated queries can run on this connection
     [[nodiscard]] SQLHDBC get_conn() const noexcept override;
     /// not owner - borrowed pointer to the shared Logger, never deleted here

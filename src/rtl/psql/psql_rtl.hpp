@@ -71,6 +71,9 @@ namespace rtl
     /// run a statement that takes no parameters and returns no rows - see rtl::db::exec()
     db_sts exec(const std::string& sql) override;
 
+    /// same object, upcast to rtl::database - see rtl::db::as_database()'s own doc comment
+    [[nodiscard]] database& as_database() noexcept override { return *this; }
+
     /// --- rtl::database, so that generated queries can run on this connection
     [[nodiscard]] PGconn* get_conn() const noexcept override;
     /// not owner - borrowed pointer to the shared Logger, never deleted here

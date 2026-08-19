@@ -11,6 +11,13 @@
 
 namespace rtl
 {
+  /// the interface a generated query<> needs from a connection (get_conn()/get_logger()) - defined
+  /// per backend (psql_database.hpp/db2_database.hpp), never here, so this header stays free of any
+  /// backend-specific handle type (PGconn* vs. SQLHDBC - see database::get_conn()'s own declaration
+  /// in each backend's own header). Only forward-declared here so db::as_database() below can name
+  /// it in a return type; db.hpp itself never dereferences it.
+  struct database;
+
   /**
    * @brief ODBC return codes mapped to enum class
    *
@@ -260,6 +267,21 @@ namespace rtl
     virtual db_sts                    exec(const std::string& sql);
     [[nodiscard]] const db_data_root* data() const;
     [[nodiscard]] logger::Logger&     log_() const { return logger_; } /// Member variables
+
+    /**
+     * @brief This same connection, viewed through rtl::database (the narrow interface a generated
+     * dbx::<schema>::qry needs - get_conn()/get_logger(), see e.g. psql_database.hpp's own class
+     * comment on why that interface is kept apart from this one). NOT a second connection - every
+     * backend (db_psql, db_db2, ...) inherits from both db and database at once, so this is always
+     * a same-object upcast, never null, never a dynamic_cast a caller has to check.
+     *
+     * Exists so callers that already hold a db& (e.g. a generic, backend-neutral cb::db()) do not
+     * have to dynamic_cast<database*>(&conn) themselves before constructing a query<> - previously
+     * every such call site repeated that cast and its own "does this backend even implement
+     * database" failure branch, even though every backend that links against dbgen4's own rtl
+     * always does.
+     */
+    [[nodiscard]] virtual database& as_database() noexcept = 0;
 
     /**
      * @brief "host:{} port:{} database:{} user:{}" for whatever connect() last succeeded with
