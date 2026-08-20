@@ -53,7 +53,8 @@ namespace rtl
     int32_t     native_error  = 0;     ///< db2's SQLINTEGER; 0 on psql, which has none
     // NOLINTEND(misc-non-private-member-variables-in-classes)
 
-    [[nodiscard]] bool        is_error() const noexcept { return ! is_success(sts); }
+    [[nodiscard]] bool        is_error() const noexcept;
+    [[nodiscard]] bool        is_duplicate() const noexcept;
     [[nodiscard]] std::string str() const;
   };
 
@@ -126,5 +127,9 @@ namespace rtl
     log.error("{}: {}", context, db_status_to_string(sts));
     return false;
   }
+
+  inline bool db_error::is_error() const noexcept { return ! is_success(sts); }
+
+  inline bool db_error::is_duplicate() const noexcept { return sql_state == "23505"; }
 
 } // namespace rtl

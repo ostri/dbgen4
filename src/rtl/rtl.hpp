@@ -295,6 +295,17 @@ namespace rtl
      * port/database/user itself.
      */
     [[nodiscard]] std::string connection() const { return connection_info_; }
+    /**
+     * @brief chk()'s own overload for db::commit()/db::rollback() - see the std::expected<void, E>
+     * overload's own doc comment for the rest.
+     * @param sts     what commit()/rollback() just returned.
+     */
+    [[nodiscard]] bool chk(db_sts sts, std::string_view context) const
+    {
+      if (is_success(sts)) return true;
+      log_().error("{}: {}", context, db_status_to_string(sts));
+      return false;
+    }
   protected:
     /// sets what connection() returns - called by a backend's own connect()
     /// once it knows the connection actually succeeded, never before
