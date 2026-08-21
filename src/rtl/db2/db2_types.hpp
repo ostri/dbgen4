@@ -61,6 +61,30 @@ namespace rtl::db2
                 "widen rtl::buffer_dscr_init::indicator_ptr and the generated len_ arrays before continuing.");
 
   /**
+   * @brief was this raw ODBC return code a success?
+   *
+   * The only place in this backend allowed to know that SQL_SUCCESS/
+   * SQL_SUCCESS_WITH_INFO are the ODBC values they are - everything above this
+   * file speaks rtl::db_sts, whose own numbering rtl.hpp is explicit does not
+   * have to agree with any driver's. Replaces the previous
+   * is_success(static_cast<db_sts>(ret)) idiom, which only worked because
+   * db_sts::success/success_with_info happened to be numbered the same as
+   * these two ODBC constants - a coincidence nothing enforced.
+   *
+   * @param ret value returned by an ODBC call (SQLRETURN)
+   * @return true for SQL_SUCCESS or SQL_SUCCESS_WITH_INFO
+   */
+  [[nodiscard]] constexpr bool is_odbc_success(SQLRETURN ret) noexcept { return ret == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO; }
+
+  /**
+   * @brief did this raw ODBC return code say "no more data"?
+   *
+   * @param ret value returned by an ODBC call (SQLRETURN)
+   * @return true for SQL_NO_DATA
+   */
+  [[nodiscard]] constexpr bool is_odbc_no_data(SQLRETURN ret) noexcept { return ret == SQL_NO_DATA; }
+
+  /**
    * @brief map a raw ODBC/DB2 sql type code to the neutral vocabulary
    *
    * Unrecognised codes become sql_type::unknown - the caller decides whether

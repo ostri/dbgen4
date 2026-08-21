@@ -17,9 +17,9 @@ namespace
   {
     constexpr const int sql_state_len = 5 + 1;
     constexpr const int msg_len       = 1024 + 1;
-    auto                res           = SQL_SUCCESS;
+    SQLRETURN           res           = SQL_SUCCESS;
     log.trace("{} status: {}", operation, ret);
-    if (! is_success(static_cast<rtl::db_sts>(ret)))
+    if (! rtl::db2::is_odbc_success(ret))
     {
       std::array<SQLCHAR, sql_state_len> sqlState{};
       SQLINTEGER                         native_error;
@@ -28,7 +28,7 @@ namespace
       std::string                        err_msg{};
       SQLSMALLINT                        rec_number = 1;
 
-      while (! is_no_data(static_cast<rtl::db_sts>(res)))
+      while (! rtl::db2::is_odbc_no_data(res))
       {
         res = SQLGetDiagRec(
           handleType, handle, rec_number, sqlState.data(), &native_error, messageText.data(), messageText.size(), &messageLength);
@@ -52,7 +52,7 @@ namespace
     {
       auto ret = SQLFreeHandle(h_type, h);
       auto tmp = fmt::format(fmt::runtime(err), h);
-      if (! is_success(static_cast<rtl::db_sts>(ret))) chk_error(ret, h_type, h, tmp, log);
+      if (! rtl::db2::is_odbc_success(ret)) chk_error(ret, h_type, h, tmp, log);
     }
     log.trace(fmt::runtime(info), h);
   }
@@ -86,7 +86,7 @@ namespace rtl
                                        &outLen,
                                        SQL_DRIVER_NOPROMPT);
 
-    if (! is_success(static_cast<db_sts>(ret)))
+    if (! db2::is_odbc_success(ret))
     {
       chk_error(ret, SQL_HANDLE_DBC, data()->conn_handle, "SQLDriverConnect", log_());
       free_conn_handle();
@@ -100,7 +100,7 @@ namespace rtl
   db_sts db_db2::internal_allocate_handles()
   {
     auto ret = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &data()->env_handle);
-    if (! is_success(static_cast<db_sts>(ret)))
+    if (! db2::is_odbc_success(ret))
     {
       chk_error(ret, SQL_HANDLE_ENV, data()->env_handle, "Env allocation failed", log_());
       return db_sts::env_error;
@@ -109,7 +109,7 @@ namespace rtl
     log_().debug("ENV handle allocated: {}", data()->env_handle);
 
     ret = SQLAllocHandle(SQL_HANDLE_DBC, data()->env_handle, &data()->conn_handle);
-    if (! is_success(static_cast<db_sts>(ret)))
+    if (! db2::is_odbc_success(ret))
     {
       chk_error(ret, SQL_HANDLE_DBC, data()->conn_handle, "SQLAllocHandle(DBC)", log_());
       free_env_handle();
@@ -120,7 +120,7 @@ namespace rtl
                             SQL_ATTR_AUTOCOMMIT,
                             (SQLPOINTER)SQL_AUTOCOMMIT_OFF, // NOLINT
                             SQL_IS_INTEGER);
-    if (! is_success(static_cast<db_sts>(ret)))
+    if (! db2::is_odbc_success(ret))
     {
       chk_error(ret, SQL_HANDLE_DBC, data()->conn_handle, "SQLSetConnectAttr(AUTOCOMMIT OFF)", log_());
       return db_sts::config_error;
@@ -189,14 +189,13 @@ namespace rtl
     if (data()->conn_handle != 0)
     {
       ret = SQLDisconnect(data()->conn_handle);
-      if (! is_success(static_cast<db_sts>(ret)))
-        chk_error(ret, SQL_HANDLE_DBC, data()->conn_handle, "disconnecting from DB2 database", log_());
+      if (! db2::is_odbc_success(ret)) chk_error(ret, SQL_HANDLE_DBC, data()->conn_handle, "disconnecting from DB2 database", log_());
       free_conn_handle();
       log_().debug("db disconnected: {}", connection());
     }
 
     if (data()->env_handle != 0) free_env_handle();
-    return static_cast<db_sts>(ret);
+    return db2::is_odbc_success(ret) ? db_sts::success : db_sts::error;
   }
 
   bool db_db2::is_connected() const { return this->data()->conn_handle != 0; }
@@ -217,13 +216,13 @@ namespace rtl
     const SQLRETURN ret = SQLEndTran(SQL_HANDLE_DBC, data()->conn_handle, SQL_COMMIT);
     chk_error(ret, SQL_HANDLE_DBC, data()->conn_handle, "commit transaction", log_());
 
-    if (is_success(static_cast<db_sts>(ret))) { log_().debug("Transaction committed successfully."); }
+    if (db2::is_odbc_success(ret)) { log_().debug("Transaction committed successfully."); }
     else
     {
       log_().error("Transaction commit failed.");
     }
 
-    return static_cast<db_sts>(ret);
+    return db2::is_odbc_success(ret) ? db_sts::success : db_sts::error;
   }
 
   /**
@@ -242,13 +241,13 @@ namespace rtl
     const SQLRETURN ret = SQLEndTran(SQL_HANDLE_DBC, data()->conn_handle, SQL_ROLLBACK);
     chk_error(ret, SQL_HANDLE_DBC, data()->conn_handle, "rollback transaction", log_());
 
-    if (is_success(static_cast<db_sts>(ret))) [[likely]] { log_().info("Transaction rolled back successfully."); }
+    if (db2::is_odbc_success(ret)) [[likely]] { log_().info("Transaction rolled back successfully."); }
     else
     {
       log_().error("Transaction rollback failed.");
     }
 
-    return static_cast<db_sts>(ret);
+    return db2::is_odbc_success(ret) ? db_sts::success : db_sts::error;
   }
 
   db_data_db2* db_db2::data() const { return dynamic_cast<db_data_db2*>(data_.get()); };
@@ -295,13 +294,13 @@ namespace rtl
 
     // --- Allocate statement handle ---
     SQLRETURN ret = SQLAllocHandle(SQL_HANDLE_STMT, data()->conn_handle, &data()->stmt_handle);
-    if (! is_success(static_cast<db_sts>(ret))) [[unlikely]]
+    if (! db2::is_odbc_success(ret)) [[unlikely]]
       return error_cleanup(ret, "allocating statement handle", db_sts::resource_error);
     // --- Prepare the statement (no execution) ---
     ret = SQLPrepare(data()->stmt_handle,                                        //
                      reinterpret_cast<SQLCHAR*>(const_cast<char*>(sql.c_str())), // NOLINT
                      SQL_NTS);
-    if (! is_success(static_cast<db_sts>(ret))) [[unlikely]]
+    if (! db2::is_odbc_success(ret)) [[unlikely]]
     {
       auto msg = fmt::format("{} sql {}", "SQLPrepare", sql);
       return error_cleanup(ret, msg, db_sts::invalid_sql);
@@ -310,7 +309,7 @@ namespace rtl
     SQLSMALLINT num_params = 0;
     ret                    = SQLNumParams(data()->stmt_handle, &num_params);
     // auto msg               = fmt::format("{} sql {}", "SQLNumParams", sql);
-    if (! is_success(static_cast<db_sts>(ret))) [[unlikely]]
+    if (! db2::is_odbc_success(ret)) [[unlikely]]
     {
       auto msg = fmt::format("{} sql {}", "SQLNumResultCols", sql);
       return error_cleanup(ret, msg, db_sts::invalid_sql);
@@ -327,7 +326,7 @@ namespace rtl
       SQLSMALLINT nullable    = 0;
 
       ret = SQLDescribeParam(data()->stmt_handle, i, &native_type, &size, &digits, &nullable);
-      if (! is_success(static_cast<db_sts>(ret))) [[unlikely]]
+      if (! db2::is_odbc_success(ret)) [[unlikely]]
       {
         auto msg = fmt::format("SQLDescribeParam for parameter {}", i);
         return error_cleanup(ret, msg, db_sts::invalid_sql);
@@ -349,7 +348,7 @@ namespace rtl
     // --- result-set columns ---
     SQLSMALLINT num_columns = 0;
     ret                     = SQLNumResultCols(data()->stmt_handle, &num_columns);
-    if (! is_success(static_cast<db_sts>(ret))) [[unlikely]]
+    if (! db2::is_odbc_success(ret)) [[unlikely]]
     {
       auto msg = fmt::format("{} sql {}", "SQLNumResultCols", sql);
       return error_cleanup(ret, msg, db_sts::invalid_sql);
@@ -366,7 +365,7 @@ namespace rtl
       SQLSMALLINT nullable    = 0;
 
       ret = SQLDescribeCol(data()->stmt_handle, i, col_name.data(), col_name.size(), &name_len, &native_type, &size, &digits, &nullable);
-      if (! is_success(static_cast<db_sts>(ret))) [[unlikely]]
+      if (! db2::is_odbc_success(ret)) [[unlikely]]
       {
         auto msg = fmt::format("SQLDescribeCol for column {}", i);
         return error_cleanup(ret, msg, db_sts::invalid_sql);
@@ -401,14 +400,14 @@ namespace rtl
     }
 
     SQLRETURN ret = SQLAllocHandle(SQL_HANDLE_STMT, data()->conn_handle, &data()->stmt_handle);
-    if (! is_success(static_cast<db_sts>(ret))) [[unlikely]]
+    if (! db2::is_odbc_success(ret)) [[unlikely]]
     {
       chk_error(ret, SQL_HANDLE_DBC, data()->conn_handle, "allocating statement handle", log_());
       return db_sts::resource_error;
     }
 
     ret = SQLExecDirect(data()->stmt_handle, reinterpret_cast<SQLCHAR*>(const_cast<char*>(sql.c_str())), SQL_NTS); // NOLINT
-    if (! is_success(static_cast<db_sts>(ret))) [[unlikely]]
+    if (! db2::is_odbc_success(ret)) [[unlikely]]
     {
       chk_error(ret, SQL_HANDLE_STMT, data()->stmt_handle, fmt::format("SQLExecDirect sql '{}'", sql), log_());
       rollback();
