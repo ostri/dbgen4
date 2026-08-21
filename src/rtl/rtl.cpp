@@ -53,9 +53,9 @@ namespace rtl
     const auto t = static_cast<uint64_t>(thread & thread_mask);
     for (;;)
     {
-      const uint64_t wall_ms  = now_ms() - custom_epoch_ms;
-      uint64_t       prev     = last_state.load(std::memory_order_relaxed);
-      const uint64_t prev_ms  = prev >> sequence_bits;
+      const uint64_t wall_ms = now_ms() - custom_epoch_ms;
+      uint64_t       prev    = last_state.load(std::memory_order_relaxed);
+      const uint64_t prev_ms = prev >> sequence_bits;
 
       // std::chrono::system_clock is wall-clock time, not monotonic - an NTP
       // adjustment (or just scheduling/TSC jitter across cores) can make a
@@ -127,18 +127,6 @@ namespace rtl
   db_sts db::rollback() { return db_sts::success; }
 
   /**
-   * @brief default implementation - a backend that cannot describe statements
-   *
-   * The generator cannot do anything useful without metadata, so this is an
-   * error rather than an empty result.
-   */
-  e_qry_metadata db::get_sql_metadata(const std::string& sql)
-  {
-    log_().error("get_sql_metadata is not implemented by this backend. sql: '{}'", sql);
-    return std::unexpected(db_sts::not_implemented);
-  }
-
-  /**
    * @brief default implementation - a backend that cannot run a bare statement
    */
   db_sts db::exec(const std::string& sql)
@@ -152,13 +140,13 @@ namespace rtl
   // ------------------------------------------------------------------------
   // qry_metadata
   // ------------------------------------------------------------------------
-  meta_vec qry_metadata::columns() const { return columns_; }
-  meta_vec qry_metadata::params() const { return params_; }
+  schema::meta_vec qry_metadata::columns() const { return columns_; }
+  schema::meta_vec qry_metadata::params() const { return params_; }
 
-  void qry_metadata::add_col_dscr(const meta_dscr& dscr) { columns_.push_back(dscr); }
-  void qry_metadata::add_par_dscr(const meta_dscr& dscr) { params_.push_back(dscr); }
+  void qry_metadata::add_col_dscr(const schema::meta_dscr& dscr) { columns_.push_back(dscr); }
+  void qry_metadata::add_par_dscr(const schema::meta_dscr& dscr) { params_.push_back(dscr); }
 
-  std::string qry_metadata::dump_meta_vector(const char* fmt, const char* header, const meta_vec& v) const
+  std::string qry_metadata::dump_meta_vector(const char* fmt, const char* header, const schema::meta_vec& v) const
   {
     if (v.empty()) return {};
     std::string msg = header;
@@ -168,7 +156,7 @@ namespace rtl
                          col.index,
                          col.name,
                          ME::enum_name(col.type),
-                         get_sql_mapping(col.type)->mnemonic,
+                         schema::get_sql_mapping(col.type)->mnemonic,
                          col.native_type,
                          col.size,
                          col.digits,

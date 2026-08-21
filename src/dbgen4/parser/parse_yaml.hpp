@@ -8,7 +8,7 @@
 #include <vector>
 #include <map>
 // #include "fmt_structs.hpp"
-namespace dbgen4
+namespace dbgen4::gen
 {
   using loc_t = const std::source_location;
   struct Error
@@ -156,8 +156,8 @@ namespace dbgen4
     /// null only for a default-constructed parse_yaml, which no method here
     /// dereferences it on (get_seq_of_maps()/get_map() always come from an
     /// already-bound instance and carry it into the parse_yaml they build).
-    logger::Logger* log_ptr_ = nullptr;
+    logger::Logger*               log_ptr_ = nullptr;
     [[nodiscard]] logger::Logger& log_() const { return *log_ptr_; }
-    Error make_missing_key_error(const std::string& key) const;
+    Error                         make_missing_key_error(const std::string& key) const;
   };
-} // namespace dbgen4
+} // namespace dbgen4::gen

@@ -16,6 +16,7 @@
 
 namespace rtl::psql
 {
+  using rtl::schema::sql_type; // NOLINT(misc-unused-using-decls) - used throughout this file's translation table
   using oid_t = uint32_t;
 
   /**

@@ -10,7 +10,7 @@
 #include <CLI/Error.hpp>
 #include <cstddef>
 
-namespace dbgen4
+namespace dbgen4::gen
 {
   class cmd_line_params
   {
@@ -65,7 +65,7 @@ namespace dbgen4
     size_t max_field_len_{default_max_field_len};
     /// number of worker threads to process the yaml files with, resolved in load_parameters()
     size_t parallel_{1};
-  }; // namespace dbgen4
+  }; // namespace dbgen4::gen
 
   inline cmd_line_params::cmd_line_params(logger::Logger& log)
   : log_ptr_(&log)
@@ -76,5 +76,5 @@ namespace dbgen4
    * @return logger::Logger&
    */
   inline logger::Logger& cmd_line_params::log_() const { return *log_ptr_; }
-} // namespace dbgen4
+} // namespace dbgen4::gen
 #endif // PARAMETERS_HPP

@@ -3,7 +3,7 @@
 #include "data_statement.hpp"
 #include <cstddef>
 
-namespace dbgen4
+namespace dbgen4::gen
 {
 
   std::string data_statements::dump(size_t offs) const
@@ -26,11 +26,11 @@ namespace dbgen4
   {0}  filename: {4}
   {0}  statements:{4}
   )",                                       /// this new line is on purpose to delimit sql statement from the metadata
-                           left_padding,    /// document description
-                           summary_str,     /// summary
-                           description_str, /// description
-                           filename_,       //// filename
-                           stmt_str         /// statements
+                                       left_padding,    /// document description
+                                       summary_str,     /// summary
+                                       description_str, /// description
+                                       filename_,       //// filename
+                                       stmt_str         /// statements
     );
     return msg;
   }
@@ -75,4 +75,4 @@ namespace dbgen4
     if (! success) { log.error("Statement id: {} is duplicated.", s.id()); }
     return success;
   }
-}; // namespace dbgen4
+}; // namespace dbgen4::gen

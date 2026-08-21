@@ -106,7 +106,6 @@
  */
 
 #include "db_error.hpp"
-#include "no_results.hpp"
 #include "rtl.hpp"
 /// The backend's own query.hpp - db2's or psql's, whichever include path this
 /// is compiled with. It brings rtl::query<>, rtl::database and that backend's
@@ -114,7 +113,6 @@
 /// below be written once. IWYU pragma: keep
 #include "query.hpp"
 #include <algorithm>
-#include <atomic>
 #include <condition_variable>
 #include <cstddef>
 #include <cstring>

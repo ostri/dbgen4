@@ -38,7 +38,7 @@ namespace rtl
     db_data_psql& operator=(db_data_psql&&)      = delete;
   };
 
-  class db_psql final : public db, public database
+  class db_psql final : public db, public database, public schema::describer
   {
   public:
     explicit db_psql(logger::Logger& log);
@@ -60,13 +60,8 @@ namespace rtl
     db_sts             commit() override;
     db_sts             rollback() override;
 
-    /**
-     * @brief describe a statement without executing it
-     *
-     * Parameters are written as $1, $2, ... in PostgreSQL - the yaml file is
-     * expected to carry a psql specific statement for anything with parameters.
-     */
-    e_qry_metadata get_sql_metadata(const std::string& sql) override;
+    /// this same connection, viewed through rtl::schema::describer - see db::as_describer()
+    [[nodiscard]] schema::describer* as_describer() noexcept override { return this; }
 
     /// run a statement that takes no parameters and returns no rows - see rtl::db::exec()
     db_sts exec(const std::string& sql) override;
@@ -78,6 +73,14 @@ namespace rtl
     [[nodiscard]] PGconn* get_conn() const noexcept override;
     /// not owner - borrowed pointer to the shared Logger, never deleted here
     [[nodiscard]] logger::Logger* get_logger() const noexcept override { return &log_(); }
+
+    /**
+     * @brief --- rtl::schema::describer - describe a statement without executing it
+     *
+     * Parameters are written as $1, $2, ... in PostgreSQL - the yaml file is
+     * expected to carry a psql specific statement for anything with parameters.
+     */
+    e_qry_metadata get_sql_metadata(const std::string& sql) override;
   private:
     [[nodiscard]] db_data_psql* data() const;
     /// run a statement that returns no rows (BEGIN/COMMIT/ROLLBACK)

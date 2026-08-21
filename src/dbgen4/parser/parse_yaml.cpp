@@ -1,15 +1,15 @@
 #include "parse_yaml.hpp"
 #include <fstream>
-namespace dbgen4
+namespace dbgen4::gen
 {
-  Error dbgen4::parse_yaml::make_missing_key_error(const std::string& key) const
+  Error parse_yaml::make_missing_key_error(const std::string& key) const
   {
     auto m = root_.Mark();
     return Error{.message = fmt::format("Missing required key: '{}'", key), .line = m.line, .column = m.column, .filename = filename_};
   }
 
   parse_yaml::parse_yaml(YAML::Node node, std::string name, logger::Logger& log) // NOLINT
-  : root_(std::move(node))                                                      // NOLINT
+  : root_(std::move(node))                                                       // NOLINT
   , filename_(std::move(name))
   , log_ptr_(&log)
   {
@@ -56,7 +56,7 @@ namespace dbgen4
       return std::unexpected(err);
     }
     std::vector<std::string> result;
-    result.reserve(root_[key].size()); // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
+    result.reserve(root_[key].size());  // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
     for (const auto& item : root_[key]) // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
     {
       if (! item.IsScalar())
@@ -111,8 +111,8 @@ namespace dbgen4
     }
 
     std::vector<parse_yaml> result;
-    result.reserve(root_[key].size());                              // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
-    for (std::size_t i = 0; i < root_[key].size(); ++i)              // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
+    result.reserve(root_[key].size());                  // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
+    for (std::size_t i = 0; i < root_[key].size(); ++i) // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
     {
       const auto& item = root_[key][i]; // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
       if (! item.IsMap())
@@ -244,9 +244,14 @@ namespace dbgen4
         // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
         msg += fmt::format("\033[1;37m{0}{1} \033[1;31m>\033[0m {2}\n{3}\033[1;31m^ here\033[0m\n", pad, num, lines[i], msg_feed);
       }
-      else msg += fmt::format("\033[2m{0}{1}  \033[0m {2}\n", pad, num, lines[i]); // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access,readability-inconsistent-ifelse-braces)
+      else
+        msg += fmt::format(
+          "\033[2m{0}{1}  \033[0m {2}\n",
+          pad,
+          num,
+          lines[i]); // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access,readability-inconsistent-ifelse-braces)
     }
     msg += "\n";
     return msg;
   }
-}; // namespace dbgen4
+}; // namespace dbgen4::gen

@@ -17,7 +17,7 @@ namespace ME = magic_enum; // NOLINT(misc-unused-alias-decls)
 #include <thread>
 #include <vector>
 
-namespace dbgen4
+namespace dbgen4::gen
 {
   using rtl::db_sts;
   using clock_t = std::chrono::steady_clock;
@@ -255,4 +255,4 @@ namespace dbgen4
   }
 
 
-}; // namespace dbgen4
+}; // namespace dbgen4::gen

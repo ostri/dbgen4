@@ -153,25 +153,63 @@ namespace rtl
    * @brief Result of describing a SQL statement - metadata only, no rows
    *
    * Backend neutral: whatever the driver reports is already translated into
-   * rtl::sql_type by the backend before it lands here.
+   * rtl::schema::sql_type by the backend before it lands here.
    */
   class qry_metadata
   {
   public:
     qry_metadata() = default;
     /// getters
-    [[nodiscard]] meta_vec    columns() const;
-    [[nodiscard]] meta_vec    params() const;
-    [[nodiscard]] std::string dump() const;
+    [[nodiscard]] schema::meta_vec columns() const;
+    [[nodiscard]] schema::meta_vec params() const;
+    [[nodiscard]] std::string      dump() const;
     /// setters
-    void add_col_dscr(const meta_dscr& dscr);
-    void add_par_dscr(const meta_dscr& dscr);
+    void add_col_dscr(const schema::meta_dscr& dscr);
+    void add_par_dscr(const schema::meta_dscr& dscr);
   private:
-    [[nodiscard]] std::string dump_meta_vector(const char* fmt, const char* header, const meta_vec& v) const;
-    meta_vec                  columns_; ///< Result-set column metadata
-    meta_vec                  params_;  ///< Input parameter metadata
+    [[nodiscard]] std::string dump_meta_vector(const char* fmt, const char* header, const schema::meta_vec& v) const;
+    schema::meta_vec          columns_; ///< Result-set column metadata
+    schema::meta_vec          params_;  ///< Input parameter metadata
   };
   using e_qry_metadata = std::expected<qry_metadata, db_sts>;
+
+  namespace schema
+  {
+    /**
+     * @brief schema introspection - describe a SQL statement without executing it
+     *
+     * Split out of rtl::db on purpose: describing a statement's columns and
+     * parameters (ODBC SQLDescribeCol/Param, libpq PQdescribePrepared, ...) is
+     * a capability only dbgen4::gen's own parser ever calls (see
+     * parser::load_file_meta_data()) - no generated program or application
+     * code has a reason to. Keeping get_sql_metadata() on rtl::db itself would
+     * make every connection carry a method whose only caller is the code
+     * generator. A backend's connection class still implements this - db_db2
+     * and db_psql both inherit it alongside db and database - but rtl::db no
+     * longer needs to know it exists; see db::as_describer().
+     */
+    class describer
+    {
+    public:
+      describer()                             = default;
+      virtual ~describer()                    = default;
+      describer(const describer&)             = delete;
+      describer(describer&&)                  = delete;
+      describer& operator=(const describer&)   = delete;
+      describer& operator=(describer&&)        = delete;
+
+      /**
+       * @brief Describe a SQL statement without executing it
+       *
+       * The generator relies on this to learn the shape of every statement in
+       * the yaml file. Each backend implements it with its own describe call.
+       *
+       * @param sql statement, possibly carrying parameter placeholders
+       * @return e_qry_metadata column and parameter descriptions, or an error
+       */
+      virtual e_qry_metadata get_sql_metadata(const std::string& sql) = 0;
+    };
+  } // namespace schema
 
   /// Root class for all database data structures
   /// Provides common functionality and interface for database objects
@@ -240,17 +278,6 @@ namespace rtl
     virtual db_sts             commit();
     virtual db_sts             rollback();
     /**
-     * @brief Describe a SQL statement without executing it
-     *
-     * The generator relies on this to learn the shape of every statement in
-     * the yaml file. Each backend implements it with its own describe call
-     * (ODBC SQLDescribeCol/Param, libpq PQdescribePrepared, ...).
-     *
-     * @param sql statement, possibly carrying parameter placeholders
-     * @return e_qry_metadata column and parameter descriptions, or an error
-     */
-    virtual e_qry_metadata get_sql_metadata(const std::string& sql);
-    /**
      * @brief run a statement that takes no parameters and returns no rows
      *
      * For DDL/utility statements a generated query<> is overkill for -
@@ -282,6 +309,18 @@ namespace rtl
      * always does.
      */
     [[nodiscard]] virtual database& as_database() noexcept = 0;
+
+    /**
+     * @brief this same connection, viewed through rtl::schema::describer (see its own class
+     * comment for why get_sql_metadata() lives there and not on db itself)
+     *
+     * nullptr by default rather than pure virtual, unlike as_database() above: a backend that
+     * cannot describe statements (there is currently none - db_db2 and db_psql both implement
+     * schema::describer) simply never overrides this, rather than being forced to provide some
+     * placeholder implementation. Callers (dbgen4::gen::parser) check for nullptr before calling
+     * through it.
+     */
+    [[nodiscard]] virtual schema::describer* as_describer() noexcept { return nullptr; }
 
     /**
      * @brief "host:{} port:{} database:{} user:{}" for whatever connect() last succeeded with

@@ -6,7 +6,7 @@
 #include "data_statement.hpp"
 // #include "cmd_line_params.hpp"
 
-namespace dbgen4
+namespace dbgen4::gen
 {
   class data_statements;
   using data_statement_map_t = std::map<str_t, data_statement>;
@@ -54,4 +54,4 @@ namespace dbgen4
     data_statement_map_t map_statements_; ///< individual statements
     str_t                filename_;       ///< path to the file which is processed
   };
-} // namespace dbgen4
+} // namespace dbgen4::gen

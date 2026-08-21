@@ -24,17 +24,17 @@ namespace rtl
   {
     // NOLINTBEGIN(misc-non-private-member-variables-in-classes)
     std::string_view name;           ///< column/parameter name
-    sql_cat          category;       ///< storage category
+    schema::sql_cat  category;       ///< storage category
     std::string_view base_type;      ///< base C++ type, for diagnostics
-    sql_type         type;           ///< neutral sql type
+    schema::sql_type type;           ///< neutral sql type
     uint32_t         column_size;    ///< column width in characters/bytes
     int16_t          decimal_digits; ///< decimal digits, for numeric/decimal
     // NOLINTEND(misc-non-private-member-variables-in-classes)
 
     constexpr buffer_dscr_const(std::string_view cn,  /// column name
-                                sql_cat          cat, /// category
+                                schema::sql_cat  cat, /// category
                                 std::string_view bt,  /// base type
-                                sql_type         t,   /// neutral sql type
+                                schema::sql_type t,   /// neutral sql type
                                 uint32_t         cs,  /// length
                                 int16_t          dd) noexcept
     : name(cn)

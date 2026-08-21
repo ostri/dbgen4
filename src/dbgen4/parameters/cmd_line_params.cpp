@@ -17,7 +17,7 @@ namespace ME = magic_enum; // NOLINT(misc-unused-alias-decls)
 #include <algorithm>
 #include <thread>
 
-namespace dbgen4
+namespace dbgen4::gen
 {
 
   vec_str_t    cmd_line_params::files() const { return files_; }
@@ -235,4 +235,4 @@ namespace dbgen4
     if constexpr (is_debug()) log_().set_level(verbose ? logger::level::trace : logger::level::info);
     else log_().set_level(verbose ? logger::level::info : logger::level::warn);
   }
-}; // namespace dbgen4
+}; // namespace dbgen4::gen

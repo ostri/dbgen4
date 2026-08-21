@@ -17,11 +17,11 @@ namespace ME = magic_enum; // NOLINT(misc-unused-alias-decls)
 
 TEST_CASE("empty yaml input produces no statements", "[parser]")
 {
-  dbgen4::parser    p(dbgen4::test::test_logger());
-  const std::string empty_yaml = R"(# empty)";
+  dbgen4::gen::parser p(dbgen4::test::test_logger());
+  const std::string   empty_yaml = R"(# empty)";
 
-  auto ans = p.parse_yaml_string(empty_yaml, dbgen4::db_type_enum::db2);
-  REQUIRE(ans.error() == dbgen4::exit_status_enum::statements_attr_missing);
+  auto ans = p.parse_yaml_string(empty_yaml, dbgen4::gen::db_type_enum::db2);
+  REQUIRE(ans.error() == dbgen4::gen::exit_status_enum::statements_attr_missing);
 }
 
 TEST_CASE("simple SELECT is parsed correctly", "[parser]")
@@ -32,8 +32,8 @@ statements:
     sql: SELECT id, name FROM users WHERE id = ?
 )";
 
-  dbgen4::parser p(dbgen4::test::test_logger());
-  const auto     ans = p.parse_yaml_string(yaml, dbgen4::db_type_enum::db2);
+  dbgen4::gen::parser p(dbgen4::test::test_logger());
+  const auto          ans = p.parse_yaml_string(yaml, dbgen4::gen::db_type_enum::db2);
   REQUIRE(ans);
   REQUIRE(ans.value().summary().empty());
   REQUIRE(ans.value().description().empty());
@@ -57,8 +57,8 @@ statements:
     sql: SELECT id FROM users
 )";
 
-  dbgen4::parser p(dbgen4::test::test_logger());
-  const auto     ans = p.parse_yaml_string(yaml, dbgen4::db_type_enum::psql);
+  dbgen4::gen::parser p(dbgen4::test::test_logger());
+  const auto          ans = p.parse_yaml_string(yaml, dbgen4::gen::db_type_enum::psql);
   REQUIRE(ans);
   CHECK(ans.value().map_statements().at("get_user").before_sql().empty());
   CHECK(ans.value().map_statements().at("get_user").after_sql().empty());
@@ -77,19 +77,19 @@ statements:
     sql: SELECT id FROM tmp_x
 )";
 
-  dbgen4::parser p(dbgen4::test::test_logger());
+  dbgen4::gen::parser p(dbgen4::test::test_logger());
 
   // psql picks the more specific "psql:" key over the generic "sql:" one -
   // same rule the statement's own sql already follows (see "sql is generic,
   // db_type's own key overrides it if present" in resolve_dialect_sql()).
-  const auto psql_ans = p.parse_yaml_string(yaml, dbgen4::db_type_enum::psql);
+  const auto psql_ans = p.parse_yaml_string(yaml, dbgen4::gen::db_type_enum::psql);
   REQUIRE(psql_ans);
   CHECK(psql_ans.value().map_statements().at("nice").before_sql() == "CREATE TEMPORARY TABLE tmp_x (id int) ON COMMIT DROP");
   CHECK(psql_ans.value().map_statements().at("nice").after_sql() == "DROP TABLE tmp_x");
 
   // db2 has no "db2:" override on before - falls back to the generic "sql:" key,
   // same as an ordinary statement with no db2 specific sql would.
-  const auto db2_ans = p.parse_yaml_string(yaml, dbgen4::db_type_enum::db2);
+  const auto db2_ans = p.parse_yaml_string(yaml, dbgen4::gen::db_type_enum::db2);
   REQUIRE(db2_ans);
   CHECK(db2_ans.value().map_statements().at("nice").before_sql() == "CREATE TEMPORARY TABLE tmp_x (id int)");
   CHECK(db2_ans.value().map_statements().at("nice").after_sql() == "DROP TABLE tmp_x");
@@ -109,8 +109,8 @@ statements:
     sql: SELECT 1
 )";
 
-  dbgen4::parser p(dbgen4::test::test_logger());
-  const auto     ans = p.parse_yaml_string(yaml, dbgen4::db_type_enum::psql);
+  dbgen4::gen::parser p(dbgen4::test::test_logger());
+  const auto          ans = p.parse_yaml_string(yaml, dbgen4::gen::db_type_enum::psql);
   REQUIRE(ans);
   CHECK(ans.value().map_statements().at("nice").before_sql().empty());
 }
@@ -140,13 +140,13 @@ namespace
   // tablespace this test's own authorization id is not guaranteed to have
   // (SQL0286N on a plain dev instance); after tears it down regardless of
   // which kind of table before created, so nothing here needs it temporary.
-  constexpr auto        test_db_type   = dbgen4::db_type_enum::db2;
+  constexpr auto        test_db_type   = dbgen4::gen::db_type_enum::db2;
   constexpr const char* create_staging = "CREATE TABLE parser_test_ba (id INTEGER)";
   constexpr const char* select_staging = "SELECT id FROM parser_test_ba";
   constexpr const char* drop_staging   = "DROP TABLE parser_test_ba";
   constexpr const char* broken_before  = "CREATE this is not valid sql";
 #elifdef DBGEN4_HAS_PSQL
-  constexpr auto        test_db_type   = dbgen4::db_type_enum::psql;
+  constexpr auto        test_db_type   = dbgen4::gen::db_type_enum::psql;
   constexpr const char* create_staging = "CREATE TABLE parser_test_ba (id int)";
   constexpr const char* select_staging = "SELECT id FROM parser_test_ba";
   constexpr const char* drop_staging   = "DROP TABLE parser_test_ba";
@@ -182,8 +182,8 @@ TEST_CASE("before creates what the statement's own sql needs, after tears it dow
   db->exec(drop_staging);
   db->commit();
 
-  dbgen4::parser p(dbgen4::test::test_logger());
-  const auto     yaml_str = fmt::format(R"(
+  dbgen4::gen::parser p(dbgen4::test::test_logger());
+  const auto          yaml_str = fmt::format(R"(
 statements:
   - id: sel
     res-buf-size: 1
@@ -194,9 +194,9 @@ statements:
       sql: {}
     sql: {}
 )",
-                                        create_staging,
-                                        drop_staging,
-                                        select_staging);
+                                             create_staging,
+                                             drop_staging,
+                                             select_staging);
 
   auto parsed = p.parse_yaml_string(yaml_str, test_db_type);
   REQUIRE(parsed);
@@ -235,20 +235,20 @@ TEST_CASE("a failing before sql fails the statement and is reported, before vali
 {
   auto db = connect_test_db();
 
-  dbgen4::parser p(dbgen4::test::test_logger());
-  const auto     yaml_str = fmt::format(R"(
+  dbgen4::gen::parser p(dbgen4::test::test_logger());
+  const auto          yaml_str = fmt::format(R"(
 statements:
   - id: sel
     before:
       sql: {}
     sql: SELECT 1
 )",
-                                        broken_before);
+                                             broken_before);
 
   auto parsed = p.parse_yaml_string(yaml_str, test_db_type);
   REQUIRE(parsed);
 
   auto with_meta = p.load_file_meta_data(parsed.value(), *db, max_field_len);
   REQUIRE_FALSE(with_meta.has_value());
-  CHECK(with_meta.error() == dbgen4::exit_status_enum::sql_syntax_err);
+  CHECK(with_meta.error() == dbgen4::gen::exit_status_enum::sql_syntax_err);
 }

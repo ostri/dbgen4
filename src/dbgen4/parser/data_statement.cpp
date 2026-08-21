@@ -6,7 +6,7 @@ namespace ME = magic_enum; // NOLINT(misc-unused-alias-decls)
 #include <fmt/format.h>
 namespace ME = magic_enum; // NOLINT(misc-unused-alias-decls)
 
-namespace dbgen4
+namespace dbgen4::gen
 {
 
 
@@ -35,7 +35,7 @@ namespace dbgen4
                            col.index,
                            col.name,
                            ME::enum_name(col.type),
-                           rtl::get_sql_mapping(col.type)->mnemonic,
+                           rtl::schema::get_sql_mapping(col.type)->mnemonic,
                            col.native_type,
                            col.size,
                            col.digits,
@@ -111,4 +111,4 @@ namespace dbgen4
   void     data_statement::set_result_names(str_vec v) { result_names_ = std::move(v); }
   void     data_statement::set_param_names(str_vec v) { param_names_ = std::move(v); }
 
-}; // namespace dbgen4
+}; // namespace dbgen4::gen

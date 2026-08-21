@@ -213,7 +213,7 @@ namespace rtl
     {
       const auto oid = static_cast<psql::oid_t>(PQparamtype(desc.get(), i));
 
-      meta_dscr par{};
+      schema::meta_dscr par{};
       par.index       = static_cast<int16_t>(i + 1);
       par.name        = fmt::format("par_{}", i + 1);
       par.native_type = static_cast<int32_t>(oid);
@@ -222,7 +222,7 @@ namespace rtl
       par.size     = psql::column_width(oid, -1, -1);
       par.digits   = 0;
       par.nullable = 1; ///< PostgreSQL does not report parameter nullability
-      if (par.type == sql_type::unknown)
+      if (par.type == schema::sql_type::unknown)
         log_().warn("Parameter {} has an unmapped type OID {}. Generated code will not compile.", i + 1, oid);
       result.add_par_dscr(par);
     }
@@ -236,7 +236,7 @@ namespace rtl
       const auto typmod = PQfmod(desc.get(), i);
       const auto size   = PQfsize(desc.get(), i);
 
-      meta_dscr col{};
+      schema::meta_dscr col{};
       col.index       = static_cast<int16_t>(i + 1);
       col.name        = rtl::lowercase(PQfname(desc.get(), i));
       col.native_type = static_cast<int32_t>(oid);
@@ -245,7 +245,7 @@ namespace rtl
       col.digits      = psql::column_scale(oid, typmod);
       /// PQdescribePrepared does not carry nullability - assume nullable
       col.nullable = 1;
-      if (col.type == sql_type::unknown)
+      if (col.type == schema::sql_type::unknown)
         log_().warn("Column '{}' has an unmapped type OID {}. Generated code will not compile.", col.name, oid);
       result.add_col_dscr(col);
     }

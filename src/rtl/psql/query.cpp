@@ -11,6 +11,8 @@
 
 namespace rtl::detail
 {
+  using rtl::schema::sql_cat;  // NOLINT(misc-unused-using-decls) - used throughout this file
+  using rtl::schema::sql_type; // NOLINT(misc-unused-using-decls) - used throughout this file
   namespace
   {
     /// hex digit to value, 0xff when the character is not a hex digit

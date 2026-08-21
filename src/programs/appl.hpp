@@ -12,7 +12,7 @@
 #include <chrono>
 #include <expected>
 #include <mutex>
-namespace dbgen4
+namespace dbgen4::gen
 {
   using e_data_statements = ::std::expected<data_statements, exit_status_enum>;
   class appl
@@ -48,4 +48,4 @@ namespace dbgen4
     logger::Logger& log_ref_; ///< reference to the shared Logger, not owner
     cmd_line_params p_;       /// comand line parameter structure
   };
-}; // namespace dbgen4
+}; // namespace dbgen4::gen

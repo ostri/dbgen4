@@ -20,11 +20,11 @@ int main(int argc, char** argv, char** env)
 
   try
   {
-    const auto* program_name = argv[0]; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    const auto*    program_name = argv[0]; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     const fs::path p(program_name);
     log.info("Program {} started", p.filename().string());
     /// application initialization
-    dbgen4::appl app(log);
+    dbgen4::gen::appl app(log);
     /// start with command line parsing and generating
     auto sts = app.exec(argc, argv, env);
     log.info("Program is finished. return code '{}' return status '{}'", ME::enum_integer(sts), ME::enum_name(sts));

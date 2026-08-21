@@ -14,7 +14,7 @@ namespace ME = magic_enum; // NOLINT(misc-unused-alias-decls)
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
 
-namespace dbgen4
+namespace dbgen4::gen
 {
   /// enum of inja templates
   enum class inja_tpl_enum : uint8_t
@@ -70,22 +70,22 @@ namespace dbgen4
     void set_yaml_fn_and_barename(cstr_t yaml_fn); ///< set the yaml filename and barename
     void set_filename(const str_t& filename);      ///< set the filename
     /// utility methods
-    e_void              prepare_templates();                                   ///< prepare the templates
-    e_string            generate(const data_statements& s);                    ///< generate the source code
-    void                attr_mappings(json& j_stmt, rtl::meta_dscr const& el); ///< map the attributes to the json
-    e_json              internal_model_to_json(const data_statements& s);      ///< generate the json model
+    e_void              prepare_templates();                                           ///< prepare the templates
+    e_string            generate(const data_statements& s);                            ///< generate the source code
+    void                attr_mappings(json& j_stmt, rtl::schema::meta_dscr const& el); ///< map the attributes to the json
+    e_json              internal_model_to_json(const data_statements& s);              ///< generate the json model
     e_string            generate_file_through_template(const json& data, inja_tpl_enum tpl_type);
-    str_t               attr_dump_value_to_string(rtl::sql_type sql_type, const str_t& name);
+    str_t               attr_dump_value_to_string(rtl::schema::sql_type sql_type, const str_t& name);
     e_void              register_callbacks();
     [[nodiscard]] str_t template_filename(inja_tpl_enum tpl_id) const;
   private:
     [[nodiscard]] logger::Logger& log_() const; ///< fetch the shared logger
     /// strip the rtl:: qualification - namespace dbx aliases these types
     static str_t             unqualified(rtl::cstr_t type_name); ///< strip the rtl:: qualification - namespace dbx aliases these types
-    str_t                    attr_storage_type(rtl::sql_type sql_type, const str_t& name); ///< generate the storage type
-    str_t                    attr_getter_code(rtl::sql_type sql_type, const str_t& name);  ///< generate the getter code
-    str_t                    attr_setter_code(rtl::sql_type sql_type, const str_t& name);  ///< generate the setter code
-    json                     attr_mappings(rtl::meta_dscr const& el);                      ///< map the attributes to the json
+    str_t                    attr_storage_type(rtl::schema::sql_type sql_type, const str_t& name); ///< generate the storage type
+    str_t                    attr_getter_code(rtl::schema::sql_type sql_type, const str_t& name);  ///< generate the getter code
+    str_t                    attr_setter_code(rtl::schema::sql_type sql_type, const str_t& name);  ///< generate the setter code
+    json                     attr_mappings(rtl::schema::meta_dscr const& el);                      ///< map the attributes to the json
     [[nodiscard]] e_template load_template(inja_tpl_enum tpl_id);
     /**
      * @brief error handler for the template loading
@@ -106,8 +106,8 @@ namespace dbgen4
      * @param len       length of the sql
      * @return str_t
      */
-    str_t attr_storage_raw_type(rtl::sql_type sql_type, size_t len);
-    str_t attr_base_type(rtl::sql_type sql_type);
+    str_t attr_storage_raw_type(rtl::schema::sql_type sql_type, size_t len);
+    str_t attr_base_type(rtl::schema::sql_type sql_type);
   private:
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     const context& ctx_; ///< command line parameters stucture (readonly, not owner)
@@ -131,4 +131,4 @@ namespace dbgen4
   };
   inline str_t           generator::json_fn() const { return filename(gen_fn_tpl_names::json); }
   inline logger::Logger& generator::log_() const { return log_ref_; }
-}; // namespace dbgen4
+}; // namespace dbgen4::gen

@@ -14,7 +14,7 @@
 #include <yaml-cpp/node/node.h>
 
 
-namespace dbgen4
+namespace dbgen4::gen
 {
   using e_data_statement  = std::expected<data_statement, exit_status_enum>;
   using e_data_statements = std::expected<data_statements, exit_status_enum>; ///< expected data_statements or error code
@@ -77,6 +77,6 @@ namespace dbgen4
 
     [[nodiscard]] exit_status_enum no_sql_found(const str_t& stmt_id) const;
   };
-} // namespace dbgen4
+} // namespace dbgen4::gen
 
 #endif // PARSER_HPP

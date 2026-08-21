@@ -52,89 +52,106 @@ namespace rtl
                            { return static_cast<char>(std::tolower(c)); });
     return out;
   }
-  /**
-   * @brief sql types known to the generator
-   *
-   * The values are our own and dense on purpose - they are deliberately not
-   * the ODBC SQL_* codes, so that this header carries no backend dependency.
-   * Backends translate between their native codes and these values.
-   */
-  enum class sql_type : std::int16_t // NOLINT(performance-enum-size)
-  {
-    unknown = 0,
-    // atomic
-    integer,
-    smallint,
-    bigint,
-    tiny_int,
-    float_,
-    real,
-    double_,
-    bit,
-    // 8 bit strings
-    char_,
-    numeric,
-    decimal,
-    var_char,
-    decfloat,
-    long_var_char,
-    clob,
-    xml,
-    // 16 bit strings
-    wchar,
-    wvar_char,
-    wlong_var_char,
-    dbclob,
-    // binary strings
-    graphic,
-    var_graphic,
-    binary,
-    var_binary,
-    long_var_binary,
-    blob,
-    // date / time structures
-    date,
-    time,
-    timestamp,
-    type_date,
-    type_time,
-    type_timestamp,
-    // interval structures
-    interval_year,
-    interval_month,
-    interval_year_to_month,
-    interval_day,
-    interval_hour,
-    interval_minute,
-    interval_second,
-    interval_day_to_hour,
-    interval_day_to_minute,
-    interval_day_to_second,
-    interval_hour_to_minute,
-    interval_hour_to_second,
-    interval_minute_to_second,
-    // misc
-    guid,
-    /// not a type: one past the last, and so the width of any table keyed by
-    /// sql_type. Every enumerator above it has to stay dense and unnumbered
-    /// for that to hold - the static_assert below the table checks it does.
-    count_
-  };
 
   /**
-   * @brief how a sql type is stored in a generated buffer
+   * @brief the sql type vocabulary shared by the generator and every backend
    *
-   * The category drives the generated storage declaration, getter, setter and
-   * dump code - see dbgen4::generator::attr_* methods.
+   * A backend fills sql_mapping/meta_dscr in when it describes a column or
+   * parameter (see db2/db2_types.hpp, psql/psql_types.hpp); the generator
+   * (src/dbgen4/gen) reads them back to decide storage, getter and setter
+   * code. Kept apart from the rest of rtl - the runtime library a generated
+   * program links against - to make that dependency explicit: dbgen4::gen
+   * still reaches into rtl proper for rtl::db (schema introspection against
+   * a live database - see rtl::db::get_sql_metadata()), but everything it
+   * needs to turn one column/parameter description into generated code lives
+   * here, in rtl::schema, not scattered across the rest of this namespace.
    */
-  enum class sql_cat : std::uint8_t
+  namespace schema
   {
-    atomic,   ///< scalar value stored by value
-    c_string, ///< char array, null terminated
-    w_string, ///< wchar_t array, null terminated
-    b_string, ///< uint8_t array, no terminator
-    structure ///< aggregate (date, time, timestamp, interval, guid)
-  };
+    /**
+     * @brief sql types known to the generator
+     *
+     * The values are our own and dense on purpose - they are deliberately not
+     * the ODBC SQL_* codes, so that this header carries no backend dependency.
+     * Backends translate between their native codes and these values.
+     */
+    enum class sql_type : std::int16_t // NOLINT(performance-enum-size)
+    {
+      unknown = 0,
+      // atomic
+      integer,
+      smallint,
+      bigint,
+      tiny_int,
+      float_,
+      real,
+      double_,
+      bit,
+      // 8 bit strings
+      char_,
+      numeric,
+      decimal,
+      var_char,
+      decfloat,
+      long_var_char,
+      clob,
+      xml,
+      // 16 bit strings
+      wchar,
+      wvar_char,
+      wlong_var_char,
+      dbclob,
+      // binary strings
+      graphic,
+      var_graphic,
+      binary,
+      var_binary,
+      long_var_binary,
+      blob,
+      // date / time structures
+      date,
+      time,
+      timestamp,
+      type_date,
+      type_time,
+      type_timestamp,
+      // interval structures
+      interval_year,
+      interval_month,
+      interval_year_to_month,
+      interval_day,
+      interval_hour,
+      interval_minute,
+      interval_second,
+      interval_day_to_hour,
+      interval_day_to_minute,
+      interval_day_to_second,
+      interval_hour_to_minute,
+      interval_hour_to_second,
+      interval_minute_to_second,
+      // misc
+      guid,
+      /// not a type: one past the last, and so the width of any table keyed by
+      /// sql_type. Every enumerator above it has to stay dense and unnumbered
+      /// for that to hold - the static_assert below the table checks it does.
+      count_
+    };
+
+    /**
+     * @brief how a sql type is stored in a generated buffer
+     *
+     * The category drives the generated storage declaration, getter, setter and
+     * dump code - see dbgen4::gen::generator::attr_* methods.
+     */
+    enum class sql_cat : std::uint8_t
+    {
+      atomic,   ///< scalar value stored by value
+      c_string, ///< char array, null terminated
+      w_string, ///< wchar_t array, null terminated
+      b_string, ///< uint8_t array, no terminator
+      structure ///< aggregate (date, time, timestamp, interval, guid)
+    };
+  } // namespace schema
 
   // ------------------------------------------------------------------------
   // date / time / guid structures
@@ -143,6 +160,11 @@ namespace rtl
   // db2 backend can bind them by a plain cast. db2_types.hpp static_asserts
   // that this stays true - if a compiler ever disagrees, the build breaks
   // there rather than silently corrupting data.
+  //
+  // Kept in rtl proper, not rtl::schema: these are the concrete C++ types a
+  // generated buffer actually stores and a linked-in program instantiates at
+  // run time (see sql_mapping's cpp_type_name entries below, e.g. "rtl::date"),
+  // unlike sql_type/sql_cat/meta_dscr which are only ever generator input.
   // ------------------------------------------------------------------------
 
   struct date
@@ -234,44 +256,46 @@ namespace rtl
     std::array<uint8_t, 8> data4; // NOLINT(readability-magic-numbers)
   };
 
-  /**
-   * @brief everything the generator needs to know about one sql type
-   */
-  struct sql_mapping
+  namespace schema
   {
-    sql_type sql;           ///< primary key
-    cstr_t   mnemonic;      ///< readable name, ends up in generated comments
-    sql_cat  category;      ///< storage category
-    cstr_t   cpp_type_name; ///< storage type (element type for the string categories)
-    cstr_t   par_type_name; ///< type accepted by a generated setter
-    cstr_t   ret_type_name; ///< type returned by a generated getter
-  };
-
-  /// how many entries a table keyed by sql_type needs
-  inline constexpr size_t sql_type_count = static_cast<size_t>(sql_type::count_);
-
-  using sql_mapping_table = std::array<sql_mapping, sql_type_count>;
-
-  /**
-   * @brief build the sql type table at compile time
-   *
-   * @return consteval
-   */
-  [[nodiscard]] consteval sql_mapping_table make_sql_to_cpp_table() noexcept
-  {
-    sql_mapping_table m{};
-
-    auto add = [&m](sql_type s, cstr_t mn, sql_cat cat, cstr_t cpp_name, cstr_t par_name, cstr_t ret_name) constexpr
+    /**
+     * @brief everything the generator needs to know about one sql type
+     */
+    struct sql_mapping
     {
-      m.at(static_cast<size_t>(s)) = sql_mapping //
-        {.sql           = s,                     //
-         .mnemonic      = mn,
-         .category      = cat,
-         .cpp_type_name = cpp_name,
-         .par_type_name = par_name,
-         .ret_type_name = ret_name};
+      sql_type sql;           ///< primary key
+      cstr_t   mnemonic;      ///< readable name, ends up in generated comments
+      sql_cat  category;      ///< storage category
+      cstr_t   cpp_type_name; ///< storage type (element type for the string categories)
+      cstr_t   par_type_name; ///< type accepted by a generated setter
+      cstr_t   ret_type_name; ///< type returned by a generated getter
     };
-    // clang-format off
+
+    /// how many entries a table keyed by sql_type needs
+    inline constexpr size_t sql_type_count = static_cast<size_t>(sql_type::count_);
+
+    using sql_mapping_table = std::array<sql_mapping, sql_type_count>;
+
+    /**
+     * @brief build the sql type table at compile time
+     *
+     * @return consteval
+     */
+    [[nodiscard]] consteval sql_mapping_table make_sql_to_cpp_table() noexcept
+    {
+      sql_mapping_table m{};
+
+      auto add = [&m](sql_type s, cstr_t mn, sql_cat cat, cstr_t cpp_name, cstr_t par_name, cstr_t ret_name) constexpr
+      {
+        m.at(static_cast<size_t>(s)) = sql_mapping //
+          {.sql           = s,                     //
+           .mnemonic      = mn,
+           .category      = cat,
+           .cpp_type_name = cpp_name,
+           .par_type_name = par_name,
+           .ret_type_name = ret_name};
+      };
+      // clang-format off
       // === atomic ===
       add(sql_type::integer,    "integer",    sql_cat::atomic, "int32_t", "int32_t", "int32_t");
       add(sql_type::smallint,   "smallint",   sql_cat::atomic, "int16_t", "int16_t", "int16_t");
@@ -326,51 +350,52 @@ namespace rtl
       // === misc ===
       add(sql_type::guid,    "guid",    sql_cat::structure, "rtl::guid", "rtl::guid", "rtl::guid");
       add(sql_type::unknown, "unknown", sql_cat::structure, "void",      "void",      "void");
-    // clang-format on
-    return m;
-  }
+      // clang-format on
+      return m;
+    }
 
-  /**
-   * @brief the sql type table, built once at compile time
-   *
-   */
-  inline constexpr sql_mapping_table sql_to_cpp_table = make_sql_to_cpp_table();
+    /**
+     * @brief the sql type table, built once at compile time
+     *
+     */
+    inline constexpr sql_mapping_table sql_to_cpp_table = make_sql_to_cpp_table();
 
-  /// Every enumerator has to be spelled out in the table above; a new sql_type
-  /// that nobody filled in would otherwise read back as a zeroed entry and
-  /// generate code for type `unknown` without a word of complaint.
-  static_assert(std::ranges::none_of(sql_to_cpp_table, [](const sql_mapping& m) { return m.mnemonic.empty(); }),
-                "sql_to_cpp_table has a hole - every sql_type needs an add() line");
+    /// Every enumerator has to be spelled out in the table above; a new sql_type
+    /// that nobody filled in would otherwise read back as a zeroed entry and
+    /// generate code for type `unknown` without a word of complaint.
+    static_assert(std::ranges::none_of(sql_to_cpp_table, [](const sql_mapping& m) { return m.mnemonic.empty(); }),
+                  "sql_to_cpp_table has a hole - every sql_type needs an add() line");
 
-  /**
-   * @brief look up the mapping of a sql type
-   *
-   * Never returns nullptr - a type outside the table falls back to
-   * sql_type::unknown, which is always present.
-   *
-   * @param type sql type to look up
-   * @return const sql_mapping* mapping, never nullptr
-   */
-  [[nodiscard]] constexpr const sql_mapping* get_sql_mapping(sql_type type) noexcept
-  {
-    const auto idx = static_cast<size_t>(type);
-    if (idx < sql_type_count) return &sql_to_cpp_table.at(idx);
-    return &sql_to_cpp_table.at(static_cast<size_t>(sql_type::unknown));
-  }
-  /**
-   * @brief description of one result column or one statement parameter
-   *
-   * Filled in by the backend from whatever its native describe call returns.
-   */
-  struct meta_dscr
-  {
-    int16_t     index;       ///< 1 based position
-    std::string name;        ///< column name as reported by the db, or the generated parameter name
-    sql_type    type;        ///< type mapped to our vocabulary
-    int32_t     native_type; ///< raw backend type code (ODBC SQL_* code, or PostgreSQL type OID)
-    uint32_t    size;        ///< max width in characters or bytes
-    int16_t     digits;      ///< digits after the decimal point
-    int16_t     nullable;    ///< 0 no nulls, 1 nullable, 2 unknown
-  };
-  using meta_vec = std::vector<meta_dscr>;
+    /**
+     * @brief look up the mapping of a sql type
+     *
+     * Never returns nullptr - a type outside the table falls back to
+     * sql_type::unknown, which is always present.
+     *
+     * @param type sql type to look up
+     * @return const sql_mapping* mapping, never nullptr
+     */
+    [[nodiscard]] constexpr const sql_mapping* get_sql_mapping(sql_type type) noexcept
+    {
+      const auto idx = static_cast<size_t>(type);
+      if (idx < sql_type_count) return &sql_to_cpp_table.at(idx);
+      return &sql_to_cpp_table.at(static_cast<size_t>(sql_type::unknown));
+    }
+    /**
+     * @brief description of one result column or one statement parameter
+     *
+     * Filled in by the backend from whatever its native describe call returns.
+     */
+    struct meta_dscr
+    {
+      int16_t     index;       ///< 1 based position
+      std::string name;        ///< column name as reported by the db, or the generated parameter name
+      sql_type    type;        ///< type mapped to our vocabulary
+      int32_t     native_type; ///< raw backend type code (ODBC SQL_* code, or PostgreSQL type OID)
+      uint32_t    size;        ///< max width in characters or bytes
+      int16_t     digits;      ///< digits after the decimal point
+      int16_t     nullable;    ///< 0 no nulls, 1 nullable, 2 unknown
+    };
+    using meta_vec = std::vector<meta_dscr>;
+  } // namespace schema
 } // namespace rtl

@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <fmt/format.h>
 
-namespace dbgen4
+namespace dbgen4::gen
 {
   /**
    * @brief Enumeration of possible program exit codes
@@ -38,7 +38,6 @@ namespace dbgen4
     cmd_version               = 24,  // display version via cmd line
     cmd_line_parse_error      = 25,  // command line parser error
   };
-  // parser_err_enum cvt(rtl::db_sts s) { return reinterpret_cast<parser_err_enum>(s); }
   /**
    * @brief Gets human readable string format for the provided error code
    * @param code error code
@@ -82,4 +81,4 @@ namespace dbgen4
     }
   }
 
-}; // namespace dbgen4
+}; // namespace dbgen4::gen

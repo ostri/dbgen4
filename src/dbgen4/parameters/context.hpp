@@ -4,7 +4,7 @@
 #include <magic_enum.hpp>
 namespace ME = magic_enum; // NOLINT(misc-unused-alias-decls)
 #include "cmd_line_params.hpp"
-namespace dbgen4
+namespace dbgen4::gen
 {
   class context
   {
@@ -21,4 +21,4 @@ namespace dbgen4
   : cmd_(cmd)
   {
   }
-} // namespace dbgen4
+} // namespace dbgen4::gen

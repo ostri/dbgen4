@@ -4,7 +4,7 @@
 #include <fstream>
 #include <sstream>
 // #include <ranges>
-namespace dbgen4
+namespace dbgen4::gen
 {
   using std::find_if_not;
 
@@ -132,4 +132,4 @@ namespace dbgen4
     std::ranges::transform(exit_string, exit_string.begin(), [](unsigned char c) { return std::tolower(c); });
     return exit_string;
   }
-}; // namespace dbgen4
+}; // namespace dbgen4::gen

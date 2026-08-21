@@ -16,7 +16,7 @@
 
 // using json = nlohmann::json;
 
-namespace dbgen4
+namespace dbgen4::gen
 {
   using str_t     = std::string;
   using cstr_t    = std::string_view;
@@ -74,4 +74,4 @@ namespace dbgen4
   e_string_                  read_file(const str_t& filename);
   [[maybe_unused]] e_string_ write_file(const str_t& filename, const str_t& contents);
   std::string                lowercase(std::string_view input_view);
-}; // namespace dbgen4
+}; // namespace dbgen4::gen

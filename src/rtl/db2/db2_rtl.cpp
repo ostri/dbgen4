@@ -333,7 +333,7 @@ namespace rtl
         return error_cleanup(ret, msg, db_sts::invalid_sql);
       }
 
-      meta_dscr par{};
+      schema::meta_dscr par{};
       par.index       = i;
       par.name        = fmt::format("par_{}", i);
       par.native_type = native_type;
@@ -341,7 +341,7 @@ namespace rtl
       par.size        = static_cast<uint32_t>(size);
       par.digits      = digits;
       par.nullable    = nullable;
-      if (par.type == sql_type::unknown)
+      if (par.type == schema::sql_type::unknown)
         log_().warn("Parameter {} has an unmapped db type code {}. Generated code will not compile.", i, native_type);
       result.add_par_dscr(par);
     }
@@ -372,7 +372,7 @@ namespace rtl
         return error_cleanup(ret, msg, db_sts::invalid_sql);
       }
 
-      meta_dscr col{};
+      schema::meta_dscr col{};
       col.index       = i;
       col.name        = rtl::lowercase(std::string(col_name.begin(), col_name.begin() + name_len)); // NOLINT
       col.native_type = native_type;
@@ -380,7 +380,7 @@ namespace rtl
       col.size        = static_cast<uint32_t>(size);
       col.digits      = digits;
       col.nullable    = nullable;
-      if (col.type == sql_type::unknown)
+      if (col.type == schema::sql_type::unknown)
         log_().warn("Column '{}' has an unmapped db type code {}. Generated code will not compile.", col.name, native_type);
       result.add_col_dscr(col);
     }

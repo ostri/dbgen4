@@ -76,7 +76,7 @@ namespace
     return tmp;
   }
 }; // anonymous namespace
-namespace dbgen4
+namespace dbgen4::gen
 {
   namespace fs = std::filesystem;
   /**
@@ -181,7 +181,7 @@ namespace dbgen4
       inja::Template templ = env_.parse(res.value());
       log_().debug("template '{}' successfully read and evaluated.", template_fn);
       return templ;
-    } // namespace dbgen4
+    }
   }
   /**
    * @brief log error and return with provided error code
@@ -286,13 +286,13 @@ namespace dbgen4
     return str_t(type_name);
   }
 
-  str_t generator::attr_storage_type(rtl::sql_type sql_type, const str_t& name)
+  str_t generator::attr_storage_type(rtl::schema::sql_type sql_type, const str_t& name)
   {
-    const auto* dscr    = rtl::get_sql_mapping(sql_type);
+    const auto* dscr    = rtl::schema::get_sql_mapping(sql_type);
     auto        col_cat = dscr->category;
     switch (col_cat)
     {
-    case rtl::sql_cat::atomic:
+    case rtl::schema::sql_cat::atomic:
       /// Everything else stores as its own C++ type, but bool cannot: the
       /// buffer is a std::vector, and std::vector<bool> is the bit packed
       /// specialisation with no data(). The driver wants one addressable byte
@@ -300,10 +300,10 @@ namespace dbgen4
       /// The getter and setter still speak bool, so callers see no difference.
       if (dscr->cpp_type_name == "bool") return "uint8_t";
       return unqualified(dscr->cpp_type_name);
-    case rtl::sql_cat::structure: return unqualified(dscr->cpp_type_name);
-    case rtl::sql_cat::c_string:
-    case rtl::sql_cat::w_string: return fmt::format("std::array<{0}, l_{1}+1>", unqualified(dscr->cpp_type_name), name);
-    case rtl::sql_cat::b_string: return fmt::format("std::array<{0}, l_{1}>", unqualified(dscr->cpp_type_name), name);
+    case rtl::schema::sql_cat::structure: return unqualified(dscr->cpp_type_name);
+    case rtl::schema::sql_cat::c_string:
+    case rtl::schema::sql_cat::w_string: return fmt::format("std::array<{0}, l_{1}+1>", unqualified(dscr->cpp_type_name), name);
+    case rtl::schema::sql_cat::b_string: return fmt::format("std::array<{0}, l_{1}>", unqualified(dscr->cpp_type_name), name);
     default: std::unreachable();
     }
   }
@@ -314,17 +314,17 @@ namespace dbgen4
    * @param len column length
    * @return str_t
    */
-  str_t generator::attr_storage_raw_type(rtl::sql_type sql_type, size_t len)
+  str_t generator::attr_storage_raw_type(rtl::schema::sql_type sql_type, size_t len)
   {
-    const auto* dscr    = rtl::get_sql_mapping(sql_type);
+    const auto* dscr    = rtl::schema::get_sql_mapping(sql_type);
     auto        col_cat = dscr->category;
     switch (col_cat)
     {
-    case rtl::sql_cat::atomic:
-    case rtl::sql_cat::structure: return fmt::format("{}", dscr->cpp_type_name);
-    case rtl::sql_cat::c_string:
-    case rtl::sql_cat::w_string: return fmt::format("{0}[{1:3}+1]", dscr->cpp_type_name, len);
-    case rtl::sql_cat::b_string: return fmt::format("{0}[{1:3}]", dscr->cpp_type_name, len);
+    case rtl::schema::sql_cat::atomic:
+    case rtl::schema::sql_cat::structure: return fmt::format("{}", dscr->cpp_type_name);
+    case rtl::schema::sql_cat::c_string:
+    case rtl::schema::sql_cat::w_string: return fmt::format("{0}[{1:3}+1]", dscr->cpp_type_name, len);
+    case rtl::schema::sql_cat::b_string: return fmt::format("{0}[{1:3}]", dscr->cpp_type_name, len);
     default: __builtin_unreachable();
     }
   }
@@ -341,9 +341,9 @@ namespace dbgen4
    * @param sql_type
    * @return str_t
    */
-  str_t generator::attr_base_type(rtl::sql_type sql_type)
+  str_t generator::attr_base_type(rtl::schema::sql_type sql_type)
   {
-    const auto* dscr = rtl::get_sql_mapping(sql_type);
+    const auto* dscr = rtl::schema::get_sql_mapping(sql_type);
     return std::string(dscr->cpp_type_name);
   }
   /**
@@ -355,23 +355,23 @@ namespace dbgen4
    * @param name  name of column/param
    * @return str_t implementation code
    */
-  str_t generator::attr_getter_code(rtl::sql_type sql_type, const str_t& name)
+  str_t generator::attr_getter_code(rtl::schema::sql_type sql_type, const str_t& name)
   {
-    const auto* dscr    = rtl::get_sql_mapping(sql_type);
+    const auto* dscr    = rtl::schema::get_sql_mapping(sql_type);
     auto        col_cat = dscr->category;
     switch (col_cat)
     {
-    case rtl::sql_cat::atomic:
+    case rtl::schema::sql_cat::atomic:
       /// bool is stored as uint8_t (see attr_storage_type) - an explicit cast
       /// back to bool here, rather than the implicit narrowing conversion the
       /// bare return would otherwise do, is what readability-implicit-bool-conversion
       /// wants to see spelled out.
       if (dscr->cpp_type_name == "bool") return fmt::format("{{ return static_cast<bool>({0}_.at(row));}}", name);
       [[fallthrough]];
-    case rtl::sql_cat::structure: return fmt::format("{{ return {0}_.at(row);}}", name);
-    case rtl::sql_cat::c_string:
-    case rtl::sql_cat::w_string:
-    case rtl::sql_cat::b_string:
+    case rtl::schema::sql_cat::structure: return fmt::format("{{ return {0}_.at(row);}}", name);
+    case rtl::schema::sql_cat::c_string:
+    case rtl::schema::sql_cat::w_string:
+    case rtl::schema::sql_cat::b_string:
       /// the view has to span the value, not the whole array: the driver
       /// reports how much it actually wrote in the length indicator, and a
       /// view of l_<name> would carry whatever trailing bytes happen to be there
@@ -386,9 +386,9 @@ namespace dbgen4
    * @param name
    * @return str_t
    */
-  str_t generator::attr_setter_code(rtl::sql_type sql_type, const str_t& name)
+  str_t generator::attr_setter_code(rtl::schema::sql_type sql_type, const str_t& name)
   {
-    const auto* dscr    = rtl::get_sql_mapping(sql_type);
+    const auto* dscr    = rtl::schema::get_sql_mapping(sql_type);
     auto        col_cat = dscr->category;
     switch (col_cat)
     {
@@ -403,7 +403,7 @@ namespace dbgen4
     /// all three compile to identical machine code (checked), and this one
     /// cannot drift if the storage type changes - bool, for one, is stored as
     /// uint8_t.
-    case rtl::sql_cat::atomic:
+    case rtl::schema::sql_cat::atomic:
       /// same cast back the other way as attr_getter_code(): v is bool, the
       /// slot is uint8_t, and an explicit cast is what
       /// readability-implicit-bool-conversion wants in place of the narrowing
@@ -412,23 +412,23 @@ namespace dbgen4
         return fmt::format("{{ {0}_.at(row) = static_cast<uint8_t>(v); len_{0}_.at(row) = static_cast<int32_t>(sizeof({0}_.at(0)));}}",
                            name);
       [[fallthrough]];
-    case rtl::sql_cat::structure:
+    case rtl::schema::sql_cat::structure:
       return fmt::format("{{ {0}_.at(row) = v; len_{0}_.at(row) = static_cast<int32_t>(sizeof({0}_.at(0)));}}", name);
-    case rtl::sql_cat::c_string:
+    case rtl::schema::sql_cat::c_string:
       return fmt::format( //
         "{{"
         "rtl::set_value<{0},l_{1}+1>(v, row, len_{1}_, {1}_);" // net capacity +1
         "}}",
         "char",
         name);
-    case rtl::sql_cat::w_string:
+    case rtl::schema::sql_cat::w_string:
       return fmt::format( //
         "{{"
         "rtl::set_value<{0},l_{1}+1>(v, row, len_{1}_, {1}_);" // net capacity +1
         "}}",
         "wchar_t",
         name);
-    case rtl::sql_cat::b_string:
+    case rtl::schema::sql_cat::b_string:
       return fmt::format( //
         "{{"
         "rtl::set_value<{0},l_{1}>(v, row, len_{1}_, {1}_);" // net capacity +0 (to simplify, not needed)
@@ -445,17 +445,17 @@ namespace dbgen4
    * @param name
    * @return str_t
    */
-  str_t generator::attr_dump_value_to_string(rtl::sql_type sql_type, const str_t& name)
+  str_t generator::attr_dump_value_to_string(rtl::schema::sql_type sql_type, const str_t& name)
   {
-    const auto* dscr    = rtl::get_sql_mapping(sql_type);
+    const auto* dscr    = rtl::schema::get_sql_mapping(sql_type);
     auto        col_cat = dscr->category;
     switch (col_cat)
     {
-    case rtl::sql_cat::structure: return fmt::format("fmt::format(\"{{}}\", {0}(n))", name);
-    case rtl::sql_cat::atomic: // return fmt::format("{0}(n))", name);
-    case rtl::sql_cat::c_string: return fmt::format("{0}(n)", name);
-    case rtl::sql_cat::w_string: return fmt::format("dbgen4::to_utf8({0}(n))", name);
-    case rtl::sql_cat::b_string: return fmt::format("dbgen4::to_hex({0}(n))", name);
+    case rtl::schema::sql_cat::structure: return fmt::format("fmt::format(\"{{}}\", {0}(n))", name);
+    case rtl::schema::sql_cat::atomic: // return fmt::format("{0}(n))", name);
+    case rtl::schema::sql_cat::c_string: return fmt::format("{0}(n)", name);
+    case rtl::schema::sql_cat::w_string: return fmt::format("dbgen4::to_utf8({0}(n))", name);
+    case rtl::schema::sql_cat::b_string: return fmt::format("dbgen4::to_hex({0}(n))", name);
     default: __builtin_unreachable();
     }
   }
@@ -570,9 +570,9 @@ namespace dbgen4
    * @brief (part of json) result/param attr data
    * @param el element meta description
    */
-  json generator::attr_mappings(rtl::meta_dscr const& el)
+  json generator::attr_mappings(rtl::schema::meta_dscr const& el)
   {
-    const auto* dscr = rtl::get_sql_mapping(el.type);
+    const auto* dscr = rtl::schema::get_sql_mapping(el.type);
     json        tmp_col;
     // NOLINTBEGIN(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
     tmp_col["index"]     = el.index;
@@ -580,7 +580,7 @@ namespace dbgen4
     tmp_col["col-name"]  = fmt::format("\"{}\"", el.name);
     tmp_col["base-type"] = dscr->cpp_type_name;
     /// enumerator name of the neutral type - the template emits it as
-    /// rtl::sql_type::<<type>> and each backend translates it when binding
+    /// rtl::schema::sql_type::<<type>> and each backend translates it when binding
     tmp_col["type"]        = ME::enum_name(el.type);
     tmp_col["mnemonic"]    = dscr->mnemonic;
     tmp_col["size"]        = el.size;
@@ -631,19 +631,19 @@ namespace dbgen4
     bool needs_utf8    = false;
     bool needs_hex     = false;
 
-    const auto note_helpers = [&](const rtl::meta_dscr& el) noexcept
+    const auto note_helpers = [&](const rtl::schema::meta_dscr& el) noexcept
     {
-      switch (rtl::get_sql_mapping(el.type)->category)
+      switch (rtl::schema::get_sql_mapping(el.type)->category)
       {
-      case rtl::sql_cat::structure: needs_rtl_fmt = true; break; // fmt::format("{}", date)
-      case rtl::sql_cat::w_string: needs_utf8 = true; break;     // dbgen4::to_utf8
-      case rtl::sql_cat::b_string:
+      case rtl::schema::sql_cat::structure: needs_rtl_fmt = true; break; // fmt::format("{}", date)
+      case rtl::schema::sql_cat::w_string: needs_utf8 = true; break;     // dbgen4::to_utf8
+      case rtl::schema::sql_cat::b_string:
         needs_hex = true;
         break; // dbgen4::to_hex
       /// printed as they are, so no helper header - and a category nobody
       /// added yet needs none either, which is why they share the branch
-      case rtl::sql_cat::atomic:
-      case rtl::sql_cat::c_string:
+      case rtl::schema::sql_cat::atomic:
+      case rtl::schema::sql_cat::c_string:
       default: break;
       }
     };
@@ -687,4 +687,4 @@ namespace dbgen4
     // NOLINTEND(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
     return j;
   };
-} // namespace dbgen4
+} // namespace dbgen4::gen

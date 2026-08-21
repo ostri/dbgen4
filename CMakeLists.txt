@@ -319,12 +319,17 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/buf_cpp.jinja
                ${CMAKE_CURRENT_BINARY_DIR}/template/buf_cpp.jinja COPYONLY)
 
 # === db2_rtl ===
-# Include dirs every backend needs: the neutral rtl vocabulary and the
-# dbgen4 common helpers. logger::logger (see CPMAddPackage above) publishes
-# its own include dirs, so it does not need to be named here.
+# Include dirs every backend needs: the neutral rtl vocabulary, the
+# dbgen4 common helpers (rtl.cpp itself reaches for magic_enum_config.hpp
+# there) and dbgen4/runtime_support - not the generator's own tooling, but
+# the dbgen4:: helpers (to_hex(), to_utf8()) generated code's own dump()
+# methods call into and #include directly (see main_cpp.jinja). logger::logger
+# (see CPMAddPackage above) publishes its own include dirs, so it does not
+# need to be named here.
 set (RTL_INCLUDE_DIRS
   ${CMAKE_CURRENT_SOURCE_DIR}/src/rtl
   ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/common
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/dbgen4/runtime_support
 )
 
 if(DB2_FOUND)
@@ -742,6 +747,7 @@ function(add_crud_test_target backend rtl_library test_db_include_dir parallel_t
     add_executable(${target} ${crud_cpp} ${crud2_cpp}
         ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_crud.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_exec.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_db_misc.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_types.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_crud_batch.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_query_move.cpp

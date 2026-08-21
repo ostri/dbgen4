@@ -14,6 +14,8 @@
 
 namespace rtl::db2
 {
+  using rtl::schema::sql_type; // NOLINT(misc-unused-using-decls) - used throughout this file's translation table
+
   // ------------------------------------------------------------------------
   // The neutral date/time structures are declared to be layout compatible
   // with the ODBC ones so that they can be bound by a plain cast. If a future

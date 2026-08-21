@@ -39,7 +39,7 @@ namespace rtl
     db_data_db2& operator=(db_data_db2&&)      = delete;
   }; //__attribute__((aligned(DATA_ALIGNMENT_64)));
 
-  class db_db2 final : public db, public database
+  class db_db2 final : public db, public database, public schema::describer
   {
   public:
     explicit db_db2(logger::Logger& log);
@@ -87,12 +87,9 @@ namespace rtl
      * database-specific rollback logic.
      */
     db_sts rollback() override;
-    /**
-     * @brief Parses a SQL statement and returns metadata about columns and parameters
-     * @param query SQL statement (may contain ? placeholders)
-     * @return query_metadata with status, column and parameter descriptions
-     */
-    e_qry_metadata get_sql_metadata(const std::string& sql) override;
+
+    /// this same connection, viewed through rtl::schema::describer - see db::as_describer()
+    [[nodiscard]] schema::describer* as_describer() noexcept override { return this; }
 
     /// run a statement that takes no parameters and returns no rows - see rtl::db::exec()
     db_sts exec(const std::string& sql) override;
@@ -128,15 +125,15 @@ namespace rtl
      * @param str_len_or_ind_ptr Pointer to length/indicator buffer.
      * @return db_sts Status of the operation.
      */
-    db_sts bind_param(uint16_t parameter_number,
-                      int16_t  input_output_type,
-                      int16_t  value_type,
-                      sql_type parameter_type,
-                      uint32_t column_size,
-                      int16_t  decimal_digits,
-                      void*    parameter_value_ptr,
-                      int32_t  buffer_length,
-                      int32_t* str_len_or_ind_ptr);
+    db_sts bind_param(uint16_t         parameter_number,
+                      int16_t          input_output_type,
+                      int16_t          value_type,
+                      schema::sql_type parameter_type,
+                      uint32_t         column_size,
+                      int16_t          decimal_digits,
+                      void*            parameter_value_ptr,
+                      int32_t          buffer_length,
+                      int32_t*         str_len_or_ind_ptr);
 
 
     /// same object, upcast to rtl::database - see rtl::db::as_database()'s own doc comment
@@ -146,6 +143,14 @@ namespace rtl
     [[nodiscard]] SQLHDBC get_conn() const noexcept override;
     /// not owner - borrowed pointer to the shared Logger, never deleted here
     [[nodiscard]] logger::Logger* get_logger() const noexcept override { return &log_(); }
+
+    /**
+     * @brief --- rtl::schema::describer - parses a SQL statement and returns metadata about
+     * columns and parameters
+     * @param sql SQL statement (may contain ? placeholders)
+     * @return e_qry_metadata column and parameter descriptions, or an error
+     */
+    e_qry_metadata get_sql_metadata(const std::string& sql) override;
 
     void free_stmt_handle() const; ///< release current statement handle NOLINT
     void free_conn_handle() const; ///< free connection handle NOLINT

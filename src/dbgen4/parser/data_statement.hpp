@@ -6,7 +6,7 @@
 #include <map>
 // #include <map>
 
-namespace dbgen4
+namespace dbgen4::gen
 {
   // /**
   //  * @brief array of sql's where each db type flavour has its own possible empty version
@@ -14,7 +14,7 @@ namespace dbgen4
   //  * sql is for generic sql statement. Others are for RDBMs specifics
   //  */
   // using map_db_type_t = std::map<db_type_enum, str_t>;
-  using meta_vec = std::vector<rtl::meta_dscr>;
+  using meta_vec = std::vector<rtl::schema::meta_dscr>;
   using str_vec  = std::vector<str_t>;
   /**
    * @brief data about specific sql statement
@@ -28,7 +28,6 @@ namespace dbgen4
     data_statement(const data_statement& o)          = default;
     data_statement(data_statement&&) noexcept        = default;
     data_statement& operator=(const data_statement&) = default;
-    // data_statement& operator=(const rtl::qry_metadata& o);
     /**
      * @brief assign from rtl::qry_metadata
      *
@@ -160,8 +159,9 @@ namespace dbgen4
     {
       for (auto& col : v)
       {
-        const auto cat       = rtl::get_sql_mapping(col.type)->category;
-        const bool is_string = (cat == rtl::sql_cat::c_string || cat == rtl::sql_cat::w_string || cat == rtl::sql_cat::b_string);
+        const auto cat = rtl::schema::get_sql_mapping(col.type)->category;
+        const bool is_string =
+          (cat == rtl::schema::sql_cat::c_string || cat == rtl::schema::sql_cat::w_string || cat == rtl::schema::sql_cat::b_string);
 
         /// an explicit field-len wins even when the database did state a
         /// width - a column may be declared varchar(65535) and never hold
@@ -183,4 +183,4 @@ namespace dbgen4
     settle(params_);
   }
 
-} // namespace dbgen4
+} // namespace dbgen4::gen

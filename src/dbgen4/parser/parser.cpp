@@ -19,7 +19,7 @@ namespace ME = magic_enum; // NOLINT(misc-unused-alias-decls)
 #include "parser_errors.hpp"
 #include "parser.hpp"
 
-namespace dbgen4
+namespace dbgen4::gen
 {
   /**
    * @brief The method parses the provided file and loads its contents to the
@@ -57,6 +57,13 @@ namespace dbgen4
    */
   e_data_statements parser::load_file_meta_data(const data_statements& s, rtl::db& db, size_t max_field_len) const
   {
+    auto* describer = db.as_describer();
+    if (describer == nullptr)
+    {
+      log_().error("the linked-in backend does not support schema introspection (rtl::schema::describer) - cannot generate code.");
+      return std::unexpected(exit_status_enum::not_implemented);
+    }
+
     data_statements res_stmts{s}; // result statements with updated metadata
     for (const auto& map_stmt_pair : s.map_statements())
     { /// walking through whole list of statements in one file
@@ -75,7 +82,7 @@ namespace dbgen4
       }
 
       auto sql = stmt.sql();
-      auto res = db.get_sql_metadata(sql);
+      auto res = describer->get_sql_metadata(sql);
 
       // after runs whether or not the statement's own sql validated, and
       // still in the same unit of work before_sql (if any) opened - some
@@ -215,4 +222,4 @@ namespace dbgen4
     return stmts;
   }
 
-}; // namespace dbgen4
+}; // namespace dbgen4::gen

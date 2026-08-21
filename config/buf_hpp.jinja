@@ -214,7 +214,7 @@ class <<class-name>> : public <<root-class>>
       constexpr static const std::array<rtl::buffer_dscr_const, column_count> arr = {{
         // clang-format off
 ##      for el in buf
-        {<< el.name | pad(17, "\"", "\",") >> rtl::sql_cat::<<el.category|pad(10, "",",")>> <<el.base-type|pad(24, "\"", "\", ")>>rtl::sql_type::<<el.type|pad(26, "",", ")>><<el.size|lpad(6, "",", ")>><<el.digits|lpad(2)>>},
+        {<< el.name | pad(17, "\"", "\",") >> rtl::schema::sql_cat::<<el.category|pad(10, "",",")>> <<el.base-type|pad(24, "\"", "\", ")>>rtl::schema::sql_type::<<el.type|pad(26, "",", ")>><<el.size|lpad(6, "",", ")>><<el.digits|lpad(2)>>},
 ##      endfor
         // clang-format on
       }};
@@ -248,11 +248,11 @@ class <<class-name>> : public <<root-class>>
         switch(el.category)
         {
           // clang-format off
-          case rtl::sql_cat::atomic:    {max = std::max(cstr_t("atomic").size(), max); break;}
-          case rtl::sql_cat::structure: {max = std::max(cstr_t("structure").size(), max); break;}
-          case rtl::sql_cat::c_string:  {max = std::max(cstr_t("c_string").size(), max); break;}
-          case rtl::sql_cat::w_string:  {max = std::max(cstr_t("w_string").size(), max); break;}
-          case rtl::sql_cat::b_string:  {max = std::max(cstr_t("b_string").size(), max); break;}
+          case rtl::schema::sql_cat::atomic:    {max = std::max(cstr_t("atomic").size(), max); break;}
+          case rtl::schema::sql_cat::structure: {max = std::max(cstr_t("structure").size(), max); break;}
+          case rtl::schema::sql_cat::c_string:  {max = std::max(cstr_t("c_string").size(), max); break;}
+          case rtl::schema::sql_cat::w_string:  {max = std::max(cstr_t("w_string").size(), max); break;}
+          case rtl::schema::sql_cat::b_string:  {max = std::max(cstr_t("b_string").size(), max); break;}
           default: {break;}
           // clang-format on
         }
