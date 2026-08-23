@@ -4,6 +4,7 @@
 #include "context.hpp"
 #include "inja.hpp"
 #include "parser_errors.hpp"
+#include <algorithm>
 #include <expected>
 #include <filesystem>
 #include "magic_enum_config.hpp" // IWYU pragma: keep.
@@ -617,7 +618,15 @@ namespace dbgen4::gen
     j["summary"]     = s.summary();
     j["description"] = join(prefix_split(trim_whitespace_view(s.description()), '\n', " *   "), "\n");
     j["version"]     = "0.1.0"; // FIXME(ostri) magic string
-    j["schema"]      = barename_;
+    // The generated namespace must be a valid C++ identifier, but barename_ (the yaml file's own
+    // stem) is not guaranteed to be one - e.g. "docs-testing.yaml" (a hyphen-separated companion
+    // yaml holding only test-only statements, see ach's own convention for those) would otherwise
+    // emit "namespace docs-testing", a hard compile error. hpp-file/cpp-file/hpp-include-file above
+    // deliberately keep the UNSANITIZED barename_ (the on-disk filename itself may still contain a
+    // hyphen - only the C++ identifier needs sanitizing).
+    str_t schema_namespace = barename_;
+    std::ranges::replace(schema_namespace, '-', '_');
+    j["schema"] = schema_namespace;
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
     j["timestamp"] = fmt::format("{:%Y-%m-%d %H:%M:%S}", std::chrono::current_zone()->to_local(std::chrono::system_clock::now()));
 
