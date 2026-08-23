@@ -463,6 +463,31 @@ namespace rtl
      * different from db2's SQL_PARAM_ERROR-on-the-bad-row-only meaning of the
      * same array. See test_crud_batch_psql.cpp for the case this is written
      * against.
+     *
+     * TODO(ostri): a batch statement with a `results` type (has_r, e.g. an INSERT ... RETURNING)
+     * currently cannot read anything back - every per-row PQgetResult() below is read only for its
+     * status (OK/error), then discarded; rows_/total_rows_ stay empty/zero after a successful batch,
+     * so fetch() has nothing to return even if the statement's own SQL has RETURNING. A caller that
+     * needs "which of these N rows actually landed" (e.g. INSERT ... ON CONFLICT DO NOTHING
+     * RETURNING id, to tell a genuine duplicate apart from a fresh row without a separate SELECT
+     * round trip first) has to work around it entirely at the SQL level instead (a caller-observed
+     * limitation - see e.g. ach's own save_txns class, which never uses RETURNING on a batch
+     * statement for exactly this reason).
+     *
+     * To support it: each row's own PQgetResult() would need to copy its result tuple's own column
+     * values into a shared row-oriented buffer (same buffer_description-driven layout results
+     * already use for a plain, non-batch execute()) instead of being read-for-status-then-dropped -
+     * and since RETURNING/DO NOTHING can return 0 or 1 row per parameter row sent (not exactly one
+     * row per N parameters, unlike a plain batch write), the buffer has to grow as an unknown-length
+     * sequence rather than assume par_->buffer_size() rows come back. fetch() then reads that
+     * buffer the same paged way it already reads a plain SELECT's own result set.
+     *
+     * db2/query.hpp's own execute() (ODBC) may already have most of what this needs: its own
+     * prepare() already binds result columns (SQLBindCol, the `if constexpr (has_r)` block) whether
+     * or not the statement is also a batch (SQL_ATTR_PARAMSET_SIZE) - ODBC array binding may support
+     * batch+RETURNING/OUTPUT together natively where PostgreSQL's own wire protocol does not. Worth
+     * checking/testing THAT side directly before assuming this needs the same amount of new work on
+     * both backends - it may only be the psql side that is actually missing anything here.
      */
     [[nodiscard]] std::expected<void, psql_error> execute_batch() noexcept
     try

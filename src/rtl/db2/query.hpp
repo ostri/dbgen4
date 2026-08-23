@@ -207,6 +207,17 @@ namespace rtl
       }
     }
 
+    // TODO(ostri): this binds result columns whether or not `par_` is ALSO a batch (SQL_ATTR_
+    // PARAMSET_SIZE, see the `if constexpr (has_p)` block above) - ODBC array binding may already
+    // support a batch statement with a RETURNING/OUTPUT clause (has_p && has_r together) natively,
+    // which would let a caller find out exactly which rows of a batch INSERT ... ON CONFLICT/
+    // MERGE ... RETURNING actually landed, in one round trip, on this backend - psql's own
+    // execute_batch() (rtl/psql/query.hpp) cannot do this today (see its own TODO comment for the
+    // full reasoning). Nothing in this project currently exercises has_p && has_r together, so this
+    // path is UNVERIFIED for that combination - confirm (a small test_crud_batch-shaped case,
+    // batch parameters + RETURNING id) that SQLExecute()/SQLRowCount()/fetch() actually do the
+    // right thing here before relying on it, and check whether SQL_ATTR_ROWS_FETCHED_PTR below
+    // reports rows per parameter row or a flat total across the whole batch.
     if constexpr (has_r)
     {
       constexpr auto result_const = results::buffer_description_const();
