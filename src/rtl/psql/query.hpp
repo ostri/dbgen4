@@ -642,7 +642,6 @@ namespace rtl
     }
 
     [[nodiscard]] size_t rows_fetched() const noexcept { return rows_fetched_; }
-    [[nodiscard]] size_t total_rows() const noexcept { return total_rows_; }
 
     [[nodiscard]] std::conditional_t<has_r, size_t, std::monostate> occupied_count() const noexcept
     {
