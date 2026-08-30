@@ -66,6 +66,10 @@ namespace rtl
     /// run a statement that takes no parameters and returns no rows - see rtl::db::exec()
     db_sts exec(const std::string& sql) override;
 
+    /// VACUUM ANALYZE <table_name>, outside any transaction block - see rtl::db::refresh_statistics()'s
+    /// own doc comment and this method's own doc comment (psql_rtl.cpp) for why
+    db_sts refresh_statistics(const std::string& table_name) override;
+
     /// same object, upcast to rtl::database - see rtl::db::as_database()'s own doc comment
     [[nodiscard]] database& as_database() noexcept override { return *this; }
 

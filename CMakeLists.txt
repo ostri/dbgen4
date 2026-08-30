@@ -747,6 +747,7 @@ function(add_crud_test_target backend rtl_library test_db_include_dir parallel_t
     add_executable(${target} ${crud_cpp} ${crud2_cpp}
         ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_crud.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_exec.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_refresh_statistics.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_db_misc.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_types.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_crud_batch.cpp

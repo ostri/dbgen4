@@ -191,12 +191,12 @@ namespace rtl
     class describer
     {
     public:
-      describer()                             = default;
-      virtual ~describer()                    = default;
-      describer(const describer&)             = delete;
-      describer(describer&&)                  = delete;
-      describer& operator=(const describer&)   = delete;
-      describer& operator=(describer&&)        = delete;
+      describer()                            = default;
+      virtual ~describer()                   = default;
+      describer(const describer&)            = delete;
+      describer(describer&&)                 = delete;
+      describer& operator=(const describer&) = delete;
+      describer& operator=(describer&&)      = delete;
 
       /**
        * @brief Describe a SQL statement without executing it
@@ -291,7 +291,33 @@ namespace rtl
      * @param sql statement to run, with no parameter placeholders
      * @return db_sts::success, or the backend's own error status
      */
-    virtual db_sts                    exec(const std::string& sql);
+    virtual db_sts exec(const std::string& sql);
+    /**
+     * @brief Refreshes the query planner's own statistics for one table (ANALYZE, RUNSTATS, or
+     * whatever the backend's own equivalent is), so plan choices made right afterwards (an
+     * index-only scan over a just-bulk-loaded table, say) reflect the table's own current row
+     * count/distribution rather than whatever the planner last knew.
+     *
+     * Deliberately one call, not "run this SQL string yourself via exec()": each backend's own
+     * correct sequence differs in ways a caller should not have to know - psql's own ANALYZE-style
+     * statement (VACUUM ANALYZE, not plain ANALYZE - see db_psql::refresh_statistics()'s own doc
+     * comment on why) cannot run inside a transaction block at all, which needs backend-specific
+     * transaction handling around it that a portable caller has no business doing itself; db2's own
+     * RUNSTATS has no such restriction. A caller that only ever targets one backend could still
+     * reach for exec() directly with that backend's own SQL text - this exists for callers (or
+     * generated code) that want one call that is correct on whichever backend ACH_DB_BACKEND (or
+     * its own project's equivalent) happens to select.
+     *
+     * Default (base db) implementation logs and returns db_sts::not_implemented, same as exec()'s
+     * own default - a backend that never overrides this is a caller bug to surface immediately, not
+     * something to silently no-op past.
+     * @param table_name the table to refresh statistics for - passed through verbatim into
+     *                    whatever SQL/API call the backend's own override builds, so this is NOT
+     *                    validated/escaped here; callers pass a compile-time-known table name (a
+     *                    literal, or a dbgen4-generated table constant), never end-user input.
+     * @return db_sts::success, or the backend's own error status
+     */
+    virtual db_sts                    refresh_statistics(const std::string& table_name);
     [[nodiscard]] const db_data_root* data() const;
     [[nodiscard]] logger::Logger&     log_() const { return logger_; } /// Member variables
 

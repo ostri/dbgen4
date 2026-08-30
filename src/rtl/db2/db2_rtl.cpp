@@ -430,6 +430,40 @@ namespace rtl
     return db_sts::success;
   }
 
+  /**
+   * @brief RUNSTATS ON TABLE table_name, wrapped in CALL SYSPROC.ADMIN_CMD(...) - see
+   * rtl::db::refresh_statistics()'s own doc comment for the caller-facing contract.
+   *
+   * RUNSTATS is a DB2 administrative command, not a DML/DDL SQL statement - confirmed directly
+   * that a bare "RUNSTATS ON TABLE table_name" sent through exec() (SQLExecDirect) fails with
+   * SQL0104N "An unexpected token 'ON' was found following 'RUNSTATS'": SQLExecDirect only
+   * understands standard SQL, and the DB2 CLP's own ability to run RUNSTATS directly is a CLP
+   * parsing convenience, not something the SQL engine itself accepts as a statement. SYSPROC.
+   * ADMIN_CMD is DB2's own documented way to invoke an administrative command through ordinary
+   * SQL (a stored procedure call, which SQLExecDirect handles like any other) - confirmed
+   * directly (db2 CLP, "CALL SYSPROC.ADMIN_CMD('RUNSTATS ON TABLE table_name')") that this runs
+   * successfully where the bare form does not.
+   *
+   * Single-quoting table_name naively (no escaping) - see rtl::db::refresh_statistics()'s own doc
+   * comment on why (a compile-time-known name, never end-user input, so a literal embedded quote
+   * is not a caller this is written for).
+   *
+   * Plain exec() is enough here - unlike psql's own VACUUM (see db_psql::refresh_statistics()'s
+   * own doc comment on why that one needs a bare COMMIT/BEGIN pair around it), a CALL statement has
+   * no transaction-block restriction, and exec() itself already commits its own implicit
+   * transaction on return (see this class's own exec()'s own comment above for why) - no extra
+   * handling needed.
+   *
+   * NOT profiled/tuned the way the psql path was (see docs/ach-operation/export-documents.md in
+   * ach's own repo, which is what this method exists for) - a bare "ON TABLE table_name" (no
+   * "WITH DISTRIBUTION" / "ON KEY COLUMNS" / "AND SAMPLED DETAILED INDEXES" clauses), written down
+   * to give callers the same one-call contract on both backends, not because this exact clause
+   * set has been measured against db2's own equivalent of the index-only-scan decision psql's own
+   * override was written to fix.
+   */
+  db_sts db_db2::refresh_statistics(const std::string& table_name)
+  { return exec(fmt::format("CALL SYSPROC.ADMIN_CMD('RUNSTATS ON TABLE {}')", table_name)); }
+
   void db_db2::free_stmt_handle() const
   {
     auto            h      = data()->stmt_handle;

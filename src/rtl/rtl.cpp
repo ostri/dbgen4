@@ -135,6 +135,17 @@ namespace rtl
     return db_sts::not_implemented;
   }
 
+  /**
+   * @brief default implementation - a backend that never overrides this is a caller bug to
+   * surface immediately, not something to silently no-op past (see refresh_statistics()'s own doc
+   * comment in rtl.hpp).
+   */
+  db_sts db::refresh_statistics(const std::string& table_name)
+  {
+    log_().error("refresh_statistics is not implemented by this backend. table_name: '{}'", table_name);
+    return db_sts::not_implemented;
+  }
+
   const db_data_root* db::data() const { return data_.get(); }
 
   // ------------------------------------------------------------------------

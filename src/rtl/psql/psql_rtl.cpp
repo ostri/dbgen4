@@ -167,6 +167,40 @@ namespace rtl
   }
 
   /**
+   * @brief VACUUM ANALYZE table_name, wrapped in a bare COMMIT/BEGIN pair sent via exec_command()
+   * directly, NOT commit()/begin_transaction() (see rtl::db::refresh_statistics()'s own doc
+   * comment for the caller-facing contract).
+   *
+   * PostgreSQL rejects VACUUM (plain or combined with ANALYZE) with "VACUUM cannot run inside a
+   * transaction block" - confirmed directly. This connection is ALWAYS inside a transaction from
+   * connect() onward (see that method's own "mirror the db2 backend: no autocommit" comment), so
+   * VACUUM ANALYZE needs that transaction closed first. commit() itself does not do this: it
+   * immediately reopens one right after COMMIT ("stay inside a transaction, as db2 does" - see
+   * that method's own comment above) before a caller's own next statement would ever run, which
+   * would leave the connection back inside a transaction by the time VACUUM ANALYZE itself ran -
+   * confirmed directly (ach's own cb_ach_exporter::on_init(), first attempt, hit exactly this).
+   * exec_command("COMMIT") has no such reopen (it is what commit() itself calls, before commit()'s
+   * own extra begin_transaction()), so the connection is genuinely outside a transaction for
+   * exactly the VACUUM ANALYZE statement, then explicitly put back into one afterwards
+   * ("BEGIN") to restore the invariant every other caller on this connection relies on (a plain
+   * SELECT/INSERT is never expected to open its own transaction). The trailing BEGIN runs even if
+   * VACUUM ANALYZE itself failed - an un-reopened connection is the more urgent problem for every
+   * later caller either way, so that failure (if BEGIN also fails) is reported instead of the (by
+   * then moot) VACUUM ANALYZE one.
+   *
+   * table_name is NOT escaped/quoted - see rtl::db::refresh_statistics()'s own doc comment on why
+   * (a compile-time-known name, never end-user input).
+   */
+  db_sts db_psql::refresh_statistics(const std::string& table_name)
+  {
+    if (const auto ret = exec_command("COMMIT"); ret != db_sts::success) return ret;
+    const auto vacuum_ret = exec_command(fmt::format("VACUUM ANALYZE {}", table_name).c_str());
+    const auto begin_ret  = exec_command("BEGIN");
+    if (begin_ret != db_sts::success) return begin_ret;
+    return vacuum_ret;
+  }
+
+  /**
    * @brief describe a statement using the extended query protocol
    *
    * PQprepare parses and plans the statement server side without running it;
