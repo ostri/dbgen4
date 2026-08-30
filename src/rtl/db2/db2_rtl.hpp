@@ -94,6 +94,11 @@ namespace rtl
     /// run a statement that takes no parameters and returns no rows - see rtl::db::exec()
     db_sts exec(const std::string& sql) override;
 
+    /// CALL SYSPROC.ADMIN_CMD('RUNSTATS ON TABLE <table_name>') - see
+    /// rtl::db::refresh_statistics()'s own doc comment for the caller-facing contract, and this
+    /// method's own doc comment (db2_rtl.cpp) for why RUNSTATS needs the ADMIN_CMD wrapper at all.
+    db_sts refresh_statistics(const std::string& table_name) override;
+
     /**
      * @brief Binds a column in the result set to a variable.
      *
