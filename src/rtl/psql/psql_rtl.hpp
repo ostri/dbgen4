@@ -14,7 +14,11 @@
 #include "psql_database.hpp" // IWYU pragma: export
 #include "psql_types.hpp"
 #include <libpq-fe.h>
+#include <atomic>
+#include <mutex>
 #include <string>
+#include <thread>
+#include <unordered_map>
 
 namespace rtl
 {
@@ -26,6 +30,14 @@ namespace rtl
   public:
     // NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)
     PGconn* conn{nullptr}; ///< libpq connection, owned
+    /// the libpq conninfo string connect(conn_str) actually used - kept only so on_change() can
+    /// open its own, second connection (see db_psql::on_change()'s own doc comment for why a
+    /// dedicated connection is needed) without asking the caller to repeat host/port/database/user/
+    /// password a second time. Carries the password in plain text for exactly as long as this
+    /// object lives - same exposure connect()'s own conn_str already had transiently, never logged
+    /// (see db_psql::connect(host, ...)'s own "logged before the password is appended" comment).
+    // NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)
+    std::string conn_str;
 
     explicit db_data_psql(logger::Logger& log)
     : db_data_root(log)
@@ -70,6 +82,10 @@ namespace rtl
     /// own doc comment and this method's own doc comment (psql_rtl.cpp) for why
     db_sts refresh_statistics(const std::string& table_name) override;
 
+    /// LISTEN/NOTIFY-backed change notification - see rtl::db::on_change()'s own doc comment for the
+    /// caller-facing contract, and this override's own doc comment (psql_rtl.cpp) for the mechanism
+    db_sts on_change(const std::string& table_name, const change_handler& handler) override;
+
     /// same object, upcast to rtl::database - see rtl::db::as_database()'s own doc comment
     [[nodiscard]] database& as_database() noexcept override { return *this; }
 
@@ -91,6 +107,28 @@ namespace rtl
     db_sts exec_command(const char* sql);
     /// start the explicit transaction that mirrors the db2 backend's autocommit-off
     db_sts begin_transaction();
+
+    /// registers the trigger+function that turns a write on table_name into a `NOTIFY` - runs on
+    /// the caller's own thread/connection, once per distinct table_name (idempotent via `CREATE OR
+    /// REPLACE`/`DROP TRIGGER IF EXISTS`) - see on_change()'s own doc comment (psql_rtl.cpp)
+    db_sts create_change_trigger(const std::string& table_name);
+    /// starts listen_worker_ the first time on_change() is ever called on this connection - a
+    /// no-op on every later call, same "start lazily, once" shape async_db's own worker has
+    db_sts start_listen_worker();
+    /// listen_worker_'s own body - blocks in poll() on its own PGconn's socket, dispatching
+    /// PQnotifies() payloads to the matching registered handler until stop_listen_ is set
+    void listen_loop();
+
+    /// notify channel name for table_name - "dbgen4_on_change_<table_name>", one channel per table
+    /// so listen_loop() can route a notify straight to its handler by channel name alone, no
+    /// payload parsing needed for that part
+    [[nodiscard]] static std::string channel_name(const std::string& table_name);
+
+    std::mutex                                      listen_mtx_;            ///< guards handlers_ and listen_conn_
+    std::unordered_map<std::string, change_handler> handlers_;              ///< channel name -> handler
+    PGconn*                                         listen_conn_ = nullptr; ///< on_change()'s own dedicated connection, owned
+    std::thread                                     listen_worker_;
+    std::atomic<bool>                               stop_listen_{false};
   };
 
 } // namespace rtl

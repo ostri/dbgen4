@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cstdint>
 #include <expected>
+#include <functional>
 #include <memory>
 #include <span>
 #include <string>
@@ -84,6 +85,19 @@ namespace rtl
     custom_error = -1000, ///< Base for custom error codes
     unknown      = -9999  ///< Unknown/unspecified error
   };
+
+  /**
+   * @brief which kind of write on_change() just saw - see db::on_change()'s own doc comment
+   */
+  enum class change_op : std::uint8_t
+  {
+    insert, ///< a new row was added
+    update, ///< an existing row was changed
+    remove, ///< a row was removed (not `delete` - a reserved word)
+  };
+
+  /// @brief callback on_change() invokes for every notified change - see db::on_change()
+  using change_handler = std::function<void(change_op)>;
 
   /**
    * @brief Check if a db_status code indicates success
@@ -317,7 +331,38 @@ namespace rtl
      *                    literal, or a dbgen4-generated table constant), never end-user input.
      * @return db_sts::success, or the backend's own error status
      */
-    virtual db_sts                    refresh_statistics(const std::string& table_name);
+    virtual db_sts refresh_statistics(const std::string& table_name);
+
+    /**
+     * @brief calls handler every time a row is inserted/updated/deleted on table_name
+     *
+     * Backend neutral in name only - a caller-facing equivalent of commit()/rollback() rather than
+     * a portable feature: today only PostgreSQL implements it (db_psql::on_change(), PostgreSQL
+     * `LISTEN`/`NOTIFY` under the hood, its own dedicated connection and worker thread - see that
+     * override's own doc comment for the mechanism). DB2 has no equivalent primitive at this level;
+     * a DB2 implementation (planned via a UDF) is a separate, later piece of work.
+     *
+     * Default (base db) implementation logs and returns db_sts::not_implemented, same as exec()'s
+     * own default - a backend that never overrides this is a caller bug to surface immediately, not
+     * something to silently no-op past (the caller would otherwise believe a handler is registered
+     * when none is).
+     *
+     * Registration is idempotent per (table_name, connection): calling this again for the same
+     * table_name on the same connection replaces the previous handler rather than adding a second
+     * one - see db_psql::on_change()'s own doc comment for how.
+     *
+     * @param table_name the table to watch - passed through verbatim into whatever SQL/API call the
+     *                    backend's own override builds, so this is NOT validated/escaped here, same
+     *                    convention as refresh_statistics()'s own table_name: callers pass a
+     *                    compile-time-known name, never end-user input.
+     * @param handler called (from the backend's own delivery thread - see db_psql::on_change()'s
+     *                 own doc comment on which thread this actually runs on) once per row changed,
+     *                 with which kind of change it was.
+     * @return db_sts::success once the handler is registered and delivery is running, or the
+     *         backend's own error status
+     */
+    virtual db_sts on_change(const std::string& table_name, const change_handler& handler);
+
     [[nodiscard]] const db_data_root* data() const;
     [[nodiscard]] logger::Logger&     log_() const { return logger_; } /// Member variables
 

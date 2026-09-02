@@ -146,6 +146,16 @@ namespace rtl
     return db_sts::not_implemented;
   }
 
+  /**
+   * @brief default implementation - a backend that never overrides this is a caller bug to surface
+   * immediately, not something to silently no-op past (see on_change()'s own doc comment in rtl.hpp).
+   */
+  db_sts db::on_change(const std::string& table_name, const change_handler& /*handler*/)
+  {
+    log_().error("on_change is not implemented by this backend. table_name: '{}'", table_name);
+    return db_sts::not_implemented;
+  }
+
   const db_data_root* db::data() const { return data_.get(); }
 
   // ------------------------------------------------------------------------

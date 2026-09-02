@@ -3,8 +3,12 @@
 #include "rtl.hpp"
 #include <common.hpp> // rtl::lowercase
 #include <fmt/format.h>
+#include <poll.h>
+#include <cerrno>
 #include <memory>
+#include <mutex>
 #include <string>
+#include <system_error>
 
 namespace
 {
@@ -80,7 +84,8 @@ namespace rtl
       PQfinish(conn);
       return db_sts::connection_error;
     }
-    data()->conn = conn;
+    data()->conn     = conn;
+    data()->conn_str = conn_str; ///< see db_data_psql::conn_str's own doc comment for why
 
     /// mirror the db2 backend: no autocommit, the generator only reads metadata
     /// and rolls back, so nothing it does can ever touch the database
@@ -117,6 +122,17 @@ namespace rtl
   {
     auto* d = data();
     if (d == nullptr || d->conn == nullptr) return db_sts::success;
+
+    /// stop_listen_worker()-equivalent, inlined: on_change() may never have been called, in which
+    /// case listen_worker_ is not joinable and this is a no-op - see start_listen_worker()'s own
+    /// "lazily, once" doc comment
+    stop_listen_.store(true, std::memory_order_relaxed);
+    if (listen_worker_.joinable()) listen_worker_.join();
+    if (listen_conn_ != nullptr)
+    {
+      PQfinish(listen_conn_);
+      listen_conn_ = nullptr;
+    }
 
     rollback();
     PQfinish(d->conn);
@@ -198,6 +214,174 @@ namespace rtl
     const auto begin_ret  = exec_command("BEGIN");
     if (begin_ret != db_sts::success) return begin_ret;
     return vacuum_ret;
+  }
+
+  std::string db_psql::channel_name(const std::string& table_name) { return fmt::format("dbgen4_on_change_{}", table_name); }
+
+  /**
+   * @brief CREATE OR REPLACE FUNCTION + CREATE TRIGGER wiring table_name's own INSERT/UPDATE/DELETE
+   * into `NOTIFY channel_name(table_name)` - see on_change()'s own doc comment for the whole picture.
+   *
+   * Both statements are idempotent (`CREATE OR REPLACE FUNCTION`, `DROP TRIGGER IF EXISTS` before
+   * `CREATE TRIGGER`), so calling on_change() again for a table_name already wired is harmless - the
+   * trigger/function are simply redefined to the same body. Runs on THIS connection (the caller's
+   * own), not listen_conn_ - DDL has nothing to do with the dedicated listening connection, which
+   * exists only to receive the NOTIFY this trigger sends, on whichever connection(s) are LISTENing.
+   *
+   * `pg_notify()`'s own payload carries the operation (`TG_OP` - `'INSERT'`/`'UPDATE'`/`'DELETE'`)
+   * so listen_loop() does not need a second round trip to learn it.
+   *
+   * table_name is NOT escaped/quoted - same convention as refresh_statistics()'s own table_name
+   * (see rtl::db::refresh_statistics()'s own doc comment): a compile-time-known name, never
+   * end-user input.
+   */
+  db_sts db_psql::create_change_trigger(const std::string& table_name)
+  {
+    const auto channel      = channel_name(table_name);
+    const auto function_sql = fmt::format("CREATE OR REPLACE FUNCTION {0}_fn() RETURNS trigger AS $$ "
+                                          "BEGIN PERFORM pg_notify('{0}', TG_OP); RETURN NULL; END; $$ LANGUAGE plpgsql",
+                                          channel);
+    if (const auto ret = exec_command(function_sql.c_str()); ret != db_sts::success) return ret;
+
+    const auto drop_sql = fmt::format("DROP TRIGGER IF EXISTS {0}_trg ON {1}", channel, table_name);
+    if (const auto ret = exec_command(drop_sql.c_str()); ret != db_sts::success) return ret;
+
+    const auto create_sql = fmt::format("CREATE TRIGGER {0}_trg AFTER INSERT OR UPDATE OR DELETE ON {1} "
+                                        "FOR EACH ROW EXECUTE FUNCTION {0}_fn()",
+                                        channel,
+                                        table_name);
+    return exec_command(create_sql.c_str());
+  }
+
+  /**
+   * @brief start listen_worker_ the first time on_change() is called on this connection - a no-op
+   * every time after (listen_worker_.joinable() is already true), same "lazily, once" shape
+   * async_db's own worker construction has, except this one is started from inside on_change()
+   * itself rather than from a factory, since on_change() itself can be called more than once.
+   */
+  db_sts db_psql::start_listen_worker()
+  {
+    if (listen_worker_.joinable()) return db_sts::success; ///< already running
+
+    /// its own connection, deliberately not data()->conn: LISTEN state and PQnotifies() polling
+    /// must not compete with the main connection's own query traffic, the same "one connection, one
+    /// thing at a time" constraint async_db's own file comment states for query execution
+    PGconn* conn = PQconnectdb(data()->conn_str.c_str());
+    if (conn == nullptr)
+    {
+      log_().critical("on_change: PQconnectdb (listen connection) returned no connection object - out of memory?");
+      return db_sts::memory_error;
+    }
+    if (PQstatus(conn) != CONNECTION_OK)
+    {
+      log_().error("on_change: listen connection failed: {}", PQerrorMessage(conn));
+      PQfinish(conn);
+      return db_sts::connection_error;
+    }
+    listen_conn_ = conn;
+
+    try
+    {
+      listen_worker_ = std::thread([this] { listen_loop(); });
+    }
+    catch (const std::system_error& e)
+    {
+      log_().error("on_change: could not start the listen worker thread: {}", e.what());
+      PQfinish(listen_conn_);
+      listen_conn_ = nullptr;
+      return db_sts::os_error;
+    }
+    return db_sts::success;
+  }
+
+  /**
+   * @brief listen_worker_'s own body - poll()s listen_conn_'s socket, and on every wakeup drains
+   * PQnotifies(), dispatching each one to the handler registered (in handlers_) for its channel.
+   *
+   * PQsocket()/PQconsumeInput()/PQnotifies() is libpq's own documented pattern for receiving
+   * NOTIFYs without polling the database itself - PQconsumeInput() reads whatever the server has
+   * sent into libpq's own buffer (does not block once the socket is readable), and PQnotifies()
+   * then pops one already-buffered notification at a time, returning nullptr once none are left.
+   *
+   * poll()'s own timeout (1s) is only a bound on how promptly stop_listen_ is noticed after
+   * disconnect() sets it - not a polling interval for notifications themselves, which are only
+   * ever discovered by the socket actually becoming readable.
+   */
+  void db_psql::listen_loop()
+  {
+    while (! stop_listen_.load(std::memory_order_relaxed))
+    {
+      pollfd pfd{.fd = PQsocket(listen_conn_), .events = POLLIN, .revents = 0};
+      // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers) - 1s stop-check granularity
+      const int ready = poll(&pfd, 1, 1000);
+      if (ready < 0)
+      {
+        if (errno == EINTR) continue;
+        log_().error("on_change: poll() on the listen connection failed: {}", std::error_code(errno, std::generic_category()).message());
+        return;
+      }
+      if (ready == 0) continue; ///< timed out - just a chance to re-check stop_listen_
+
+      if (PQconsumeInput(listen_conn_) == 0)
+      {
+        log_().error("on_change: PQconsumeInput failed: {}", PQerrorMessage(listen_conn_));
+        return;
+      }
+
+      for (PGnotify* n = PQnotifies(listen_conn_); n != nullptr; n = PQnotifies(listen_conn_))
+      {
+        const std::string channel(n->relname);
+        const std::string op(n->extra); ///< TG_OP: "INSERT"/"UPDATE"/"DELETE" - see create_change_trigger()
+        PQfreemem(n);
+
+        change_handler handler;
+        {
+          const std::scoped_lock lock{listen_mtx_};
+          if (const auto it = handlers_.find(channel); it != handlers_.end()) handler = it->second;
+        }
+        if (! handler) continue; ///< notify for a channel nobody (any more) cares about
+
+        if (op == "INSERT") handler(change_op::insert);
+        else if (op == "UPDATE") handler(change_op::update);
+        else if (op == "DELETE") handler(change_op::remove);
+        else log_().warn("on_change: unrecognized TG_OP '{}' on channel '{}'", op, channel);
+      }
+    }
+  }
+
+  /**
+   * @brief LISTEN/NOTIFY-backed rtl::db::on_change() - see that method's own doc comment for the
+   * caller-facing contract.
+   *
+   * Three parts, in order: (1) create_change_trigger() wires table_name's own writes into a
+   * `NOTIFY` on this connection (DDL, ordinary transaction), (2) start_listen_worker() lazily opens
+   * the dedicated listening connection and its worker thread the first time this is called,
+   * (3) `LISTEN <channel>` is issued on listen_conn_ and handler is recorded in handlers_ under
+   * that channel name - listen_loop() (already running by now, or about to be) picks it up from
+   * there without any further coordination.
+   *
+   * handler runs on listen_worker_'s own thread, never on the caller's - a caller whose handler
+   * touches shared state must synchronize it itself, the same obligation any other callback-based
+   * API places on its caller.
+   */
+  db_sts db_psql::on_change(const std::string& table_name, const change_handler& handler)
+  {
+    if (const auto ret = create_change_trigger(table_name); ret != db_sts::success) return ret;
+    if (const auto ret = start_listen_worker(); ret != db_sts::success) return ret;
+
+    const auto channel = channel_name(table_name);
+    {
+      const result_guard res{PQexec(listen_conn_, fmt::format("LISTEN {}", channel).c_str())};
+      if (res.status() != PGRES_COMMAND_OK)
+      {
+        log_().error("on_change: LISTEN {} failed: {}", channel, res.error());
+        return db_sts::connection_error;
+      }
+    }
+
+    const std::scoped_lock lock{listen_mtx_};
+    handlers_[channel] = handler; ///< a copy - handler itself is a caller-owned const reference
+    return db_sts::success;
   }
 
   /**

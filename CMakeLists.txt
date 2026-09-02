@@ -843,7 +843,8 @@ if(LIBPQ_FOUND AND BUILD_TESTING)
         ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_perf.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_bench.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_bench_async.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_crud_batch_psql.cpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_crud_batch_psql.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/test/test_on_change_psql.cpp)
 endif()
 
 # tidy's -source-filter/-header-filter (set up above, before any of these
