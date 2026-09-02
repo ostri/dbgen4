@@ -351,6 +351,11 @@ namespace rtl
      * table_name on the same connection replaces the previous handler rather than adding a second
      * one - see db_psql::on_change()'s own doc comment for how.
      *
+     * Commits (or rolls back, on failure) its own DDL as part of registering - a caller does not
+     * need to call commit() itself afterwards for the registration to take effect (see
+     * db_psql::create_change_trigger()'s own doc comment for why this could not be left to the
+     * caller the way an ordinary statement's commit is).
+     *
      * @param table_name the table to watch - passed through verbatim into whatever SQL/API call the
      *                    backend's own override builds, so this is NOT validated/escaped here, same
      *                    convention as refresh_statistics()'s own table_name: callers pass a

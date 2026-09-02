@@ -231,6 +231,16 @@ namespace rtl
    * `pg_notify()`'s own payload carries the operation (`TG_OP` - `'INSERT'`/`'UPDATE'`/`'DELETE'`)
    * so listen_loop() does not need a second round trip to learn it.
    *
+   * Commits on success, rolls back on failure - own its own unit of work rather than leaving that
+   * to the caller (unlike a plain exec_command(), which leaves the surrounding transaction open,
+   * same as every other statement on this connection). on_change() itself is a "do this and it is
+   * durably registered, or it is not registered at all" call, not one step of a caller-managed
+   * transaction the way a generated qry's insert/update is - a caller with no other reason to call
+   * commit()/rollback() around this specific call would otherwise leave the DDL sitting in an open
+   * transaction indefinitely (confirmed directly: a plugin that calls on_change() once at startup
+   * and never commits() afterwards left the trigger/function uncommitted, invisible to any other
+   * session, until the connection eventually closed and rolled it back).
+   *
    * table_name is NOT escaped/quoted - same convention as refresh_statistics()'s own table_name
    * (see rtl::db::refresh_statistics()'s own doc comment): a compile-time-known name, never
    * end-user input.
@@ -241,16 +251,30 @@ namespace rtl
     const auto function_sql = fmt::format("CREATE OR REPLACE FUNCTION {0}_fn() RETURNS trigger AS $$ "
                                           "BEGIN PERFORM pg_notify('{0}', TG_OP); RETURN NULL; END; $$ LANGUAGE plpgsql",
                                           channel);
-    if (const auto ret = exec_command(function_sql.c_str()); ret != db_sts::success) return ret;
+    if (const auto ret = exec_command(function_sql.c_str()); ret != db_sts::success)
+    {
+      rollback();
+      return ret;
+    }
 
     const auto drop_sql = fmt::format("DROP TRIGGER IF EXISTS {0}_trg ON {1}", channel, table_name);
-    if (const auto ret = exec_command(drop_sql.c_str()); ret != db_sts::success) return ret;
+    if (const auto ret = exec_command(drop_sql.c_str()); ret != db_sts::success)
+    {
+      rollback();
+      return ret;
+    }
 
     const auto create_sql = fmt::format("CREATE TRIGGER {0}_trg AFTER INSERT OR UPDATE OR DELETE ON {1} "
                                         "FOR EACH ROW EXECUTE FUNCTION {0}_fn()",
                                         channel,
                                         table_name);
-    return exec_command(create_sql.c_str());
+    if (const auto ret = exec_command(create_sql.c_str()); ret != db_sts::success)
+    {
+      rollback();
+      return ret;
+    }
+
+    return commit();
   }
 
   /**
