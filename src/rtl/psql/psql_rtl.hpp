@@ -15,7 +15,9 @@
 #include "psql_types.hpp"
 #include <libpq-fe.h>
 #include <atomic>
+#include <condition_variable>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <thread>
 #include <unordered_map>
@@ -116,19 +118,46 @@ namespace rtl
     /// no-op on every later call, same "start lazily, once" shape async_db's own worker has
     db_sts start_listen_worker();
     /// listen_worker_'s own body - blocks in poll() on its own PGconn's socket, dispatching
-    /// PQnotifies() payloads to the matching registered handler until stop_listen_ is set
+    /// PQnotifies() payloads to the matching registered handler until stop_listen_ is set - also
+    /// the only thread that ever touches listen_conn_ once start_listen_worker() has returned, see
+    /// pending_listen_'s own comment for why
     void listen_loop();
+    /// runs a pending `LISTEN <channel>` queued by on_change() (pending_listen_) on listen_conn_ -
+    /// called only from listen_loop()'s own thread, see pending_listen_'s own comment
+    void run_pending_listen();
 
     /// notify channel name for table_name - "dbgen4_on_change_<table_name>", one channel per table
     /// so listen_loop() can route a notify straight to its handler by channel name alone, no
     /// payload parsing needed for that part
     [[nodiscard]] static std::string channel_name(const std::string& table_name);
 
-    std::mutex                                      listen_mtx_;            ///< guards handlers_ and listen_conn_
+    std::mutex                                      listen_mtx_;            ///< guards everything below
     std::unordered_map<std::string, change_handler> handlers_;              ///< channel name -> handler
     PGconn*                                         listen_conn_ = nullptr; ///< on_change()'s own dedicated connection, owned
     std::thread                                     listen_worker_;
     std::atomic<bool>                               stop_listen_{false};
+
+    /**
+     * @brief the channel on_change() wants `LISTEN`ed next, handed off to listen_loop()'s own
+     * thread rather than run directly by on_change()'s caller.
+     *
+     * libpq forbids using one PGconn from two threads at once (see async_db's own file comment on
+     * the same constraint for query execution) - on_change() itself runs on whichever thread the
+     * caller is on, while listen_loop() is concurrently poll()ing/reading listen_conn_ on its own
+     * thread the moment start_listen_worker() has returned, so on_change() issuing `LISTEN` via a
+     * direct PQexec(listen_conn_, ...) races that read (confirmed directly: registering a second
+     * table right after the first, e.g. eng_state_plugin's own three on_change() calls in a row,
+     * deadlocked inside libpq - PQexec() and PQconsumeInput() both live-waiting on the same socket
+     * from different threads). listen_loop() itself picks this up on its own next wakeup (at most
+     * pending_listen_timeout_ms - see listen_loop()'s own poll() timeout) and runs it via
+     * run_pending_listen(), signalling pending_listen_cv_ once done; on_change() waits on that
+     * before returning, so its own "success once registered" contract still holds synchronously
+     * from the caller's point of view.
+     */
+    std::optional<std::string> pending_listen_;
+    bool                       pending_listen_done_ = false; ///< set by run_pending_listen(), read/reset by on_change()
+    db_sts                     pending_listen_result_{};     ///< run_pending_listen()'s own outcome, read once pending_listen_done_
+    std::condition_variable    pending_listen_cv_;           ///< on_change() waits on this for pending_listen_done_
   };
 
 } // namespace rtl

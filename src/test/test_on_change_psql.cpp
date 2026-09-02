@@ -19,6 +19,7 @@
 #include "rtl.hpp"
 #include "test_db.hpp" // live_db, shared with the other crud tests
 #include <catch2/catch_test_macros.hpp>
+#include <fmt/format.h>
 #include <atomic>
 #include <chrono>
 #include <mutex>
@@ -214,6 +215,55 @@ TEST_CASE("on_change registered twice for the same table replaces the handler, n
 
   REQUIRE(rtl::is_success(db.exec("drop table on_change_test")));
   REQUIRE(rtl::is_success(db.exec("drop function if exists dbgen4_on_change_on_change_test_fn()")));
+  REQUIRE(rtl::is_success(db.commit()));
+}
+
+TEST_CASE("on_change registered for three different tables in a row does not deadlock", "[on_change][rtl][live-db][psql]")
+{
+  // Regression test: on_change() used to issue `LISTEN <channel>` via a direct PQexec(listen_conn_,
+  // ...) on the CALLER's own thread, while listen_loop() (already running by the second call here)
+  // concurrently poll()s/reads that same connection on its own thread - libpq forbids using one
+  // PGconn from two threads at once, and this deadlocked inside libpq the moment a second table was
+  // registered right after the first (confirmed directly against a live server: eng_state_plugin's
+  // own three on_change() calls in a row, one per watched table, hung the whole process before it
+  // ever reached app().run()'s own listener setup).
+  live_db live;
+  auto&   db = live.db;
+
+  for (const auto* table : {"on_change_test_a", "on_change_test_b", "on_change_test_c"})
+  {
+    db.exec(fmt::format("drop table {}", table).c_str());
+    db.exec(fmt::format("drop function if exists dbgen4_on_change_{}_fn()", table).c_str());
+  }
+  db.commit();
+  for (const auto* table : {"on_change_test_a", "on_change_test_b", "on_change_test_c"})
+    REQUIRE(rtl::is_success(db.exec(fmt::format("create table {} (id integer)", table).c_str())));
+  REQUIRE(rtl::is_success(db.commit()));
+
+  recorder rec_a;
+  recorder rec_b;
+  recorder rec_c;
+  // Each call below must itself return (not hang) before the next one runs - that is the whole
+  // point of this test; REQUIRE()ing is_success() on each is also what proves it actually returned.
+  REQUIRE(rtl::is_success(db.on_change("on_change_test_a", std::ref(rec_a))));
+  REQUIRE(rtl::is_success(db.on_change("on_change_test_b", std::ref(rec_b))));
+  REQUIRE(rtl::is_success(db.on_change("on_change_test_c", std::ref(rec_c))));
+
+  REQUIRE(rtl::is_success(db.exec("insert into on_change_test_a (id) values (1)")));
+  REQUIRE(rtl::is_success(db.exec("insert into on_change_test_b (id) values (1)")));
+  REQUIRE(rtl::is_success(db.exec("insert into on_change_test_c (id) values (1)")));
+  REQUIRE(rtl::is_success(db.commit()));
+
+  REQUIRE(wait_until([&] { return rec_a.count() >= 1 && rec_b.count() >= 1 && rec_c.count() >= 1; }));
+  CHECK(rec_a.count() == 1);
+  CHECK(rec_b.count() == 1);
+  CHECK(rec_c.count() == 1);
+
+  for (const auto* table : {"on_change_test_a", "on_change_test_b", "on_change_test_c"})
+  {
+    REQUIRE(rtl::is_success(db.exec(fmt::format("drop table {}", table).c_str())));
+    REQUIRE(rtl::is_success(db.exec(fmt::format("drop function if exists dbgen4_on_change_{}_fn()", table).c_str())));
+  }
   REQUIRE(rtl::is_success(db.commit()));
 }
 

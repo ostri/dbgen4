@@ -335,8 +335,10 @@ namespace rtl
   {
     while (! stop_listen_.load(std::memory_order_relaxed))
     {
+      run_pending_listen(); ///< see pending_listen_'s own doc comment for why this cannot run on on_change()'s own thread
+
       pollfd pfd{.fd = PQsocket(listen_conn_), .events = POLLIN, .revents = 0};
-      // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers) - 1s stop-check granularity
+      // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers) - also pending_listen_'s own worst-case latency
       const int ready = poll(&pfd, 1, 1000);
       if (ready < 0)
       {
@@ -344,7 +346,7 @@ namespace rtl
         log_().error("on_change: poll() on the listen connection failed: {}", std::error_code(errno, std::generic_category()).message());
         return;
       }
-      if (ready == 0) continue; ///< timed out - just a chance to re-check stop_listen_
+      if (ready == 0) continue; ///< timed out - just a chance to re-check stop_listen_/pending_listen_
 
       if (PQconsumeInput(listen_conn_) == 0)
       {
@@ -373,6 +375,32 @@ namespace rtl
     }
   }
 
+  void db_psql::run_pending_listen()
+  {
+    std::string channel;
+    {
+      const std::scoped_lock lock{listen_mtx_};
+      if (! pending_listen_) return;
+      channel = *pending_listen_;
+    }
+
+    db_sts result = db_sts::success;
+    {
+      const result_guard res{PQexec(listen_conn_, fmt::format("LISTEN {}", channel).c_str())};
+      if (res.status() != PGRES_COMMAND_OK)
+      {
+        log_().error("on_change: LISTEN {} failed: {}", channel, res.error());
+        result = db_sts::connection_error;
+      }
+    }
+
+    const std::scoped_lock lock{listen_mtx_};
+    pending_listen_.reset();
+    pending_listen_done_   = true;
+    pending_listen_result_ = result;
+    pending_listen_cv_.notify_one();
+  }
+
   /**
    * @brief LISTEN/NOTIFY-backed rtl::db::on_change() - see that method's own doc comment for the
    * caller-facing contract.
@@ -380,9 +408,10 @@ namespace rtl
    * Three parts, in order: (1) create_change_trigger() wires table_name's own writes into a
    * `NOTIFY` on this connection (DDL, ordinary transaction), (2) start_listen_worker() lazily opens
    * the dedicated listening connection and its worker thread the first time this is called,
-   * (3) `LISTEN <channel>` is issued on listen_conn_ and handler is recorded in handlers_ under
-   * that channel name - listen_loop() (already running by now, or about to be) picks it up from
-   * there without any further coordination.
+   * (3) `LISTEN <channel>` is queued as pending_listen_ and this call blocks until listen_loop()'s
+   * own thread has actually run it (see pending_listen_'s own doc comment for why on_change()
+   * cannot simply run `LISTEN` itself) - handler is then recorded in handlers_ under that channel
+   * name, and listen_loop() picks it up from there without any further coordination.
    *
    * handler runs on listen_worker_'s own thread, never on the caller's - a caller whose handler
    * touches shared state must synchronize it itself, the same obligation any other callback-based
@@ -394,18 +423,16 @@ namespace rtl
     if (const auto ret = start_listen_worker(); ret != db_sts::success) return ret;
 
     const auto channel = channel_name(table_name);
+    db_sts     result{};
     {
-      const result_guard res{PQexec(listen_conn_, fmt::format("LISTEN {}", channel).c_str())};
-      if (res.status() != PGRES_COMMAND_OK)
-      {
-        log_().error("on_change: LISTEN {} failed: {}", channel, res.error());
-        return db_sts::connection_error;
-      }
+      std::unique_lock lock{listen_mtx_};
+      pending_listen_      = channel;
+      pending_listen_done_ = false;
+      pending_listen_cv_.wait(lock, [this] { return pending_listen_done_; });
+      result = pending_listen_result_;
+      if (result == db_sts::success) handlers_[channel] = handler; ///< a copy - handler itself is a caller-owned const reference
     }
-
-    const std::scoped_lock lock{listen_mtx_};
-    handlers_[channel] = handler; ///< a copy - handler itself is a caller-owned const reference
-    return db_sts::success;
+    return result;
   }
 
   /**
