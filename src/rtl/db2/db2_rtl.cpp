@@ -17,7 +17,6 @@ namespace
   {
     constexpr const int sql_state_len = 5 + 1;
     constexpr const int msg_len       = 1024 + 1;
-    SQLRETURN           res           = SQL_SUCCESS;
     log.trace("{} status: {}", operation, ret);
     if (! rtl::db2::is_odbc_success(ret))
     {
@@ -28,11 +27,15 @@ namespace
       std::string                        err_msg{};
       SQLSMALLINT                        rec_number = 1;
 
-      while (! rtl::db2::is_odbc_no_data(res))
+      // Loop while SQLGetDiagRec() itself keeps succeeding (there may be more than one diagnostic
+      // record) - stops on SQL_NO_DATA (no more records) same as before, but now also on any other
+      // non-success return (e.g. SQL_INVALID_HANDLE, when handle itself never got allocated - see
+      // connect(const std::string&)'s own history) instead of looping forever re-querying a handle
+      // that can never produce SQL_NO_DATA.
+      SQLRETURN res = SQLGetDiagRec(
+        handleType, handle, rec_number, sqlState.data(), &native_error, messageText.data(), messageText.size(), &messageLength);
+      while (rtl::db2::is_odbc_success(res))
       {
-        res = SQLGetDiagRec(
-          handleType, handle, rec_number, sqlState.data(), &native_error, messageText.data(), messageText.size(), &messageLength);
-
         err_msg = fmt::format(R"(
   Error in {}
   db error {}
@@ -43,7 +46,9 @@ namespace
                               native_error);
         log.error(err_msg);
         rec_number++;
-      };
+        res = SQLGetDiagRec(
+          handleType, handle, rec_number, sqlState.data(), &native_error, messageText.data(), messageText.size(), &messageLength);
+      }
     }
   }
   void free_handle(SQLHSTMT h, SQLSMALLINT h_type, const char* info, const char* err, logger::Logger& log)
@@ -129,7 +134,11 @@ namespace rtl
     return db_sts::success;
   }
   ///
-  db_sts db_db2::connect(const std::string& conn_str) { return internal_connect(conn_str); }
+  db_sts db_db2::connect(const std::string& conn_str)
+  {
+    auto ret = internal_allocate_handles();
+    return ret == db_sts::success ? internal_connect(conn_str) : ret;
+  }
   db_sts db_db2::connect(const std::string& host, uint16_t port, const std::string& name, const std::string& user, const std::string& pass)
   {
     auto ret = internal_allocate_handles();
