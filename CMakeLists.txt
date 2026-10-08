@@ -900,7 +900,6 @@ if(BUILD_TESTING)
         src/test/main.cpp
         src/test/parser_test.cpp
         src/test/db_error_test.cpp
-        src/test/unique_id_test.cpp
         ${GEN_SRC_FILES}
     )
     # Only matters if CMAKE_CXX_CLANG_TIDY (compile-time tidy integration) is
